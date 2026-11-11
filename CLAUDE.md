@@ -117,6 +117,7 @@ pieces: the loading splash, the credit line, the studio link.
 - `npm run dev`: Vite dev server
 - `npm run lint`: ESLint and typecheck
 - `npm run test`: Vitest
+- `npm run sim`: bot smiths make every pattern in every steel and print the balance (about 90 seconds; `npm run sim -- cleaver 1084` for one)
 - `npm run build`: production build to `dist/`, then the first-load budget check (6 MB)
 - `npm run models:check`: holds every model in `public/assets/models/` to its budget
 - `python art/models/build.py`: rebuild the models (needs `pip install bpy==5.3.0`; or run the `models` workflow on a work branch). See `art/README.md`

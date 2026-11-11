@@ -10,6 +10,7 @@
     "postbuild": "node scripts/check-bundle.mjs",
     "preview": "vite preview",
     "test": "vitest run",
+    "sim": "node scripts/sim.mjs",
     "lint": "eslint . && tsc --noEmit",
     "models:check": "node scripts/models-check.mjs"
   },

@@ -1,20 +1,18 @@
 // Blades made the quick way, for tests: forged to shape by fiat, then ground, hardened and tempered by the sim.
-import type { BilletId } from '../src/data/billets'
 import type { MediumId } from '../src/data/media'
-import type { HandleId } from '../src/data/grind'
 import type { BlowType } from '../src/data/hammer'
 import type { PatternId } from '../src/data/patterns'
 import { PATTERNS } from '../src/data/patterns'
-import type { SteelId } from '../src/data/steels'
 import { steel } from '../src/data/steels'
 import type { Bar, Segment } from '../src/sim/bar'
-import { barLength, cloneBar, createBar, edgeThickness, segmentCentres } from '../src/sim/bar'
-import { fitHandle, strokeStone } from '../src/sim/finish'
+import { barLength, cloneBar, createBar, edgeThickness } from '../src/sim/bar'
+import type { Made } from '../src/sim/bots'
+import { quickBlade } from '../src/sim/bots'
 import type { Side } from '../src/sim/grind'
 import { stepGrind } from '../src/sim/grind'
 import { strike } from '../src/sim/hammer'
 import { advance, coolToRoom, stepHeat } from '../src/sim/heat'
-import { patternAt, patternLength, shapeScore } from '../src/sim/shape'
+import { patternAt, shapeScore } from '../src/sim/shape'
 import { temperInOven } from '../src/sim/temper'
 
 /** The first 65% of the bar is the blade; the rest is tang. */
@@ -77,70 +75,10 @@ export function finished(seed = 3): Bar {
   return bar
 }
 
-export interface Made {
-  /** Edge thickness left for the quench, and after it, in mm. */
-  rough?: number
-  thin?: number
-  /** Grinder tilt and sharpening angle, in degrees. */
-  tilt?: number
-  angle?: number
-  medium?: MediumId
-  /** Oven temperature for the two tempers, in °C. 0 leaves it untempered. */
-  temper?: number
-  handle?: HandleId
-  seed?: number
-  /** Which sides are ground. Both, unless this says otherwise. */
-  sides?: Side[]
-  /** The steel, when it is not the pattern's own. */
-  steel?: SteelId
-  /** What it was built from. A billet comes out welded sound, unless `prep` says otherwise. */
-  billet?: BilletId
-  /** Something done to the bar once it has its shape, before it is ground. */
-  prep?: (bar: Bar) => void
-}
+export type { Made }
 
 /** A blade of any pattern made the quick way: forged by fiat, then ground, hardened, tempered, sharpened and handled by the sim. */
-export function makeBlade(id: PatternId, how: Made = {}): Bar {
-  const p = PATTERNS[id]
-  const st = steel(how.steel ?? p.steel)
-  const length = patternLength(p)
-  const blade = length * p.bladeShare
-  const bar = createBar(st.id, { length, width: 30, thickness: 4 }, 48, how.seed ?? 5, how.billet ?? 'plain')
-  for (const s of bar.segments) s.weld = 1
-  let x = 0
-  for (const s of bar.segments) {
-    const size = patternAt(p, x + s.length / 2)
-    x += s.length
-    if (size) Object.assign(s, size)
-  }
-  if (how.prep) how.prep(bar)
-  const centres = segmentCentres(bar)
-  const work = bar.segments.filter((_, i) => (centres[i] as number) > blade * 0.08 && (centres[i] as number) < blade * 0.95)
-  const edge = (): number => work.reduce((e, s) => e + edgeThickness(s), 0) / work.length
-  const grind = (target: number, pressure: number): void => {
-    for (let n = 0; n < 1500 && edge() > target; n++) {
-      for (const side of how.sides ?? BOTH) for (let at = blade * 0.05; at <= blade * 0.97; at += 5) stepGrind(bar, { at, side, tilt: how.tilt ?? 5, pressure })
-    }
-  }
-  grind(how.rough ?? 1.5, 1)
-  coolToRoom(bar)
-  const cut = Math.floor(bar.segments.length * p.bladeShare)
-  for (let k = 0; k < 240; k++) {
-    for (let i = 0; i < cut; i++) (bar.segments[i] as Segment).temp = st.austenitize
-    stepHeat(bar, { where: 'air' })
-  }
-  advance(bar, { where: 'quench', medium: how.medium ?? 'fastOil', agitation: 1 }, 60)
-  coolToRoom(bar)
-  if (how.temper !== 0) {
-    temperInOven(bar, how.temper ?? 200, 60)
-    temperInOven(bar, how.temper ?? 200, 60)
-  }
-  grind(how.thin ?? 0.3, 0.4)
-  coolToRoom(bar)
-  for (let pass = 0; pass < 8; pass++) for (let at = 10; at <= blade - 5; at += 10) strokeStone(bar, { at, angle: how.angle ?? 20, pressure: 1 })
-  fitHandle(bar, how.handle ?? 'ash')
-  return bar
-}
+export const makeBlade = quickBlade
 
 /** A smith with no plan: every blow is the one that helps the shape most right now. */
 export function forge(id: PatternId, most: number): { score: number; blows: number } {
