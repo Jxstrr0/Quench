@@ -4,6 +4,7 @@ The plan is `docs/QUENCH-PLAN.md`. Newest line first.
 
 | Version | PR | What changed |
 | --- | --- | --- |
+| 0.9.1.0 | PR 9b: The forge | The **forge** is now a model: a stone trough of hand-laid blocks on a plinth, with an iron lip at the mouth, the port in the back wall, and a tuyere pipe through the side where the bellows blow. The **trench forge** is the same hearth, longer. The glowing coals are still drawn live by the game. 1 new test (323 in total). |
 | 0.9.0.0 | PR 9a: Model pipeline and the anvil | The start of the art pass. Models are now **written as Python and built by headless Blender** (`art/models/build.py`), either on a work branch from the GitHub app (Actions, **models**, Run workflow) or by Claude in a session. The first model is the **anvil**: a squat London-pattern anvil with a worn face, a horn and its two holes (516 triangles, 31 KiB). The game loads it over the grey box and keeps the box if the file is missing. Each model has a triangle and size budget that the tests enforce. 3 new tests (322 in total). |
 | 0.8.3.0 | PR 8d: Fix-it links | When a blade fails a test and is still in one piece, the report's lesson now has a **Fix it now** button that takes the blade straight to the stage that puts it right: the Grinder, the stone, the handle, the Temper card, or back to the fire. Lessons that cannot be undone on this blade (burnt, over-tempered, cold-worked) stay as advice for the next bar. Also a test that no screen code writes its own words: all text comes from the string table. 6 new tests (319 in total). **This finishes PR 8 (Teaching) as planned.** |
 | 0.8.2.0 | PR 8c: The glossary | **Tap-to-explain words.** Smithing words in the blade card, the trial report and the temper card are underlined with dots; tapping one opens a short plain explanation over the card. A **?** button at the top lists all 18 words (harden, quench, temper, normalize, grain, magnet, brittle, hardness, warp, burnt, bevel, tang, etch, stone, peen, forging heat, the Proving, bench hours). 7 new tests (313 in total). |
@@ -40,7 +41,7 @@ The plan is `docs/QUENCH-PLAN.md`. Newest line first.
 
 Pages is on and the custom domain is set: https://quench.longlight.games/. Each merge to `main` publishes there.
 
-## Questions for Kelbo after playing 0.9.0.0
+## Questions for Kelbo after playing 0.9.1.0
 
 Kelbo said to keep rolling and tune later, so these are saved up, not blocking.
 

@@ -6,7 +6,7 @@
 import type { Group } from 'three'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 
-export type ModelName = 'anvil'
+export type ModelName = 'anvil' | 'forge' | 'trench'
 
 const loader = new GLTFLoader()
 
