@@ -10,6 +10,7 @@
  * The sim's "left" flat is the top one (+y).
  */
 import { BufferAttribute, BufferGeometry, Color, Mesh, MeshStandardMaterial } from 'three'
+import { STEEL_LOOK } from '../data/look'
 import { steel } from '../data/steels'
 import type { Bar, Segment } from '../sim/bar'
 import { glowAt } from '../sim/glow'
@@ -19,12 +20,12 @@ const MM = 0.001
 /** A warp of a millimetre or two would not show at this scale, so it is drawn this many times larger. */
 const WARP_SHOWN = 3
 /** Dark, scaled steel from the fire; bright steel fresh off the belt; and the blue of an edge the belt overheated. */
-const SCALED = new Color(0x4d5157)
-const GROUND = new Color(0xc3c9d0)
-const BLUED = new Color(0x3a4f9c)
+const SCALED = new Color(STEEL_LOOK.scaled)
+const GROUND = new Color(STEEL_LOOK.ground)
+const BLUED = new Color(STEEL_LOOK.blued)
 /** After an etch: hardened steel goes dark, soft steel stays pale. */
-const ETCH_DARK = new Color(0x1f2226)
-const ETCH_PALE = new Color(0x9ea3a9)
+const ETCH_DARK = new Color(STEEL_LOOK.etchDark)
+const ETCH_PALE = new Color(STEEL_LOOK.etchPale)
 /** An edge this many HRC softer than the blade behind it shows fully blue. */
 const BLUE_AT = 6
 

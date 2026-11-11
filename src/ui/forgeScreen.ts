@@ -22,6 +22,8 @@ import { STEELS } from '../data/steels'
 import type { StringKey } from '../data/strings'
 import { t } from '../data/strings'
 import { BENCH } from '../data/tuning'
+import type { KeptBlade } from '../persist/collection'
+import { COLLECTION_MAX, keepBlade, loadCollection, removeBlade } from '../persist/collection'
 import type { Settings } from '../persist/settings'
 import { loadSettings, saveSettings } from '../persist/settings'
 import type { ForgeView } from '../render/forgeScene'
@@ -36,11 +38,13 @@ import type { Placement } from '../sim/heat'
 import { advance } from '../sim/heat'
 import { magnetTest } from '../sim/inspect'
 import { shapeScore } from '../sim/shape'
-import type { TrialResult } from '../sim/trials'
+import type { TrialReport, TrialResult } from '../sim/trials'
+import { createCollectionSheet } from './collectionSheet'
 import { button, createSheet, el } from './dom'
 import { createGrindBench } from './grindBench'
 import { MAGNET_KEY, createInspectSheet, createTemperSheet } from './treatSheets'
 import { createTrialPlayback } from './trialPlayback'
+import type { Kept } from './trialSheet'
 import { createTrialSheet } from './trialSheet'
 
 const BLOW_TYPES: BlowType[] = ['flat', 'edge', 'peen', 'point']
@@ -128,7 +132,17 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   const faultLine = el('p', 'hud-fault')
   faultLine.setAttribute('role', 'alert')
   faultLine.hidden = true
-  top.append(mode, place, shape, readout, faultLine)
+  const head = el('div', 'hud-head')
+  const rackBtn = button('btn hud-rack')
+  head.append(mode, rackBtn)
+  top.append(head, place, shape, readout, faultLine)
+
+  // The blades kept so far, and how many, on the button that opens them.
+  let kept = loadCollection()
+  const showRack = () => {
+    rackBtn.textContent = kept.length > 0 ? `${t('btn.collection')} · ${kept.length}` : t('btn.collection')
+  }
+  showRack()
 
   const hint = el('p', 'hud-hint', t('hint.drag'))
 
@@ -287,6 +301,15 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
     pattern: () => target,
     openTrials: () => trialSheet.open(),
     play: (results: readonly TrialResult[], done: () => void) => playback.start(results, done),
+    keep: (report: TrialReport, replace: string | null): Kept => {
+      if (!replace && kept.length >= COLLECTION_MAX) return 'full'
+      const next = keepBlade(kept, target.id, bar, report, Date.now(), replace)
+      if (!next) return 'failed'
+      const id = replace ?? (next[0] as KeptBlade).id
+      kept = next
+      showRack()
+      return { id }
+    },
     newBar: () => {
       if (bench.active) leaveBench()
       freshBar()
@@ -302,6 +325,14 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   const temperSheet = createTemperSheet(app, treat)
   const inspectSheet = createInspectSheet(app, treat)
   const trialSheet = createTrialSheet(app, treat)
+  const collectionSheet = createCollectionSheet(app, {
+    blades: () => kept,
+    remove: (id) => {
+      kept = removeBlade(kept, id)
+      showRack()
+    },
+  })
+  rackBtn.addEventListener('click', () => collectionSheet.open())
   const playback = createTrialPlayback(app)
 
   // --- The grinder bench ------------------------------------------------------

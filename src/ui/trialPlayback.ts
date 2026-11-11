@@ -4,29 +4,12 @@
  * on; Skip goes straight to the card. Players who ask their device for less
  * motion get the card at once.
  */
-import type { StringKey } from '../data/strings'
 import { t } from '../data/strings'
-import type { TrialId } from '../data/trials'
 import { PLAYBACK } from '../data/trials'
 import type { TrialShow } from '../render/trialStage'
 import type { TrialResult } from '../sim/trials'
 import { button, el } from './dom'
-
-export const TRIAL_NAME: Record<TrialId, StringKey> = {
-  fit: 'trial.fit',
-  rope: 'trial.rope',
-  brass: 'trial.brass',
-  chop: 'trial.chop',
-  shave: 'trial.shave',
-  board: 'trial.board',
-  bend: 'trial.bend.name',
-}
-
-/** What happened in a test, as a sentence. */
-export function outcomeText(r: TrialResult): string {
-  if (r.id === 'bend' && r.outcome === 'snapped') return t('out.bendSnapped', { n: Math.round(r.value ?? 0) })
-  return t(`out.${r.outcome}`)
-}
+import { TRIAL_NAME, outcomeText } from './trialParts'
 
 export interface Playback {
   readonly active: boolean

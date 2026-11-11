@@ -41,8 +41,8 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import type { BlowType } from '../data/hammer'
 import type { MediumId } from '../data/media'
 import type { Pattern } from '../data/patterns'
-import type { HandleId } from '../data/grind'
 import { GRIND, SHARPEN } from '../data/grind'
+import { HANDLE_LOOK } from '../data/look'
 import { BENCH, FORGE } from '../data/tuning'
 import type { Bar, Segment } from '../sim/bar'
 import { barLength, nearestSegment, segmentCentres } from '../sim/bar'
@@ -280,7 +280,6 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
   holder.add(tongs)
 
   // The handle: a plain grip over the tang, once one is fitted.
-  const HANDLE_LOOK: Record<HandleId, number> = { ash: 0xc8ae84, bogOak: 0x2b2019, cord: 0x39485a }
   const gripMat = new MeshStandardMaterial({ color: 0xc8ae84, roughness: 0.85 })
   const grip = new Mesh(new BoxGeometry(1, 1, 1), gripMat)
   grip.visible = false
