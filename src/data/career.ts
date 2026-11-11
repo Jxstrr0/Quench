@@ -86,7 +86,7 @@ export const BOARD = {
   max: 5,
 } as const
 
-export type CustomerId = 'tollisen' | 'brae' | 'netLoft' | 'marsk' | 'orrin' | 'leith' | 'cuttingClub'
+export type CustomerId = 'sollow' | 'tollisen' | 'brae' | 'netLoft' | 'marsk' | 'orrin' | 'leith' | 'cuttingClub'
 
 export interface Customer {
   name: string
@@ -95,6 +95,7 @@ export interface Customer {
 
 /** Invented people and outfits of Aldersay. Every name here is in docs/NAMES.md. */
 export const CUSTOMERS: Record<CustomerId, Customer> = {
+  sollow: { name: 'Maren Sollow', group: 'working' },
   tollisen: { name: 'Ragna Tollisen', group: 'working' },
   brae: { name: 'Eskil Brae', group: 'working' },
   netLoft: { name: 'Aldersay Net Loft', group: 'working' },
@@ -105,6 +106,7 @@ export const CUSTOMERS: Record<CustomerId, Customer> = {
 }
 
 export type BriefKind =
+  | 'neighbourKnife'
   | 'deckKnife'
   | 'croftKnife'
   | 'loftKnife'
@@ -128,9 +130,16 @@ export interface BriefTemplate {
   days: readonly [number, number]
   /** The Guild rating a smith needs before this customer asks. */
   rating: Rating
+  /** True for the commission a career opens with. It never comes up on the board, and giving it back costs no regard. */
+  first?: true
 }
 
+/** The commission a new career opens with: the one the coach teaches on. */
+export const FIRST_JOB: BriefKind = 'neighbourKnife'
+
 export const BRIEFS: Record<BriefKind, BriefTemplate> = {
+  /** The neighbour's knife: a plain one for her creel twine, with plenty of time to make it. */
+  neighbourKnife: { customer: 'sollow', pattern: 'campKnife', needs: ['rope'], fine: false, pay: [650, 650], days: [21, 21], rating: 'none', first: true },
   /** A line fisher's deck knife: it has to go through wet rope. */
   deckKnife: { customer: 'tollisen', pattern: 'campKnife', needs: ['rope'], fine: false, pay: [700, 900], days: [4, 7], rating: 'none' },
   /** A crofter's knife for kindling and fence stakes. */

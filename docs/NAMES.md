@@ -9,6 +9,7 @@ Check section 8 of `.github/LONGLIGHT-STUDIO.md` before adding a name, then add 
 | Skerrow crown (`kr`) | Money, written `kr 1,250` | PR 0 |
 | Skerrow Cutlers' Guild | Rates smiths: Apprentice, Journeyman, Master | PR 0 |
 | The Proving | The Guild's test day | PR 0 |
+| Maren Sollow | The neighbour on the quay; mends creels. Her knife is the first commission | PR 8a |
 | Ragna Tollisen | Line fisher; wants deck knives | PR 7a |
 | Eskil Brae | Crofter; wants a knife for kindling and stakes | PR 7a |
 | Aldersay Net Loft | The harbour's net makers | PR 7a |

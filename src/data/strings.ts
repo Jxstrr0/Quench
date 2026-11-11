@@ -264,6 +264,7 @@ const STRINGS = {
   'brief.dueToday': 'due today',
   'brief.lateOne': '1 day late',
   'brief.late': '{n} days late',
+  'brief.neighbourKnife': 'Your neighbour on the quay wants a plain knife for her creel twine. It only has to cut rope, and there is no hurry.',
   'brief.deckKnife': 'A deck knife for a line boat. It has to go through wet rope in one pull.',
   'brief.croftKnife': 'A croft knife for kindling and fence stakes. The edge must stand up to timber.',
   'brief.loftKnife': 'A bench knife for the net makers. It cuts cord all day and must still be sharp at the end of it.',

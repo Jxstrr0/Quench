@@ -23,6 +23,7 @@ export function ratingName(rating: Rating): string {
 }
 
 const BRIEF_KEY: Record<BriefKind, StringKey> = {
+  neighbourKnife: 'brief.neighbourKnife',
   deckKnife: 'brief.deckKnife',
   croftKnife: 'brief.croftKnife',
   loftKnife: 'brief.loftKnife',
