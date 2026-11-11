@@ -4,6 +4,7 @@ The plan is `docs/QUENCH-PLAN.md`. Newest line first.
 
 | Version | PR | What changed |
 | --- | --- | --- |
+| 0.10.0.0 | PR 10a: The fire's roar | **Sound pass, first part.** The forge fire has a voice: a low roar that rises, brightens and flutters harder with the bellows, louder for the trench forge and quieter while you work at the grinder or the trial stand. Made in code, no files. A **Volume** slider sits under Sound in the Assists card and is saved with the other settings (and in the save code). Any touch or key now wakes the sound, not only a touch on the scene, and the sound stops while the page is hidden. 3 new tests (334 in total). |
 | 0.9.12.0 | PR 9m: The baked floor | The room's **lightmap**: the soft shadows the forge, anvil, tank and bench cast on the floor are baked in Blender into one small texture on the flagstones (the whole floor is 22 KiB). The fire and the hot bar still light the room live. The bake puts each thing where the tuning table says it stands, and a test checks that. 1 new test (331 in total). |
 | 0.9.11.0 | PR 9l: The grinder | The **belt grinder** has a machine under its belt: the platen, a wheel at each end, a side rail on feet, and a finned motor past the far wheel. The belt, its grit lines and the sparks are still drawn live. |
 | 0.9.10.0 | PR 9k: The trial table and its fittings | The **trial table** is now three long planks on an apron and legs. The test rope hangs from an **iron bracket** out of the wall, which stays still while the rope swings. The brass rod lies on a **steel block** with a cheek each side. Kelbo's answer on the lightmap (do the bake) is in the plan as Q12. |
@@ -52,7 +53,7 @@ The plan is `docs/QUENCH-PLAN.md`. Newest line first.
 
 Pages is on and the custom domain is set: https://quench.longlight.games/. Each merge to `main` publishes there.
 
-## Questions for Kelbo after playing 0.9.12.0
+## Questions for Kelbo after playing 0.10.0.0
 
 Kelbo said to keep rolling and tune later, so these are saved up, not blocking.
 
@@ -80,6 +81,7 @@ Kelbo said to keep rolling and tune later, so these are saved up, not blocking.
 - **The sword in the fire.** About a minute and a half of sliding with some bellows brings the middle of the blade to hardening heat, and unevenly (the hottest part runs 200° over). Too slow, too fiddly, or the right step up? Is the scene too small on your phone when the sword is pushed right through?
 - **The save code.** Does Copy work on your phone, and does the code survive being pasted into Notes or a message and back? Does the backup file land somewhere you can find?
 - **The Proving.** A blade that passes is kept by the Guild, so it cannot also go to a customer; one that fails comes back to you and the fee is spent. Right?
+- **The fire's roar.** Too quiet at rest, too loud on the bellows, or right? Does it get tiring over a long session? Is the Volume slider easy to drag on your phone?
 - The room looks dark in screenshots even with the lights up. Is it on your phone?
 - Still open from 0.2.0.0: heating speed (1.5 times real speed), reading colour with the assists off, bar size.
 

@@ -9,6 +9,8 @@ export interface Settings {
   dimLights: boolean
   sound: boolean
   haptics: boolean
+  /** How loud the game is, 0 to 1. */
+  volume: number
 }
 
 export const SETTINGS_KEY = 'quench.settings'
@@ -21,6 +23,7 @@ export const DEFAULT_SETTINGS: Settings = {
   dimLights: false,
   sound: true,
   haptics: true,
+  volume: 0.7,
 }
 
 /** Read saved text back into settings. Anything missing or odd keeps its default. */
@@ -31,7 +34,10 @@ export function parseSettings(raw: string | null): Settings {
     const data = JSON.parse(raw) as Partial<Record<keyof Settings, unknown>> | null
     if (typeof data !== 'object' || data === null) return out
     for (const k of Object.keys(out) as (keyof Settings)[]) {
-      if (typeof data[k] === 'boolean') out[k] = data[k]
+      const v = data[k]
+      if (k === 'volume') {
+        if (typeof v === 'number' && v >= 0 && v <= 1) out.volume = v
+      } else if (typeof v === 'boolean') out[k] = v
     }
     return out
   } catch {

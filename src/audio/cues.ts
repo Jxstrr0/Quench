@@ -2,7 +2,7 @@
  * Sound cues: a pure map from what happened to what to play. No Web Audio
  * here, so it can be tested. The engine turns a voice into sound.
  */
-import { BELT_SOUND, HAMMER_SOUND, QUENCH_SOUND, STONE_SOUND } from '../data/audio'
+import { BELT_SOUND, FIRE_SOUND, HAMMER_SOUND, QUENCH_SOUND, STONE_SOUND } from '../data/audio'
 import type { MediumId } from '../data/media'
 
 export interface HammerVoice {
@@ -71,4 +71,28 @@ export function beltVoice(pressure: number): BeltVoice {
 export function strokeVoice(pressure: number): HissVoice {
   const k = STONE_SOUND
   return { gain: k.lightGain + (k.fullGain - k.lightGain) * clamp01(pressure), hz: k.hz, seconds: k.seconds }
+}
+
+export interface FireVoice {
+  /** Overall loudness, 0 to 1. */
+  gain: number
+  /** How bright the roar is: the low-pass filter's corner, in Hz. */
+  hz: number
+  /** How deeply the flames flutter, 0 to 1. */
+  flutter: number
+}
+
+/**
+ * The sound of the fire, from the bellows (`blast`, 0 to 1). `long` is the
+ * trench forge; `away` is true while the smith works across the room.
+ */
+export function fireVoice(blast: number, long: boolean, away: boolean): FireVoice {
+  const k = FIRE_SOUND
+  const b = clamp01(blast)
+  const gain = (k.idleGain + (k.fullGain - k.idleGain) * b) * (long ? k.longGain : 1) * (away ? k.awayGain : 1)
+  return {
+    gain: clamp01(gain),
+    hz: k.idleHz + (k.fullHz - k.idleHz) * b,
+    flutter: k.idleFlutter + (k.fullFlutter - k.idleFlutter) * b,
+  }
 }
