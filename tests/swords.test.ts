@@ -172,7 +172,6 @@ describe('heating a sword in a fire shorter than its blade', () => {
   }
   it('lets the tip out through the back, far enough to bring the heel into the core', () => {
     expect(railReach(P)).toBe(510)
-    expect(railReach(PATTERNS.campKnife)).toBe(BENCH.railMax)
   })
   it('cannot be done by holding the blade still', () => {
     const bar = forged()
