@@ -459,6 +459,28 @@ describe('sword commissions', () => {
     expect(wantedPattern(c)).toBe('shortSword')
     expect(bladeCost('shortSword')).toBeGreaterThan(bladeCost('campKnife'))
   })
+  it('get full-sword stock for the Master\u2019s Proving once the Guild would let them in, with no commission in hand', () => {
+    const c = newCareer(3)
+    c.rating = 'journeyman'
+    c.delivered = PROVINGS.master.delivered - 1
+    expect(wantedPattern(c)).toBe('campKnife')
+    c.delivered = PROVINGS.master.delivered
+    expect(wantedPattern(c)).toBe('fullSword')
+    // Being short of the fee does not change the stock: the bar itself costs money.
+    c.money = 0
+    expect(wantedPattern(c)).toBe('fullSword')
+    // A commission in hand comes first.
+    take(c, 'clubSword')
+    expect(wantedPattern(c)).toBe('shortSword')
+    drop(c)
+    // A Master is back to the plain bar.
+    c.rating = 'master'
+    expect(wantedPattern(c)).toBe('campKnife')
+    // The knife Provings are as they were.
+    const young = newCareer(3)
+    young.delivered = 50
+    expect(wantedPattern(young)).toBe('campKnife')
+  })
   it('swap an unworked bar for the right stock at the difference in price', () => {
     const c = newCareer(3)
     startBlade(c, 'campKnife')
