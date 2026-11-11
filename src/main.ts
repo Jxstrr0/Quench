@@ -3,39 +3,29 @@ import '@fontsource/zilla-slab/latin-600.css'
 import '@fontsource/atkinson-hyperlegible/latin-400.css'
 import '@fontsource/atkinson-hyperlegible/latin-700.css'
 import './style.css'
+import { t } from './data/strings'
 import { bindLoadingScreen } from './ui/loading'
 
 const loading = bindLoadingScreen()
-
-function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, text = ''): HTMLElementTagNameMap[K] {
-  const node = document.createElement(tag)
-  node.className = cls
-  node.textContent = text
-  return node
-}
 
 async function boot(): Promise<void> {
   const app = document.getElementById('app')
   if (!app) throw new Error('missing #app')
   loading.progress(0.3)
 
-  app.append(el('h1', 'title', 'Quench'), el('p', 'tagline', 'The forge is being built.'))
-  app.append(el('p', 'build', `v${__GAME_VERSION__} · ${__BUILD_SHA__} · ${__BUILD_DATE__}`))
-
-  const studio = el('p', 'studio', '© 2026 Kelbo / ')
-  const link = el('a', '', 'Longlight Interactive')
-  link.href = 'https://longlight.games/'
-  studio.append(link)
-  app.append(studio)
-
-  // three.js loads as its own chunk.
-  const { startGreybox } = await import('./render/greybox')
+  // three.js and the scene load as their own chunks.
+  const [{ createForgeView }, { startForgeScreen }] = await Promise.all([
+    import('./render/forgeScene'),
+    import('./ui/forgeScreen'),
+  ])
   loading.progress(0.9)
-  startGreybox(app)
+  // ?tier=lite turns bloom off. Graphics tiers with auto step-down arrive in PR 9.
+  const lite = new URLSearchParams(location.search).get('tier') === 'lite'
+  startForgeScreen(app, createForgeView(app, !lite))
   loading.done()
 }
 
 boot().catch((err: unknown) => {
   console.error(err)
-  loading.fail('Quench could not start. Check your connection and reload.')
+  loading.fail(t('boot.fail'))
 })

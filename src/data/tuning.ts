@@ -82,3 +82,22 @@ export const SCALE = {
   /** A segment never scales away thinner than this. */
   minThickness: 0.3,
 } as const
+
+/** The forge bench: how the bar travels between the fire and the anvil. */
+export const BENCH = {
+  /** The rail measures how far the tip is past the forge mouth (negative is outside). */
+  railMin: -85,
+  railMax: 225,
+  /** Tip positions at or below this rest the bar on the anvil. */
+  anvilFrom: -70,
+  /** Gap between the forge mouth and the anvil, and the anvil's length. */
+  anvilGap: 55,
+  anvilLength: 300,
+  /** Seconds for the bellows to reach full blast, and to die back. */
+  bellowsRise: 0.6,
+  bellowsFall: 1.5,
+  /** Sim seconds per real second at the forge. */
+  timeScale: 1.5,
+  /** The stock a fresh bar is cut from. */
+  stock: { length: 240, width: 32, thickness: 6 },
+} as const
