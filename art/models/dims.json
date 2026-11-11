@@ -15,5 +15,8 @@
   "tankFrom": -10,
   "tankTo": 470,
   "tankWide": 100,
-  "tankRim": 30
+  "tankRim": 30,
+  "benchLength": 1100,
+  "benchWidth": 340,
+  "benchTop": -21
 }

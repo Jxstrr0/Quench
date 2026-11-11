@@ -290,7 +290,48 @@ def tank():
     return finish("tank", bm, [tank_steel(), worn_steel(), steel()], bevel=0.002)
 
 
-MODELS = {"anvil": anvil, "forge": forge, "trench": trench, "tank": tank}
+def timber():
+    return material("timber", (0.075, 0.05, 0.03), 0.9, 0.0)
+
+
+def dark_timber():
+    return material("darkTimber", (0.04, 0.027, 0.017), 0.95, 0.0)
+
+
+def bench():
+    """
+    The grinding bench: thick planks on a trestle frame. Its origin is the
+    middle of the top, at the height of the anvil's face, so the top lies
+    below z = 0. The game sets the belt and the sharpening stone on it.
+    """
+    half_l = DIMS["benchLength"] * MM / 2
+    half_w = DIMS["benchWidth"] * MM / 2
+    top = DIMS["benchTop"] * MM
+    thick = 0.032
+    floor = -DIMS["floorDrop"] * MM
+    rnd = random.Random(7)
+    bm = bmesh.new()
+
+    # Four planks, each a hair off its neighbours in height and length.
+    planks = 4
+    wide = 2 * half_w / planks
+    for k in range(planks):
+        y0 = -half_w + k * wide
+        box(bm, -half_l + rnd.uniform(0, 0.012), half_l - rnd.uniform(0, 0.012), y0 + 0.0015, y0 + wide - 0.0015,
+            top - thick, top - rnd.uniform(0, 0.0015))
+    # An apron under the long edges, and a trestle near each end.
+    for side in (1, -1):
+        y0, y1 = sorted((side * (half_w - 0.02), side * (half_w - 0.045)))
+        box(bm, -half_l + 0.03, half_l - 0.03, y0, y1, top - thick - 0.03, top - thick, mat=1)
+    for x in (-half_l + 0.09, half_l - 0.09):
+        box(bm, x - 0.03, x + 0.03, -half_w + 0.012, half_w - 0.012, top - thick - 0.03, top - thick, mat=1)
+        for side in (1, -1):
+            y0, y1 = sorted((side * (half_w - 0.015), side * (half_w - 0.07)))
+            box(bm, x - 0.028, x + 0.028, y0, y1, floor, top - thick - 0.03, mat=1)
+    return finish("bench", bm, [timber(), dark_timber()], bevel=0.002)
+
+
+MODELS = {"anvil": anvil, "forge": forge, "trench": trench, "tank": tank, "bench": bench}
 
 
 def export(name):
