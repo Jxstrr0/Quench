@@ -173,3 +173,6 @@ export const VICE = { top: 130, jaw: 50, gap: 4 } as const
 
 /** The sword tests' props, in mm: how high the flex peg's block stands, how high the mat's stand is, and how wide its feet reach. The models are built to the same sizes. */
 export const SWORD_PROPS = { pegTop: 60, matFoot: 120, matStandWidth: 160 } as const
+
+/** The wall behind the trial stand, in mm from the stand's own origin: how far back it is, and the window's opening (along the table, and up from the table top). The wall model is built to the same sizes. */
+export const TRIAL_WALL = { back: 350, windowFrom: 140, windowTo: 440, sill: 420, head: 740 } as const

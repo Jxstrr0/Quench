@@ -499,8 +499,64 @@ def floor():
     return finish("floor", bm, [flag(0), flag(1), flag(2)])
 
 
+def wall_stone(k):
+    tint = ((0.034, 0.039, 0.047), (0.041, 0.046, 0.054), (0.029, 0.033, 0.04))[k]
+    return material(f"wallStone{k}", tint, 1.0, 0.0)
+
+
+def wall():
+    """
+    The wall behind the trial stand: coursed stone, faces only, with a window
+    opening framed in timber. The game draws the harbour at dusk behind the
+    opening, and its plain wall shows in the joints. The origin is the trial
+    stand's: x along the table, z up from the table top, the wall at +y.
+    """
+    back = DIMS["wallBack"] * MM
+    wx0, wx1 = DIMS["windowFrom"] * MM, DIMS["windowTo"] * MM
+    wz0, wz1 = DIMS["windowSill"] * MM, DIMS["windowHead"] * MM
+    rnd = random.Random(23)
+    joint = 0.006
+    y = back - 0.003
+    bm = bmesh.new()
+    z = -0.1
+    row = 0
+    while z < 1.7:
+        high = rnd.uniform(0.12, 0.16)
+        x = -1.3 - rnd.uniform(0, 0.2) - (0.14 if row % 2 else 0)
+        while x < 1.3:
+            wide = rnd.uniform(0.22, 0.36)
+            a, b = x + joint / 2, x + wide - joint / 2
+            lo, hi = z + joint / 2, z + high - joint / 2
+            x += wide
+            # A block that would cover the window is cut back to the opening's edge, or left out.
+            if hi > wz0 and lo < wz1:
+                if a >= wx0 and b <= wx1:
+                    continue
+                if a < wx0 < b:
+                    b = wx0
+                elif a < wx1 < b:
+                    a = wx1
+                if b - a < 0.02:
+                    continue
+            quad = [(a, y, lo), (b, y, lo), (b, y, hi), (a, y, hi)]
+            bm.faces.new([bm.verts.new(p) for p in quad]).material_index = rnd.randrange(3)
+        z += high
+        row += 1
+    # The window's frame, and a deeper sill.
+    f = 0.018
+    box(bm, wx0 - f, wx0, back - 0.03, back, wz0 - f, wz1 + f, mat=3)
+    box(bm, wx1, wx1 + f, back - 0.03, back, wz0 - f, wz1 + f, mat=3)
+    box(bm, wx0, wx1, back - 0.03, back, wz1, wz1 + f, mat=3)
+    box(bm, wx0 - f - 0.01, wx1 + f + 0.01, back - 0.05, back, wz0 - f, wz0, mat=3)
+    # One glazing bar up the middle and one across.
+    mid = (wx0 + wx1) / 2
+    box(bm, mid - 0.005, mid + 0.005, back - 0.016, back - 0.006, wz0, wz1, mat=3)
+    box(bm, wx0, wx1, back - 0.016, back - 0.006, (wz0 + wz1) / 2 - 0.005, (wz0 + wz1) / 2 + 0.005, mat=3)
+    return finish("wall", bm, [wall_stone(0), wall_stone(1), wall_stone(2), dark_timber()])
+
+
 MODELS = {"anvil": anvil, "forge": forge, "trench": trench, "tank": tank, "bench": bench, "tongs": tongs, "vice": vice,
-          "peg": peg, "matstand": matstand, "floor": floor}
+          "peg": peg, "matstand": matstand, "floor": floor, "wall": wall}
 
 
 def export(name):

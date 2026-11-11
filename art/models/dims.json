@@ -29,5 +29,10 @@
   "floorFrom": -1300,
   "floorTo": 1700,
   "floorNear": 1200,
-  "floorFar": 1000
+  "floorFar": 1000,
+  "wallBack": 350,
+  "windowFrom": 140,
+  "windowTo": 440,
+  "windowSill": 420,
+  "windowHead": 740
 }

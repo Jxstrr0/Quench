@@ -6,11 +6,11 @@
  * The blade is held in profile, tip to the left, edge down. Stage space is
  * metres from the middle of the table top; y is up.
  */
-import { BoxGeometry, CylinderGeometry, Group, Mesh, MeshStandardMaterial, PlaneGeometry, PointLight, Vector3 } from 'three'
+import { BoxGeometry, CylinderGeometry, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, PointLight, Vector3 } from 'three'
 import type { TrialId } from '../data/trials'
-import { SWORD_PROPS, VICE } from '../data/tuning'
+import { SWORD_PROPS, TRIAL_WALL, VICE } from '../data/tuning'
 import type { Outcome } from '../sim/trials'
-import { swapIn } from './models'
+import { loadModel, swapIn } from './models'
 
 /** One moment of one test's playback. */
 export interface TrialShow {
@@ -94,10 +94,49 @@ function prop(geometry: BoxGeometry | CylinderGeometry, colour: number, rough = 
   return new Mesh(geometry, new MeshStandardMaterial({ color: colour, roughness: rough, metalness: metal }))
 }
 
+/**
+ * Aldersay harbour at dusk, seen through the window: sky, the last light on
+ * the horizon, the sea, the far headland and the harbour light. Flat unlit
+ * shapes, so the lamp over the stand does not wash them out.
+ */
+function harbourView(z: number): Group {
+  const view = new Group()
+  const x0 = TRIAL_WALL.windowFrom * MM
+  const wide = (TRIAL_WALL.windowTo - TRIAL_WALL.windowFrom) * MM
+  const y0 = TRIAL_WALL.sill * MM
+  const high = (TRIAL_WALL.head - TRIAL_WALL.sill) * MM
+  const horizon = y0 + high * 0.4
+  /** A flat shape from (ax, ay) to (bx, by), `layer` steps in front of the sky. */
+  const flat = (ax: number, ay: number, bx: number, by: number, colour: number, layer: number) => {
+    const shape = new Mesh(new PlaneGeometry(bx - ax, by - ay), new MeshBasicMaterial({ color: colour }))
+    shape.position.set((ax + bx) / 2, (ay + by) / 2, z + layer * 0.0003)
+    view.add(shape)
+  }
+  flat(x0, y0, x0 + wide, y0 + high, 0x16233a, 0)
+  flat(x0, horizon, x0 + wide, horizon + high * 0.1, 0x3d3440, 1)
+  flat(x0, horizon, x0 + wide, horizon + high * 0.035, 0x7a4a36, 2)
+  flat(x0, y0, x0 + wide, horizon, 0x0b141e, 3)
+  // The headland comes in from the right and steps down to the mole.
+  flat(x0 + wide * 0.55, horizon, x0 + wide, horizon + high * 0.075, 0x070a0e, 4)
+  flat(x0 + wide * 0.4, horizon, x0 + wide * 0.55, horizon + high * 0.03, 0x070a0e, 4)
+  // The harbour light on the end of the mole, and its path on the water.
+  flat(x0 + wide * 0.405, horizon + high * 0.03, x0 + wide * 0.425, horizon + high * 0.065, 0x070a0e, 4)
+  flat(x0 + wide * 0.4, horizon + high * 0.065, x0 + wide * 0.43, horizon + high * 0.09, 0xffd166, 5)
+  flat(x0 + wide * 0.408, horizon - high * 0.12, x0 + wide * 0.422, horizon - high * 0.01, 0x8a6a2c, 5)
+  return view
+}
+
 export function createTrialStage(): TrialStage {
   const group = new Group()
   const wall = new Mesh(new PlaneGeometry(4, 3), new MeshStandardMaterial({ color: 0x2a3038, roughness: 1 }))
-  wall.position.set(0, 0.8, -0.35)
+  const wallZ = -TRIAL_WALL.back * MM
+  wall.position.set(0, 0.8, wallZ)
+  // The stone wall and its window arrive as a model; the harbour at dusk is drawn behind the opening.
+  loadModel('wall')
+    .then((stones) => group.add(stones, harbourView(wallZ + 0.001)))
+    .catch(() => {
+      // No model: the plain wall stays, with no window.
+    })
   // A lamp over the stand, so the steel and the vice read against the wall.
   const lamp = new PointLight(0xfff1dc, 1.1, 3, 1.2)
   lamp.position.set(0.25, 0.7, 0.7)
