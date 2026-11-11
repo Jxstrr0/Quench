@@ -6,10 +6,10 @@
  */
 import type { PatternId } from '../data/patterns'
 import { PATTERNS } from '../data/patterns'
-import { STEELS } from '../data/steels'
 import type { Bar } from '../sim/bar'
 import { cloneBar } from '../sim/bar'
 import type { TrialReport } from '../sim/trials'
+import { isNumber, isObject, rounded, soundBar, soundTrials } from './sound'
 
 export interface KeptBlade {
   id: string
@@ -20,26 +20,11 @@ export interface KeptBlade {
   trials: TrialReport
 }
 
-const KEY = 'quench.collection'
+export const COLLECTION_KEY = 'quench.collection'
+const KEY = COLLECTION_KEY
 const VERSION = 1
 /** How many blades the collection holds. A blade is a few thousand characters; this keeps well inside a browser's allowance. */
 export const COLLECTION_MAX = 24
-/** Numbers are saved to this many decimal places: far finer than anything the blade card shows. */
-const PLACES = 10000
-
-const isObject = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null && !Array.isArray(x)
-const isNumber = (x: unknown): x is number => typeof x === 'number' && Number.isFinite(x)
-
-function soundBar(x: unknown): x is Bar {
-  if (!isObject(x) || typeof x.steel !== 'string' || !(x.steel in STEELS)) return false
-  if (!Array.isArray(x.segments) || x.segments.length < 2 || !Array.isArray(x.history)) return false
-  return x.segments.every((s) => isObject(s) && isNumber(s.length) && isNumber(s.width) && isNumber(s.thickness) && s.length > 0)
-}
-
-function soundTrials(x: unknown): x is TrialReport {
-  if (!isObject(x) || !Array.isArray(x.results) || !isNumber(x.passed)) return false
-  return x.results.every((r) => isObject(r) && typeof r.id === 'string' && typeof r.passed === 'boolean' && typeof r.outcome === 'string')
-}
 
 function soundBlade(x: unknown): x is KeptBlade {
   if (!isObject(x) || typeof x.id !== 'string' || !isNumber(x.kept)) return false
@@ -61,9 +46,7 @@ export function parseCollection(raw: string | null): KeptBlade[] {
 
 /** The text to save for these blades. */
 export function packCollection(blades: readonly KeptBlade[]): string {
-  return JSON.stringify({ v: VERSION, blades }, (_key, value: unknown) =>
-    typeof value === 'number' && !Number.isInteger(value) ? Math.round(value * PLACES) / PLACES : value,
-  )
+  return JSON.stringify({ v: VERSION, blades }, rounded)
 }
 
 export function loadCollection(): KeptBlade[] {

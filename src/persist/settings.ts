@@ -11,7 +11,8 @@ export interface Settings {
   haptics: boolean
 }
 
-const KEY = 'quench.settings'
+export const SETTINGS_KEY = 'quench.settings'
+const KEY = SETTINGS_KEY
 
 export const DEFAULT_SETTINGS: Settings = {
   heatWords: false,
@@ -22,16 +23,25 @@ export const DEFAULT_SETTINGS: Settings = {
   haptics: true,
 }
 
-export function loadSettings(): Settings {
+/** Read saved text back into settings. Anything missing or odd keeps its default. */
+export function parseSettings(raw: string | null): Settings {
+  const out = { ...DEFAULT_SETTINGS }
+  if (!raw) return out
   try {
-    const raw = localStorage.getItem(KEY)
-    if (!raw) return { ...DEFAULT_SETTINGS }
-    const data = JSON.parse(raw) as Partial<Record<keyof Settings, unknown>>
-    const out = { ...DEFAULT_SETTINGS }
+    const data = JSON.parse(raw) as Partial<Record<keyof Settings, unknown>> | null
+    if (typeof data !== 'object' || data === null) return out
     for (const k of Object.keys(out) as (keyof Settings)[]) {
       if (typeof data[k] === 'boolean') out[k] = data[k]
     }
     return out
+  } catch {
+    return { ...DEFAULT_SETTINGS }
+  }
+}
+
+export function loadSettings(): Settings {
+  try {
+    return parseSettings(localStorage.getItem(KEY))
   } catch {
     return { ...DEFAULT_SETTINGS }
   }
