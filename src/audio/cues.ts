@@ -2,7 +2,10 @@
  * Sound cues: a pure map from what happened to what to play. No Web Audio
  * here, so it can be tested. The engine turns a voice into sound.
  */
-import { BELT_SOUND, FIRE_SOUND, HAMMER_SOUND, QUENCH_SOUND, STONE_SOUND } from '../data/audio'
+import type { TrialSound } from '../data/audio'
+import { BELT_SOUND, FIRE_SOUND, HAMMER_SOUND, QUENCH_SOUND, STONE_SOUND, TRIAL_TIMES } from '../data/audio'
+import type { TrialId } from '../data/trials'
+import type { Outcome } from '../sim/trials'
 import type { MediumId } from '../data/media'
 
 export interface HammerVoice {
@@ -95,4 +98,57 @@ export function fireVoice(blast: number, long: boolean, away: boolean): FireVoic
     hz: k.idleHz + (k.fullHz - k.idleHz) * b,
     flutter: k.idleFlutter + (k.fullFlutter - k.idleFlutter) * b,
   }
+}
+
+export interface TrialCue {
+  /** When it sounds, as a share of the playback's length. */
+  at: number
+  sound: TrialSound
+}
+
+/**
+ * What a test sounds like as it plays, in order. `bow` is how far through its
+ * bow a sword got before it snapped, 0 to 1 (only the flex test reads it).
+ */
+export function trialCues(id: TrialId, outcome: Outcome, bow = 1): TrialCue[] {
+  const k = TRIAL_TIMES
+  const each = (times: readonly number[], sound: TrialSound): TrialCue[] => times.map((at) => ({ at, sound }))
+  if (id === 'rope' || id === 'mat') {
+    const through = outcome === 'clean' || outcome === 'cut'
+    const end: TrialSound = through ? (id === 'rope' ? 'ropeCut' : 'matCut') : outcome === 'partCut' ? 'ropeDrag' : 'bounce'
+    return [
+      { at: k.swing, sound: 'swish' },
+      { at: k.hit, sound: end },
+    ]
+  }
+  if (id === 'chop') {
+    const first: TrialCue = { at: k.chopFirst, sound: 'chop' }
+    if (outcome === 'snapped') return [first, { at: k.chopSnap, sound: 'snap' }]
+    const rest: TrialCue[] = [first, { at: k.chopSecond, sound: 'chop' }]
+    if (outcome === 'chipped') rest.push({ at: k.chopSecond, sound: 'chip' })
+    return [...rest, { at: k.chopSplit, sound: 'split' }]
+  }
+  if (id === 'brass') {
+    const cues = each(k.brass, 'brass')
+    if (outcome === 'chips') cues.push({ at: k.brass[k.brass.length - 1] as number, sound: 'chip' })
+    return cues
+  }
+  if (id === 'shave') return each(k.strokes, outcome === 'shaves' ? 'stroke' : 'drag')
+  if (id === 'board') return each(k.strokes, outcome === 'glides' ? 'stroke' : 'drag')
+  if (id === 'bend') {
+    const start: TrialCue = { at: k.bendStart, sound: 'strain' }
+    return outcome === 'snapped' ? [start, { at: k.bendSnap, sound: 'snap' }] : [start]
+  }
+  if (id === 'flex') {
+    const start: TrialCue = { at: k.flexStart, sound: 'strain' }
+    if (outcome === 'snapped') return [start, { at: Math.max(k.flexStart, clamp01(bow) * k.flexSnapBy), sound: 'snap' }]
+    return outcome === 'springsTrue' ? [start, { at: k.flexRelease, sound: 'spring' }] : [start]
+  }
+  // Fit and finish is looked at, not heard.
+  return []
+}
+
+/** The cues that fall due as the playback moves from `from` up to (not reaching) `to`. */
+export function cuesDue(cues: readonly TrialCue[], from: number, to: number): TrialSound[] {
+  return cues.filter((c) => c.at >= from && c.at < to).map((c) => c.sound)
 }

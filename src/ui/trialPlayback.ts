@@ -4,8 +4,10 @@
  * on; Skip goes straight to the card. Players who ask their device for less
  * motion get the card at once.
  */
+import { cuesDue, trialCues } from '../audio/cues'
+import type { TrialSound } from '../data/audio'
 import { t } from '../data/strings'
-import { PLAYBACK } from '../data/trials'
+import { FLEX, PLAYBACK } from '../data/trials'
 import type { TrialShow } from '../render/trialStage'
 import type { TrialResult } from '../sim/trials'
 import { button, el } from './dom'
@@ -19,7 +21,10 @@ export interface Playback {
   frame(dt: number): TrialShow | null
 }
 
-export function createTrialPlayback(host: HTMLElement): Playback {
+/** How far a sword bows in the flex test, in degrees: a snap part-way sounds part-way. */
+const BOW = FLEX.angle
+
+export function createTrialPlayback(host: HTMLElement, sound: (name: TrialSound) => void): Playback {
   const layer = el('div', 'playback')
   layer.hidden = true
   const caption = el('div', 'playback-caption')
@@ -88,8 +93,11 @@ export function createTrialPlayback(host: HTMLElement): Playback {
       if (!playing) return null
       const r = results[index] as TrialResult
       const seconds = PLAYBACK.seconds[r.id]
+      const before = clock / seconds
       clock += dt
+      for (const name of cuesDue(trialCues(r.id, r.outcome, (r.value ?? BOW) / BOW), before, clock / seconds)) sound(name)
       if (clock >= seconds && !result.textContent) {
+        sound(r.passed ? 'pass' : 'fail')
         result.textContent = `${r.passed ? '✓' : '✗'} ${t(r.passed ? 'trial.passed' : 'trial.failed')}. ${outcomeText(r)}`
       }
       if (clock >= seconds + PLAYBACK.hold) {

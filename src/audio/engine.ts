@@ -2,7 +2,8 @@
  * The sound engine: Web Audio, all synthesized, no files. Browsers only allow
  * sound after a touch or click, so `unlock()` is called from the first one.
  */
-import { FIRE_SOUND, QUENCH_SOUND } from '../data/audio'
+import type { TrialSound } from '../data/audio'
+import { FIRE_SOUND, QUENCH_SOUND, TRIAL_SOUNDS } from '../data/audio'
 import type { BeltVoice, FireVoice, HammerVoice, HissVoice } from './cues'
 
 /** The ring is three partials, a little out of tune with each other, like struck steel. */
@@ -10,6 +11,12 @@ const PARTIALS: [ratio: number, level: number][] = [
   [1, 1],
   [2.32, 0.5],
   [3.9, 0.25],
+]
+
+/** Wood has a body note and one weak overtone. */
+const WOOD: [ratio: number, level: number][] = [
+  [1, 1],
+  [2.7, 0.3],
 ]
 
 export interface AudioEngine {
@@ -26,6 +33,8 @@ export interface AudioEngine {
   hiss(voice: HissVoice): void
   /** The small, clear sound of a blade cracking. */
   ping(): void
+  /** One sound from the trial stand. */
+  trial(sound: TrialSound): void
   /** The belt grinder's steady rush. Call as often as it changes; pass null to switch the belt off. */
   belt(voice: BeltVoice | null): void
 }
@@ -84,6 +93,32 @@ export function createAudioEngine(): AudioEngine {
     const long = longNoise.getChannelData(0)
     for (let i = 0; i < long.length; i++) long[i] = Math.random() * 2 - 1
     return true
+  }
+
+  /** Something struck: steel rings on its partials; wood drops in pitch and dies quickly. */
+  const struck = (hz: number, seconds: number, level: number, metal: boolean): void => {
+    if (!enabled || !ctx || !master || ctx.state !== 'running') return
+    const now = ctx.currentTime
+    for (const [ratio, part] of metal ? PARTIALS : WOOD) {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.frequency.setValueAtTime(hz * ratio, now)
+      if (!metal) osc.frequency.exponentialRampToValueAtTime(hz * ratio * 0.6, now + seconds)
+      gain.gain.setValueAtTime(level * part, now)
+      gain.gain.exponentialRampToValueAtTime(0.0005, now + seconds / ratio)
+      osc.connect(gain).connect(master)
+      osc.start(now)
+      osc.stop(now + seconds / ratio + 0.02)
+    }
+    if (!metal && noise) {
+      // The knock of the blow itself.
+      const click = ctx.createBufferSource()
+      click.buffer = noise
+      const clickGain = ctx.createGain()
+      clickGain.gain.value = 0.4 * level
+      click.connect(clickGain).connect(master)
+      click.start(now)
+    }
   }
 
   return {
@@ -223,18 +258,12 @@ export function createAudioEngine(): AudioEngine {
       src.stop(now + voice.seconds + 0.05)
     },
     ping() {
-      if (!enabled || !ctx || !master || ctx.state !== 'running') return
-      const now = ctx.currentTime
-      for (const [ratio, level] of PARTIALS) {
-        const osc = ctx.createOscillator()
-        const gain = ctx.createGain()
-        osc.frequency.value = QUENCH_SOUND.pingHz * ratio
-        gain.gain.setValueAtTime(0.35 * level, now)
-        gain.gain.exponentialRampToValueAtTime(0.0005, now + QUENCH_SOUND.pingSeconds / ratio)
-        osc.connect(gain).connect(master)
-        osc.start(now)
-        osc.stop(now + QUENCH_SOUND.pingSeconds / ratio + 0.02)
-      }
+      struck(QUENCH_SOUND.pingHz, QUENCH_SOUND.pingSeconds, 0.35, true)
+    },
+    trial(sound) {
+      const shape = TRIAL_SOUNDS[sound]
+      if (shape.kind === 'noise') this.hiss(shape)
+      else struck(shape.hz, shape.seconds, shape.gain, shape.metal)
     },
   }
 }

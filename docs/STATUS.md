@@ -4,6 +4,7 @@ The plan is `docs/QUENCH-PLAN.md`. Newest line first.
 
 | Version | PR | What changed |
 | --- | --- | --- |
+| 0.10.1.0 | PR 10b: The trial stand's sounds | Every test can now be heard as well as seen: the swish of the swing, a bright snip through the rope or a dull bounce off it, two chops and the timber parting, the edge leaned on the brass rod, a soft stroke for an edge that shaves and a rough drag for one that does not, the strain of the bend, the clear snap of a blade letting go, a sword springing back true. The examiner rings a small bell for a pass and knocks the table for a fail. The cue list is a pure table with its timings in `src/data/audio.ts`; all made in code. 6 new tests (340 in total). |
 | 0.10.0.0 | PR 10a: The fire's roar | **Sound pass, first part.** The forge fire has a voice: a low roar that rises, brightens and flutters harder with the bellows, louder for the trench forge and quieter while you work at the grinder or the trial stand. Made in code, no files. A **Volume** slider sits under Sound in the Assists card and is saved with the other settings (and in the save code). Any touch or key now wakes the sound, not only a touch on the scene, and the sound stops while the page is hidden. 3 new tests (334 in total). |
 | 0.9.12.0 | PR 9m: The baked floor | The room's **lightmap**: the soft shadows the forge, anvil, tank and bench cast on the floor are baked in Blender into one small texture on the flagstones (the whole floor is 22 KiB). The fire and the hot bar still light the room live. The bake puts each thing where the tuning table says it stands, and a test checks that. 1 new test (331 in total). |
 | 0.9.11.0 | PR 9l: The grinder | The **belt grinder** has a machine under its belt: the platen, a wheel at each end, a side rail on feet, and a finned motor past the far wheel. The belt, its grit lines and the sparks are still drawn live. |
@@ -53,7 +54,7 @@ The plan is `docs/QUENCH-PLAN.md`. Newest line first.
 
 Pages is on and the custom domain is set: https://quench.longlight.games/. Each merge to `main` publishes there.
 
-## Questions for Kelbo after playing 0.10.0.0
+## Questions for Kelbo after playing 0.10.1.0
 
 Kelbo said to keep rolling and tune later, so these are saved up, not blocking.
 
@@ -82,6 +83,7 @@ Kelbo said to keep rolling and tune later, so these are saved up, not blocking.
 - **The save code.** Does Copy work on your phone, and does the code survive being pasted into Notes or a message and back? Does the backup file land somewhere you can find?
 - **The Proving.** A blade that passes is kept by the Guild, so it cannot also go to a customer; one that fails comes back to you and the fee is spent. Right?
 - **The fire's roar.** Too quiet at rest, too loud on the bellows, or right? Does it get tiring over a long session? Is the Volume slider easy to drag on your phone?
+- **The trial sounds.** With the screen dimmed, can you tell a pass from a fail, and a snap from a clean cut? Is any one of them too loud, too quiet or annoying on the tenth hearing?
 - The room looks dark in screenshots even with the lights up. Is it on your phone?
 - Still open from 0.2.0.0: heating speed (1.5 times real speed), reading colour with the assists off, bar size.
 
