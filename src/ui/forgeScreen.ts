@@ -35,7 +35,7 @@ import type { ForgeView } from '../render/forgeScene'
 import type { Bar } from '../sim/bar'
 import { barLength, cloneBar, createBar, hottest } from '../sim/bar'
 import type { CareerState } from '../sim/career'
-import { benchWork, bladeCost, deliver, fundBlade, newCareer, nextRating, provingBar, provingDay, sitProving, swapBlade, wantedPattern } from '../sim/career'
+import { benchWork, bladeCost, deliver, fundBlade, newCareer, nextRating, provingBar, provingDay, sitProving, swapBlade, takeFirstJob, wantedPattern } from '../sim/career'
 import { heatWord } from '../sim/glow'
 import type { CrackCause } from '../sim/bar'
 import type { Fault } from '../sim/hammer'
@@ -565,6 +565,8 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
       } else buyBar()
     } else {
       career = newCareer((Date.now() ^ Math.floor(Math.random() * 0x100000000)) >>> 0)
+      // A new career opens with the neighbour's knife already in hand.
+      takeFirstJob(career)
       buyBar()
     }
     saveActive(slot)

@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import type { BriefKind } from '../src/data/career'
-import { BOARD, BRIEFS, CUSTOMERS, DAY, EFFORT, HOURS, MONEY, PROVING, PROVINGS, REP, TOOLS } from '../src/data/career'
+import { BOARD, BRIEFS, CUSTOMERS, DAY, EFFORT, FIRST_JOB, HOURS, MONEY, PROVING, PROVINGS, REP, TOOLS } from '../src/data/career'
 import { PATTERNS } from '../src/data/patterns'
 import type { TrialId } from '../src/data/trials'
 import type { CareerState } from '../src/sim/career'
@@ -21,6 +21,7 @@ import {
   spendHours,
   startBlade,
   swapBlade,
+  takeFirstJob,
   toolOffered,
   unmet,
   wantedPattern,
@@ -497,5 +498,52 @@ describe('the trench forge as a tool', () => {
   })
   it('costs less than one sword commission pays', () => {
     expect(TOOLS.trenchForge.price).toBeLessThan(BRIEFS.clubSword.pay[0])
+  })
+})
+
+describe('the neighbour\'s knife', () => {
+  it('is in hand when a career opens, with weeks to make it', () => {
+    const c = newCareer(9)
+    expect(takeFirstJob(c)).toBe(true)
+    expect(c.job?.kind).toBe(FIRST_JOB)
+    expect(c.job?.pay).toBe(BRIEFS[FIRST_JOB].pay[0])
+    expect((c.job?.due ?? 0) - c.day).toBeGreaterThanOrEqual(14)
+    expect(wantedPattern(c)).toBe('campKnife')
+    // It is not handed out twice.
+    expect(takeFirstJob(c)).toBe(false)
+  })
+  it('never comes up on the board', () => {
+    for (let seed = 1; seed <= 40; seed++) {
+      const c = newCareer(seed)
+      takeFirstJob(c)
+      drop(c)
+      for (let n = 0; n < 6; n++) {
+        expect(c.board.some((b) => BRIEFS[b.kind].first)).toBe(false)
+        spendHours(c, DAY.hours * 9)
+        fillBoard(c)
+      }
+    }
+  })
+  it('can be given back without losing any regard', () => {
+    const c = newCareer(3)
+    takeFirstJob(c)
+    const before = { ...c.rep }
+    expect(drop(c)).toBe(true)
+    expect(c.rep).toEqual(before)
+    expect(c.job).toBeNull()
+  })
+  it('is not offered to a smith who has already delivered', () => {
+    const c = newCareer(3)
+    c.delivered = 1
+    expect(takeFirstJob(c)).toBe(false)
+  })
+  it('pays, and counts toward the Apprentice Proving, when a knife that cuts rope is handed over', () => {
+    const c = newCareer(5)
+    takeFirstJob(c)
+    const money = c.money
+    const d = deliver(c, report(['fit', 'rope'], ['chop']), 'campKnife')
+    expect(d?.taken).toBe(true)
+    expect(c.money).toBeGreaterThan(money)
+    expect(c.delivered).toBe(1)
   })
 })

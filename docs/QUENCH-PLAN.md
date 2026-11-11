@@ -575,6 +575,8 @@ Kelbo has asked for Quench to be added to the studio site, so this plan allows
 | Q7 | When is Quench listed on the studio site? | **Hidden until Kelbo says so.** Do not make the listing public at PR 6 without asking. |
 | Q8 | An examiner voice through ElevenLabs? | Decide at PR 10, after hearing the game without it. |
 | Q9 | Who sets up the `quench` DNS record and Pages domain? | Kelbo, any time after PR 0. |
+| Q10 | How does a sword longer than the fire get heated? | Start with the short fire and slide the blade through. A long fire (the trench forge) is a tool bought in the Career. |
+| Q11 | How does teaching work (PR 8)? | The guided first blade is the first career job, a real commission from a neighbour. The coach goes step by step: one instruction at a time, the next shows when the last is done, and the player stays free to do anything. The glossary is both underlined words in reports and cards, and a Help button listing every word. |
 
 Working rules agreed the same day:
 

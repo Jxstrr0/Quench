@@ -7,7 +7,7 @@
  * place. Every draw comes from the seeded generator held in the state.
  */
 import type { BriefKind, Group, Rating, StageId, ToolId } from '../data/career'
-import { BOARD, BRIEFS, CUSTOMERS, DAY, EFFORT, GROUPS, HOURS, MONEY, PROVING, PROVINGS, RATINGS, REP, SUPPLIES, TOOLS } from '../data/career'
+import { BOARD, BRIEFS, CUSTOMERS, DAY, EFFORT, FIRST_JOB, GROUPS, HOURS, MONEY, PROVING, PROVINGS, RATINGS, REP, SUPPLIES, TOOLS } from '../data/career'
 import type { PatternId } from '../data/patterns'
 import { pattern } from '../data/patterns'
 import type { TrialId } from '../data/trials'
@@ -64,6 +64,17 @@ export function newCareer(seed: number): CareerState {
   return state
 }
 
+/**
+ * Put the opening commission in the smith's hand: a plain knife for a
+ * neighbour. Only a career with nothing in hand and nothing delivered gets it.
+ */
+export function takeFirstJob(state: CareerState): boolean {
+  if (state.job || state.delivered > 0) return false
+  const b = BRIEFS[FIRST_JOB]
+  state.job = { id: state.nextId++, kind: FIRST_JOB, pay: b.pay[0], due: state.day + b.days[0] }
+  return true
+}
+
 /** True when `have` is at least `need`. */
 export function holds(have: Rating, need: Rating): boolean {
   return RATINGS.indexOf(have) >= RATINGS.indexOf(need)
@@ -91,7 +102,7 @@ export function fillBoard(state: CareerState): void {
   const want = rng.int(BOARD.min, BOARD.max)
   while (state.board.length < want) {
     const open = (Object.keys(BRIEFS) as BriefKind[]).filter(
-      (k) => holds(state.rating, BRIEFS[k].rating) && state.job?.kind !== k && !state.board.some((b) => b.kind === k),
+      (k) => !BRIEFS[k].first && holds(state.rating, BRIEFS[k].rating) && state.job?.kind !== k && !state.board.some((b) => b.kind === k),
     )
     if (open.length === 0) break
     const kind = rng.weighted(
@@ -200,7 +211,8 @@ function addRep(state: CareerState, group: Group, by: number): void {
 /** Give the commission in hand back. The customer's group thinks a little less of the smith. */
 export function drop(state: CareerState): boolean {
   if (!state.job) return false
-  addRep(state, CUSTOMERS[BRIEFS[state.job.kind].customer].group, REP.dropped)
+  // The neighbour does not hold it against a smith who would rather find their own way.
+  if (!BRIEFS[state.job.kind].first) addRep(state, CUSTOMERS[BRIEFS[state.job.kind].customer].group, REP.dropped)
   state.job = null
   fillBoard(state)
   return true
