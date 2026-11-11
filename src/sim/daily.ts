@@ -1,10 +1,14 @@
 // Adapted from The-Whip src/sim/modes.js (11 November 2026)
 /**
  * The daily commission. As in The Whip, the seed is the date, and everything
- * about the day is drawn from it: the pattern, the steel and the bar's luck
+ * about the day follows from it: the pattern, the steel and the bar's luck
  * in the quench. The date is a UTC calendar day written `YYYY-MM-DD`, so the
  * whole world has the same commission at the same moment. The sim never
  * reads a clock: the screen passes the date in.
+ *
+ * Days run in rounds. In a round every pattern gets its days, shuffled, so
+ * the same pattern is never asked for two days running, and each time it
+ * comes up within a round it is in a different steel.
  */
 import { DAILY } from '../data/daily'
 import type { PatternId } from '../data/patterns'
@@ -63,13 +67,74 @@ export function dailySeed(date: string): number {
   return hash(`DAILY-${date}`)
 }
 
+/** Days since 1 January 1970 for a calendar day: plain arithmetic, no clock. */
+export function dayNumber(date: string): number {
+  let year = Number(date.slice(0, 4))
+  const month = Number(date.slice(5, 7))
+  const day = Number(date.slice(8, 10))
+  if (month <= 2) year -= 1
+  const era = Math.floor(year / 400)
+  const yearOfEra = year - era * 400
+  const dayOfYear = Math.floor((153 * (month > 2 ? month - 3 : month + 9) + 2) / 5) + day - 1
+  const dayOfEra = yearOfEra * 365 + Math.floor(yearOfEra / 4) - Math.floor(yearOfEra / 100) + dayOfYear
+  return era * 146097 + dayOfEra - 719468
+}
+
+/** One copy of each pattern for every day it gets in a round. */
+const BAG: readonly PatternId[] = PATTERN_ORDER.flatMap((id) => Array.from({ length: DAILY.patterns[id] }, () => id))
+/** Patterns with days to spare: one of these ends each round, so a round can always start with something else. */
+const ENDS: readonly PatternId[] = PATTERN_ORDER.filter((id) => DAILY.patterns[id] >= 2)
+
+/** The pattern a round ends on. Drawn on its own, so the next round can avoid it without working this one out. */
+function lastOf(round: number): PatternId {
+  return new Rng(hash(`DAILY-round-${round}:last`)).pick(ENDS)
+}
+
+function shuffle<T>(items: T[], rng: Rng): void {
+  for (let i = items.length - 1; i > 0; i--) {
+    const j = rng.int(0, i)
+    const held = items[i] as T
+    items[i] = items[j] as T
+    items[j] = held
+  }
+}
+
+/**
+ * The patterns for the days of a round, in order. Every pattern gets its
+ * days; no two days running ask for the same one, within the round or across
+ * the join with the round before.
+ */
+function roundOf(round: number): PatternId[] {
+  const rng = new Rng(hash(`DAILY-round-${round}`))
+  const before = lastOf(round - 1)
+  const last = lastOf(round)
+  const first = rng.pick(BAG.filter((id) => id !== before && (id !== last || DAILY.patterns[id] >= 2)))
+  const rest = [...BAG]
+  rest.splice(rest.indexOf(first), 1)
+  rest.splice(rest.indexOf(last), 1)
+  let days: PatternId[] = []
+  for (let tries = 0; tries < DAILY.shuffles; tries++) {
+    shuffle(rest, rng)
+    days = [first, ...rest, last]
+    if (days.every((id, i) => i === 0 || id !== days[i - 1])) break
+  }
+  return days
+}
+
 /** The commission for a day. The same date always gives the same one. */
 export function dailyFor(date: string): Daily {
   if (!isDailyDate(date)) throw new RangeError(`dailyFor: not a date: ${date}`)
-  // The brief is drawn from its own stream, so the bar's luck does not follow from what was asked.
-  const rng = new Rng(hash(`DAILY-${date}:brief`))
-  const id = rng.weighted(PATTERN_ORDER.map((item) => ({ item, weight: DAILY.patterns[item] })))
-  return { date, seed: dailySeed(date), pattern: id, steel: rng.pick<SteelId>(DAILY.steels[id]) }
+  const n = dayNumber(date)
+  const round = Math.floor(n / BAG.length)
+  const index = n - round * BAG.length
+  const days = roundOf(round)
+  const id = days[index] as PatternId
+  // Within a round, each time a pattern comes up it is in a different steel.
+  const steels: SteelId[] = [...DAILY.steels[id]]
+  shuffle(steels, new Rng(hash(`DAILY-round-${round}:${id}`)))
+  let turn = 0
+  for (let i = 0; i < index; i++) if (days[i] === id) turn++
+  return { date, seed: dailySeed(date), pattern: id, steel: steels[turn % steels.length] as SteelId }
 }
 
 /**

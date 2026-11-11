@@ -10,11 +10,28 @@ import type { StringKey } from '../data/strings'
 import { t } from '../data/strings'
 import type { CareerSave } from '../persist/career'
 import type { Brief, CareerState } from '../sim/career'
+import type { Daily, DailyResult } from '../sim/daily'
 import { accept, billetOffered, buyTool, drop, nextRating, oddJob, provingBar, provingDay, toolOffered, wantedPattern } from '../sim/career'
 import { briefNeeds, briefTerms, briefTitle, briefWhat, money, ratingName, testList } from './careerWords'
+import { dailyWhat, dayWords, pastLine, scoreWords } from './dailyWords'
 import type { Sheet } from './dom'
 import { button, createSheet, el } from './dom'
 import { note } from './trialParts'
+
+/** The daily commission as it stands for this player. */
+export interface DailyView {
+  today: Daily
+  /** Today's bar has been started: it is saved, or on the anvil. */
+  started: boolean
+  /** Today's bar is the one on the anvil now. */
+  onAnvil: boolean
+  /** What it scored, once it has been put to the test. */
+  result: DailyResult | null
+  /** Past days' scores, newest first. */
+  scores: DailyResult[]
+  /** Whole hours until the next commission. */
+  hoursLeft: number
+}
 
 export interface CareerHost {
   /** The career in play, or null in Free forge. */
@@ -32,6 +49,13 @@ export interface CareerHost {
   openBackup(): void
   /** True when it is time to suggest a backup. */
   backupDue(): boolean
+  daily(): DailyView
+  /** Put today's bar on the anvil: a new one, or the one already started. Whatever was in play is saved first. */
+  playDaily(): void
+  /** True when a daily commission's bar is on the anvil. */
+  inDaily(): boolean
+  /** Copy the day's score, as a few lines of text. False when the device would not. */
+  copyDaily(): Promise<boolean>
 }
 
 const TOOL_KEY: Record<ToolId, [StringKey, StringKey]> = {
@@ -40,6 +64,9 @@ const TOOL_KEY: Record<ToolId, [StringKey, StringKey]> = {
   loupe: ['tool.loupe', 'tool.loupe.what'],
   trenchForge: ['tool.trenchForge', 'tool.trenchForge.what'],
 }
+
+/** How many past days' scores the card lists. */
+const PAST_SHOWN = 7
 
 /** A button that asks for a second tap before it acts. */
 function twoTap(cls: string, label: string, sure: string, act: () => void): HTMLButtonElement {
@@ -67,8 +94,56 @@ export function createCareerSheet(host: HTMLElement, forge: CareerHost): Sheet {
     return forge.backupDue() ? [note(t('career.backupDue'), 'sheet-note sheet-small'), open] : [open]
   }
 
+  /** Today's commission: what it asks, where the player stands with it, and past days. */
+  const dailyParts = (): HTMLElement[] => {
+    const view = forge.daily()
+    const card = el('div', 'brief')
+    card.append(el('h4', 'brief-title', dayWords(view.today.date)), el('p', 'brief-what', dailyWhat(view.today)), el('p', 'brief-needs', t('daily.rules')))
+    if (view.result) {
+      card.append(el('p', 'brief-terms', t('daily.scored', { words: scoreWords(view.result) })))
+      const said = note('', 'sheet-note sheet-small')
+      said.setAttribute('role', 'status')
+      said.hidden = true
+      const copy = button('btn btn-wide', 'daily.copy')
+      copy.addEventListener('click', () => {
+        void forge.copyDaily().then((ok) => {
+          said.textContent = t(ok ? 'daily.copied' : 'daily.copyFailed')
+          said.hidden = false
+        })
+      })
+      card.append(copy, said, note(t(view.hoursLeft <= 1 ? 'daily.nextOne' : 'daily.next', { n: view.hoursLeft }), 'sheet-note sheet-small'))
+    }
+    if (view.onAnvil) {
+      card.append(note(t('daily.here'), 'sheet-note sheet-small'))
+    } else {
+      const go = button('btn btn-wide', view.started ? 'daily.resume' : 'daily.start')
+      go.addEventListener('click', () => {
+        forge.playDaily()
+        sheet.close()
+      })
+      card.append(go)
+    }
+    const parts: HTMLElement[] = [el('h3', 'sheet-sub', t('daily.title')), card]
+    const past = view.scores.filter((s) => s.date !== view.today.date).slice(0, PAST_SHOWN)
+    if (past.length > 0) {
+      const list = el('ul', 'daily-past')
+      for (const s of past) list.append(el('li', '', pastLine(s)))
+      parts.push(el('p', 'sheet-note sheet-small', t('daily.past')), list)
+    }
+    return parts
+  }
+
+  const leaveParts = (): HTMLElement[] => {
+    const leave = button('btn btn-wide btn-quiet', 'career.leave')
+    leave.addEventListener('click', () => {
+      forge.leave()
+      sheet.close()
+    })
+    return [leave, note(t(forge.inDaily() ? 'daily.leave.note' : 'career.leave.note'), 'sheet-note sheet-small')]
+  }
+
   const slots = () => {
-    body.replaceChildren(note(t('career.intro')))
+    body.replaceChildren(...dailyParts(), el('h3', 'sheet-sub', t('mode.career')), note(t('career.intro')))
     forge.slots().forEach((save, i) => {
       const n = i + 1
       const row = button('kept')
@@ -93,6 +168,7 @@ export function createCareerSheet(host: HTMLElement, forge: CareerHost): Sheet {
       }
     })
     body.append(...backupParts())
+    if (forge.inDaily()) body.append(...leaveParts())
     sheet.card.scrollTop = 0
   }
 
@@ -221,12 +297,7 @@ export function createCareerSheet(host: HTMLElement, forge: CareerHost): Sheet {
       forge.changed()
       ledger(state, t('career.oddJob.done', { money: money(got), day: state.day }))
     })
-    const leave = button('btn btn-wide btn-quiet', 'career.leave')
-    leave.addEventListener('click', () => {
-      forge.leave()
-      sheet.close()
-    })
-    body.append(odd, ...backupParts(), leave, note(t('career.leave.note'), 'sheet-note sheet-small'))
+    body.append(odd, ...dailyParts(), ...backupParts(), ...leaveParts())
     sheet.card.scrollTop = 0
   }
 

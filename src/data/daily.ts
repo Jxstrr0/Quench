@@ -10,11 +10,13 @@ import type { SteelId } from './steels'
 
 export const DAILY = {
   /**
-   * How often each pattern comes up, as a weight. A short sword is twice the
-   * work of a knife, so it is a rare day. A full sword is three times the
-   * work: never.
+   * How many days each pattern gets in a round. A round is as long as these
+   * add up to: 13 days. A short sword is twice the work of a knife, so it is
+   * one day in the round. A full sword is three times the work: never.
    */
   patterns: { campKnife: 3, cooksKnife: 3, cleaver: 3, cuttingKnife: 3, shortSword: 1, fullSword: 0 } satisfies Record<PatternId, number>,
+  /** How many times a round's days are shuffled, at most, to find an order with no pattern two days running. */
+  shuffles: 400,
   /**
    * The steels a pattern may be asked for in. Every one listed can pass all
    * of that pattern's tests with an oil quench (tests/daily.test.ts holds
