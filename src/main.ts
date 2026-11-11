@@ -5,6 +5,7 @@ import '@fontsource/atkinson-hyperlegible/latin-700.css'
 import './style.css'
 import { t } from './data/strings'
 import { bindLoadingScreen } from './ui/loading'
+import { startOffline } from './ui/offline'
 import { TIER_SETTINGS, createGraphics } from './render/perf'
 
 const loading = bindLoadingScreen()
@@ -25,6 +26,8 @@ async function boot(): Promise<void> {
   const view = createForgeView(app, TIER_SETTINGS[graphics.start])
   startForgeScreen(app, view, graphics)
   loading.done()
+  // Keep the game for offline play, and watch for a new version.
+  startOffline()
 }
 
 boot().catch((err: unknown) => {
