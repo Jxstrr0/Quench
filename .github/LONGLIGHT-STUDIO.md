@@ -15,7 +15,7 @@
 > games stay up, and everything in this file still applies to them. The
 > listed six are Prairie Engine Works, Season Ticket, Scrapline, Lombard,
 > Frontier Lab and Red Skies. Quench, the newest game, was added hidden on
-> the same day and stays hidden until Kelbo says it's built enough.
+> the same day and stays hidden until Kelbo says to show it.
 
 ---
 
@@ -193,7 +193,7 @@ Status is Kelbo's label on the studio site (`projects.json`); version is what
 the repo's code says on 7 November 2026. Order is Kelbo's own ranking.
 **Hidden** marks the four games taken off the site on 11 November 2026
 (`"hidden": true`); they are still live at their own addresses. Quench is
-new and hidden until it's more built.
+new and hidden until Kelbo says to show it.
 
 | Game | Status | Version | Genre | Setting | Screen | Stack |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -207,7 +207,7 @@ new and hidden until it's more built.
 | Frontier Lab | In development | 0.1.63.0 | AI-lab tycoon (fork of Vault Street) | Real cities on procedural maps | Portrait | TypeScript, Preact, 2D canvas/SVG |
 | The Whip | Released, **hidden** | 1.0.0.0 | Political career: votes, deals, whip | Dominion of Caledor (Westminster) | Portrait first | ES modules, no build, three 0.160 (CDN) |
 | Red Skies | Complete | 1.6.1.0 | SAM air-defence: identify, hold fire | Republic of Varenna | **Portrait only** | Plain JS + inline build, three r128 vendored |
-| Quench | Prototype, **hidden** | 0.2.1.0 (11 Nov) | Bladesmithing: heat, hammer, grind, quench, temper, trial | Aldersay, the Skerrow Isles (present day) | Portrait first | TypeScript, Vite, three 0.187 (npm) |
+| Quench | Polishing, **hidden** | 1.0.0.0 (11 Nov) | Bladesmithing: heat, hammer, grind, quench, temper, trial | Aldersay, the Skerrow Isles (present day) | Portrait first | TypeScript, Vite, three 0.187 (npm) |
 
 Studio site trading projects (not games): Pre-market brief, AI Trading Journal,
 Agent Fleet.
@@ -740,7 +740,8 @@ are as of this snapshot.
 
 ### Quench
 
-- **Status:** prototype, 0.2.1.0 on 11 November 2026 (`VERSION` file), early in its staged plan (`docs/QUENCH-PLAN.md` section 13; `docs/STATUS.md` says where it stands). Hidden on the studio site until Kelbo says otherwise.
+- **Status:** the site's label is "Polishing"; 1.0.0.0 on 11 November 2026 (`VERSION` file). Every stage of its plan is built (`docs/QUENCH-PLAN.md` section 13, PR 0 to PR 13); `docs/STATUS.md` says where it stands and holds the tuning questions still open. Not yet played by a person, so tuning carries on as 1.0.x. Hidden on the studio site until Kelbo says otherwise.
+- **What is in it:** Free forge, a Career through the Guild ratings with knives and swords as one thread, a Collection of kept blades with share cards, san-mai and pattern-welded billets from Journeyman, a daily commission (one bar a day, a UTC day, the same for everyone, no server), offline play and install, a crash card that keeps the save safe, and `npm run sim` bot smiths for balance.
 - **Pitch:** a bladesmithing game. Heat a bar, read its colour, hammer it to shape, grind it, harden it in the quench, temper it, then find out at the trial what you really made.
 - **Setting and tone:** Aldersay, a harbour town on the invented Skerrow Isles, present day. Money is the Skerrow crown (`kr`). No fantasy, no combat, no gore: blades are tools, sport cutting pieces and collector pieces. Steel grades are real generic standards (1084, 5160, W2).
 - **Look:** chalk and slate, Zilla Slab and Atkinson Hyperlegible, a heat-colour ramp. Reading heat always has a non-colour path.

@@ -11,6 +11,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "sim": "node scripts/sim.mjs",
+    "cover": "node scripts/cover.mjs",
     "lint": "eslint . && tsc --noEmit",
     "models:check": "node scripts/models-check.mjs"
   },
