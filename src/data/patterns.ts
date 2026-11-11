@@ -4,6 +4,7 @@
  * Units: millimetres.
  */
 import type { SteelId } from './steels'
+import type { TrialId } from './trials'
 
 export interface Station {
   /** Distance from the tip. */
@@ -21,6 +22,8 @@ export interface Pattern {
   stock: { length: number; width: number; thickness: number }
   /** Tip first. The last station is the end of the tang. */
   stations: Station[]
+  /** The tests a finished blade of this pattern faces, in order. The bend in the vice is extra: it ends the blade. */
+  trials: TrialId[]
 }
 
 export const PATTERNS: Record<PatternId, Pattern> = {
@@ -38,6 +41,7 @@ export const PATTERNS: Record<PatternId, Pattern> = {
       { at: 220, width: 20, thickness: 6 },
       { at: 320, width: 17, thickness: 6 },
     ],
+    trials: ['fit', 'rope', 'brass', 'chop', 'shave'],
   },
 }
 

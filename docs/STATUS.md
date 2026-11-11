@@ -4,6 +4,7 @@ The plan is `docs/QUENCH-PLAN.md`. Newest line first.
 
 | Version | PR | What changed |
 | --- | --- | --- |
+| 0.5.2.0 | PR 6a: The trials (sim only) | Nothing new on screen. A finished blade can now be put to the test, and the same blade always gets the same result. The camp knife faces five: fit and finish, the hanging rope cut, the brass rod, a timber chop and a shave afterwards. The chop wears the edge, so the shave is taken on what is left. Two more are ready for later: the kitchen board and the 90 degree bend in a vice, which ends the blade. Every failure names its cause (never ground, edge too thick, edge too fine, never hardened, belt-burnt edge, tempered too soft, not tempered, tempered too cool, the brittle band, coarse grain, cold work), and a blade that breaks records where, and the grain in the break. 19 new tests (191 in total), with one fixed "known blade". PR 6b adds the heat history and the fracture report. |
 | 0.5.1.0 | PR 5c: Stone, etch and handle on screen | At the Grinder, a Tool button swaps the belt for a sharpening stone: slide the edge along it, one stroke for every 20 mm, at the angle on the slider. "Edge here" says blunt, working sharp or keen. Changing the angle rounds the edge over, and an edge left too thick will not take one. Etch darkens hardened steel and leaves soft steel pale. Handle fits ash, bog oak or a cord wrap over the tang, says how it sits, and burns off if the tang goes back in the fire. The Inspect card gains Sharpness, Handle and Etch lines. Assists is no longer on the bench (it is at the forge). 5 new tests (172 in total). |
 | 0.5.0.0 | PR 5b: The grinder on screen | A Grinder button (where "Dim lights" was; that is now a switch in Assists) carries a cool blade to a belt grinder. Hold a finger on the scene and the belt grinds the blade where you touch; slide along it. A tilt slider, Flip (side A or B), Press (light, firm, hard) and Dip (a water bucket). The bevels show as bright steel and the blade turns over when flipped. The edge's heat is always given in words (cool, warm, hot, straw, blue), with the number if that assist is on, and an overheated edge shows blue. A blade too hot to hold cannot be ground until it is dipped. Sparks and a belt sound. The Inspect card gains an Edge line and says what to grind next. The sharpening stone, the etch and handles come in PR 5c. 8 new tests (167 in total). |
 | 0.4.1.0 | PR 5a: Grinding and finishing (sim only) | Nothing new on screen. The belt grinder: holding a flat to the belt at a tilt grinds a bevel, steep tilts thin the edge and flat tilts climb toward the spine, and hard steel grinds slower. Belt heat lands in the thin edge, so a hardened edge held hard to the belt loses its temper (the blade behind it does not). An edge ground too thin before hardening can crack in the quench, bevels on one side only warp the blade, and a bevelled blade cools faster. Grinding takes off the carbon-poor skin. Also the sharpening stone, the etch and three handles. 33 new tests (159 in total). PR 5b puts it on screen. |
@@ -19,7 +20,7 @@ The plan is `docs/QUENCH-PLAN.md`. Newest line first.
 
 Pages is on and the custom domain is set: https://quench.longlight.games/. Each merge to `main` publishes there.
 
-## Questions for Kelbo after playing 0.5.1.0
+## Questions for Kelbo after playing 0.5.2.0
 
 Kelbo said to keep rolling and tune later, so these are saved up, not blocking.
 
@@ -31,6 +32,7 @@ Kelbo said to keep rolling and tune later, so these are saved up, not blocking.
 - **The grinder.** Is holding a finger on the scene to grind clear? You see the side that is being ground, which a real grinder hides: fine, or odd? Is three pressures and a tilt slider too much to manage with thumbs?
 - **The stone.** One stroke per 20 mm of slide, about six strokes for a keen edge on soft steel and more on hard. Too quick? The angle does nothing yet except punish changing it; the trials (PR 6) will read it.
 - **Grinding numbers**: leaning hard on a thin hardened edge for about two seconds ruins it; light pressure never does. An edge left about 1 mm thick is safe in oil; a knife-thin one cracks about 1 time in 4. Too harsh, too kind?
+- **The trials** (not on screen until 0.6.0.0). The sharpening angle now matters: 15 degrees cuts rope best and rolls on timber, 20 passes both, 25 holds and cuts a little worse. A sound camp knife snaps in the vice at about 50 degrees (the pass mark is 45); only a spring temper or a soft back bends further. Right for a first knife, or should 90 degrees be reachable without clay?
 - The Inspect card shows grain and a hardness number in Free forge. In the Career those would be tools you buy (as with the heat number). Agreed?
 - The room looks dark in screenshots even with the lights up. Is it on your phone?
 - Still open from 0.2.0.0: heating speed (1.5 times real speed), reading colour with the assists off, bar size.
