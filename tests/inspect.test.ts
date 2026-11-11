@@ -58,7 +58,7 @@ describe('the inspection', () => {
     expect(inspect(bar, BLADE).next).toBe('temperAgain')
     temperInOven(bar, 200, 60)
     look = inspect(bar, BLADE)
-    expect(look.next).toBe('done')
+    expect(look.next).toBe('grind')
     expect(look.tempers).toBe(2)
     expect(look.file).toBe('skates')
     expect(look.tough).toBe('tough')

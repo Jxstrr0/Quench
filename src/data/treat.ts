@@ -66,6 +66,12 @@ export const CRACK = {
   sure: 4.5,
   /** A factor has to add at least this much to be named as the cause. */
   causeFloor: 0.25,
+  /**
+   * A ground edge thinner than this (mm) adds stress: a little just under it,
+   * and up to `edgeGain` for an edge of nothing.
+   */
+  edgeSafe: 0.8,
+  edgeGain: 20,
 } as const
 
 /** Warping in the quench, as millimetres of bow. */
@@ -81,6 +87,8 @@ export const WARP = {
   slenderRef: 100,
   /** Stirring evens the cooling: full agitation takes this share off. */
   agitationEase: 0.4,
+  /** Bevels ground on one side only count this much more; even bevels add nothing. */
+  bevelGain: 2,
   /** A warp under this is straight enough to pass. */
   straight: 0.5,
 } as const
@@ -173,4 +181,17 @@ export const INSPECT = {
   magnetAll: 0.9,
   /** A blade tempered this many times is done. */
   tempersWanted: 2,
+  /** A finished edge is at most this thick behind the sharpening, in mm... */
+  edgeWanted: 0.4,
+  /** ...over at least this share of the blade's length. */
+  edgeShare: 0.7,
+  /** Before hardening, an edge at least this thick is safe in the quench. */
+  edgeRough: 0.8,
+  /** The edge has lost its temper when it is this many HRC softer than the blade behind it. */
+  edgeSoftBy: 3,
+  /** Bevels count as lopsided from this lean (0 is even, 1 is all on one side). */
+  bevelLean: 0.25,
+  /** Keenness from this up is a working edge; from `keenFrom` up it is keen. */
+  workingFrom: 0.4,
+  keenFrom: 0.8,
 } as const

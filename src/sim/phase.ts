@@ -12,6 +12,7 @@ import { steel } from '../data/steels'
 import { CRACK, GRAIN, PHASE, TEMPER, WARP } from '../data/treat'
 import { SIM } from '../data/tuning'
 import type { Bar, CrackCause, Segment } from './bar'
+import { bevelLean, edgeThickness, isGround } from './bar'
 import { detExp } from './det'
 import { Rng } from './rng'
 import { formMartensite, temperAfter } from './temper'
@@ -130,6 +131,7 @@ export function stepPhase(bar: Bar, before: readonly number[], warpFreedom: numb
       s.bainiteTime = 0
       s.coldest = st.ms
       s.stress = 0
+      s.edgeTemper = 0
       if (temp > growFrom && s.austenite > 0) {
         const want = GRAIN.finest + ((temp - growFrom) / 100) * GRAIN.perHundred
         const ceiling = want < GRAIN.coarsest ? want : GRAIN.coarsest
@@ -176,7 +178,10 @@ export function stepPhase(bar: Bar, before: readonly number[], warpFreedom: numb
         const damage = CRACK.damageGain * (s.damage < 1 ? s.damage : 1)
         if (largest === 0) largest = largestSection(bar)
         const corner = CRACK.cornerGain * cornerJump(bar, i, largest)
-        s.stress += formed * speed * (1 + grain) * (1 + damage) * (1 + corner) * st.crackSensitivity
+        const edge = edgeThickness(s)
+        const lack = isGround(s) && edge < CRACK.edgeSafe ? 1 - edge / CRACK.edgeSafe : 0
+        const thin = CRACK.edgeGain * lack * lack
+        s.stress += formed * speed * (1 + grain) * (1 + damage) * (1 + corner) * (1 + thin) * st.crackSensitivity
         pull += formed * (WARP.floor + speed) * s.length
 
         if (!bar.crack) {
@@ -186,6 +191,7 @@ export function stepPhase(bar: Bar, before: readonly number[], warpFreedom: numb
             let most: number = CRACK.causeFloor
             if (grain > most) { cause = 'coarseGrain'; most = grain }
             if (damage > most) { cause = 'coldWork'; most = damage }
+            if (thin > most) { cause = 'thinEdge'; most = thin }
             if (corner > most) cause = 'corner'
             bar.crack = { segment: i, cause }
           }
@@ -195,12 +201,16 @@ export function stepPhase(bar: Bar, before: readonly number[], warpFreedom: numb
 
     // Warm martensite tempers, wherever the warmth comes from.
     if (s.martensite > 0 && temp >= TEMPER.startTemp) s.temper = temperAfter(s.temper, temp, dt / 3600)
+    // The belt can take the thin edge further than the rest.
+    if (s.edgeHot > 0 && s.martensite > 0 && temp + s.edgeHot >= TEMPER.startTemp) {
+      s.edgeTemper = temperAfter(s.edgeTemper > s.temper ? s.edgeTemper : s.temper, temp + s.edgeHot, dt / 3600)
+    }
   }
 
   if (pull > 0 && warpFreedom > 0) {
     luck ??= quenchLuck(bar)
     const slender = (length * length) / (thickness * WARP.slenderRef)
-    const uneven = WARP.base + bar.quenchSpread / WARP.spreadRef
+    const uneven = WARP.base + bar.quenchSpread / WARP.spreadRef + WARP.bevelGain * bevelLean(bar)
     bar.warp += luck.side * WARP.gain * slender * (pull / length) * uneven * warpFreedom
   }
 }

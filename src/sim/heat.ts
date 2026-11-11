@@ -7,6 +7,7 @@
  *
  * Built from + - * / only, so every phone gets the same bar.
  */
+import { GRIND, HANDLE } from '../data/grind'
 import { HAMMER } from '../data/hammer'
 import type { Medium, MediumId } from '../data/media'
 import { medium } from '../data/media'
@@ -14,7 +15,7 @@ import { steel } from '../data/steels'
 import { COOL, WARP } from '../data/treat'
 import { FORGE, KELVIN, SCALE, SHOP, SIGMA, SIM, STEEL_PHYSICS } from '../data/tuning'
 import type { Bar, Segment } from './bar'
-import { hottest, segmentCentres } from './bar'
+import { edgeZoneArea, fitBevels, hottest, isGround, segmentCentres, steelVolume } from './bar'
 import { beginQuench, stepPhase } from './phase'
 
 /** Where the bar is right now. */
@@ -65,7 +66,13 @@ export function fireTempAt(d: number, blast: number): number {
 
 /** Joules needed to warm this segment by one degree. */
 export function heatCapacity(s: Segment): number {
-  return STEEL_PHYSICS.density * (s.length * s.width * s.thickness * MM3) * STEEL_PHYSICS.specificHeat
+  return STEEL_PHYSICS.density * (steelVolume(s) * MM3) * STEEL_PHYSICS.specificHeat
+}
+
+/** The steel in the strip above the edge, as a cross-section in square mm. It is what the belt's heat lands in. */
+export function edgeZone(s: Segment): number {
+  const area = edgeZoneArea(s, GRIND.edgeZone)
+  return area > GRIND.minZoneArea ? area : GRIND.minZoneArea
 }
 
 /** Radiating surface in square metres. End segments also show their end face. */
@@ -127,6 +134,9 @@ function scaleStep(s: Segment, dt: number): number {
   s.width = s.width - loss > SCALE.minThickness ? s.width - loss : SCALE.minThickness
   const carbon = s.carbonSurface - SCALE.decarbRate * severity * dt
   s.carbonSurface = carbon > 0 ? carbon : 0
+  // Scale eats the edge too, and takes its keenness with it.
+  if (isGround(s)) fitBevels(s)
+  s.sharp = 0
   return before - s.length * s.width * s.thickness
 }
 
@@ -189,7 +199,17 @@ export function stepHeat(bar: Bar, placement: Placement): void {
     s.temp = next[i] as number
     if (s.temp > burnTemp) s.burnt += HAMMER.burnRate * (1 + (s.temp - burnTemp) / HAMMER.burnStep) * dt
     bar.scaleLost += scaleStep(s, dt)
+    if (s.edgeHot > 0) {
+      // The edge's extra heat soaks back into the rest of the segment.
+      const lost = s.edgeHot * (dt / GRIND.edgeTau)
+      s.edgeHot -= lost
+      s.temp += (lost * edgeZone(s) * s.length) / steelVolume(s)
+      if (s.edgeHot < GRIND.edgeTrace) s.edgeHot = 0
+    }
   }
+  // Scale takes an etch off, and a hot tang burns its handle away.
+  if (bar.etched && hottest(bar) > SCALE.startTemp) bar.etched = false
+  if (bar.handle && (segs[segs.length - 1] as Segment).temp > HANDLE.burnAt) bar.handle = null
   stepPhase(bar, before, warpFreedom)
   bar.clock += dt
 }

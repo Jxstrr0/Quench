@@ -67,6 +67,7 @@ const CRACK_KEY: Record<CrackCause, StringKey> = {
   coarseGrain: 'crack.coarseGrain',
   coldWork: 'crack.coldWork',
   corner: 'crack.corner',
+  thinEdge: 'crack.thinEdge',
 }
 
 function placementFor(tipDepth: number, blast: number, lane: number, medium: MediumId, agitation: number): Placement {

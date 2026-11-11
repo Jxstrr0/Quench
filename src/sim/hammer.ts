@@ -9,7 +9,7 @@ import { BLOWS, HAMMER, RHYTHM } from '../data/hammer'
 import type { Steel } from '../data/steels'
 import { steel } from '../data/steels'
 import type { Bar, CrackCause, Segment } from './bar'
-import { segmentCentres } from './bar'
+import { fitBevels, isGround, segmentCentres } from './bar'
 import { detExp, detLog } from './det'
 
 export interface Blow {
@@ -75,6 +75,8 @@ function share(type: BlowType, at: number, x: number): number {
 function squeeze(s: Segment, type: BlowType, strain: number): void {
   const spec = BLOWS[type]
   const volume = s.length * s.width * s.thickness
+  const width = s.width
+  const thickness = s.thickness
   // The squeezed dimension shrinks by (1 - strain); the side dimension grows by (1 / (1 - strain)) ^ sideShare.
   const sideGrowth = detExp(-spec.sideShare * detLog(1 - strain))
   if (spec.squeezes === 'thickness') {
@@ -85,6 +87,15 @@ function squeeze(s: Segment, type: BlowType, strain: number): void {
     s.thickness *= sideGrowth
   }
   s.length = volume / (s.width * s.thickness)
+  // A blow moves the bevels with the steel, and flattens any keen edge.
+  if (isGround(s)) {
+    s.cutLeft *= s.thickness / thickness
+    s.cutRight *= s.thickness / thickness
+    s.bevelLeft *= s.width / width
+    s.bevelRight *= s.width / width
+    fitBevels(s)
+  }
+  s.sharp = 0
 }
 
 /** Land one blow. Changes the bar in place. */

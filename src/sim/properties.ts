@@ -28,18 +28,41 @@ export function temperEffect(param: number): { drop: number; tough: number } {
   return { drop: last.drop, tough: last.tough }
 }
 
-/** Hardness in HRC. Only means much once the steel is cold. */
-export function hardness(s: Segment, st: Steel): number {
+function hardnessAt(s: Segment, st: Steel, temper: number): number {
   const lost = st.carbon - s.carbonSurface
-  const martensite = st.hardMax - HARDNESS.perCarbon * (lost > 0 ? lost : 0) - temperEffect(s.temper).drop
+  const martensite = st.hardMax - HARDNESS.perCarbon * (lost > 0 ? lost : 0) - temperEffect(temper).drop
   const hard = martensite > st.softHardness ? martensite : st.softHardness
   return s.martensite * hard + s.pearlite * st.softHardness + s.bainite * HARDNESS.bainite + s.austenite * HARDNESS.retained
 }
 
+/** Hardness in HRC. Only means much once the steel is cold. */
+export function hardness(s: Segment, st: Steel): number {
+  return hardnessAt(s, st, s.temper)
+}
+
+/** How far the edge has been tempered: as far as the rest, or further if the belt overheated it. */
+export function edgeTemperOf(s: Segment): number {
+  return s.edgeTemper > s.temper ? s.edgeTemper : s.temper
+}
+
+/** Hardness at the cutting edge, HRC. Lower than the blade behind it if the belt drew its temper. */
+export function edgeHardness(s: Segment, st: Steel): number {
+  return hardnessAt(s, st, edgeTemperOf(s))
+}
+
 /** Toughness, 0 (glass) to 1. */
 export function toughness(s: Segment, st: Steel): number {
+  return toughnessAt(s, st, s.temper)
+}
+
+/** Toughness at the cutting edge. */
+export function edgeToughness(s: Segment, st: Steel): number {
+  return toughnessAt(s, st, edgeTemperOf(s))
+}
+
+function toughnessAt(s: Segment, st: Steel, temper: number): number {
   const mix =
-    s.martensite * temperEffect(s.temper).tough +
+    s.martensite * temperEffect(temper).tough +
     s.pearlite * TOUGHNESS.pearlite +
     s.bainite * TOUGHNESS.bainite +
     s.austenite * TOUGHNESS.retained
