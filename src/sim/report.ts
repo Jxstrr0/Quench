@@ -76,6 +76,7 @@ export type Lesson =
   // welding a billet
   | 'weldHotter'
   | 'weldAll'
+  | 'plainForSpring'
   // the edge
   | 'grind'
   | 'grindThinner'
@@ -245,6 +246,8 @@ const PLAIN: Partial<Record<TrialCause, Lesson>> = {
   lopsided: 'evenBevels',
   forgeMarks: 'smoothForging',
   notWelded: 'weldAll',
+  softSides: 'plainForSpring',
+  coreMissed: 'evenBevels',
   noHandle: 'fitHandle',
   badHandle: 'betterHandle',
 }

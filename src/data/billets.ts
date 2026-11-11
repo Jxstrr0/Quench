@@ -15,15 +15,27 @@ export interface Billet {
   layers: number
   /** It can be folded to double its layers. */
   folds: boolean
+  /** The share of its thickness that is soft sides, welded onto a hard core. 0 is steel all through. */
+  jacket: number
 }
 
 export const BILLETS: Record<BilletId, Billet> = {
-  plain: { id: 'plain', layers: 1, folds: false },
-  sanMai: { id: 'sanMai', layers: 3, folds: false },
-  layered: { id: 'layered', layers: 8, folds: true },
+  plain: { id: 'plain', layers: 1, folds: false, jacket: 0 },
+  sanMai: { id: 'sanMai', layers: 3, folds: false, jacket: 0.6 },
+  layered: { id: 'layered', layers: 8, folds: true, jacket: 0 },
 }
 
 export const BILLET_ORDER: readonly BilletId[] = ['plain', 'sanMai', 'layered']
+
+/** The soft sides of a san-mai blade: mild steel that never hardens. */
+export const JACKET = {
+  /** Their hardness, HRC, whatever the quench. */
+  hardness: 15,
+  /** Their toughness, 0 to 1. */
+  toughness: 1,
+  /** How much of the quench's stress full soft sides would take off the core (0 to 1). */
+  stressRelief: 0.5,
+} as const
 
 export const WELD = {
   /** Welding heat starts this far below the heat at which the steel burns: about the top of its forging heat. */

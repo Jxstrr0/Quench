@@ -17,9 +17,9 @@ import type { TrialId } from '../data/trials'
 import { BEND, BOARD, BRASS, CHOP, FIT, FLEX, MAT, ROPE, SHAVE, WHY, ZONE } from '../data/trials'
 import { STEEL_PHYSICS } from '../data/tuning'
 import type { Bar, Segment } from './bar'
-import { bevelLean, cloneBar, edgeMartensite, edgeThickness, isGround, segmentCentres, steelVolume } from './bar'
+import { bevelLean, cloneBar, coreMissed, edgeMartensite, edgeThickness, isGround, segmentCentres, steelVolume } from './bar'
 import { handleFit, keenestFor } from './finish'
-import { edgeDrawn, edgeHardness, edgeTemperOf, edgeToughness, hardness, toughness } from './properties'
+import { bodyHardness, bodyToughness, edgeDrawn, edgeHardness, edgeTemperOf, edgeToughness } from './properties'
 import { shapeScore } from './shape'
 import { equivalentTemp } from './temper'
 import { seamCause, worstSeam } from './weld'
@@ -79,6 +79,10 @@ export type TrialCause =
   | 'temperedSoft'
   /** Clay kept the back soft: right for a knife that must bend, wrong for a sword that must spring. */
   | 'softBack'
+  /** San-mai: soft sides on a hard core. Right for a knife, wrong for a sword that must spring. */
+  | 'softSides'
+  /** San-mai ground so lopsided that the edge came out in a soft side. */
+  | 'coreMissed'
   // brittle steel
   | 'untempered'
   | 'coarseGrain'
@@ -209,6 +213,7 @@ export function massAndBalance(bar: Bar, bladeShare: number): { mass: number; fo
 
 /** Why this steel is softer than it should be. */
 function whySoft(s: Segment, st: Steel): TrialCause {
+  if (coreMissed(s)) return 'coreMissed'
   if (edgeMartensite(s) < INSPECT.hardenedFrom) return 'notHardened'
   if (edgeMartensite(s) < WHY.partHard) return 'partHardened'
   if (edgeDrawn(s, st) >= INSPECT.edgeSoftBy) return 'edgeOverheated'
@@ -310,9 +315,9 @@ function chopTimber(r: Rig): TrialResult {
   for (const i of r.blade) {
     const s = seg(r, i)
     if (edgeMartensite(s) < INSPECT.hardenedFrom) continue
-    if (brittle < 0 || toughness(s, r.st) < toughness(seg(r, brittle), r.st)) brittle = i
+    if (brittle < 0 || bodyToughness(s, r.st) < bodyToughness(seg(r, brittle), r.st)) brittle = i
   }
-  if (brittle >= 0 && toughness(seg(r, brittle), r.st) < CHOP.snapTough) {
+  if (brittle >= 0 && bodyToughness(seg(r, brittle), r.st) < CHOP.snapTough) {
     const s = seg(r, brittle)
     const cause = whyBrittle(s, r.bar, r.st)
     r.broke = { how: 'chop', segment: brittle, at: r.centres[brittle] as number, grain: s.grain, cause }
@@ -468,7 +473,7 @@ function bendReach(r: Rig): { angle: number; weak: number } {
   let least = Infinity
   for (const i of r.zone) {
     const s = seg(r, i)
-    const give = toughness(s, r.st) * (1 + (BEND.hardRef - hardness(s, r.st)) / BEND.softSpan)
+    const give = bodyToughness(s, r.st) * (1 + (BEND.hardRef - bodyHardness(s, r.st)) / BEND.softSpan)
     if (give < least) {
       least = give
       weak = i
@@ -489,15 +494,16 @@ function flexAndSpring(r: Rig): TrialResult {
   }
   // It did not break. Whether it comes back depends on the softest stretch of the bow.
   let soft = r.zone[0] ?? 0
-  for (const i of r.zone) if (hardness(seg(r, i), r.st) < hardness(seg(r, soft), r.st)) soft = i
+  for (const i of r.zone) if (bodyHardness(seg(r, i), r.st) < bodyHardness(seg(r, soft), r.st)) soft = i
   const s = seg(r, soft)
-  const hrc = hardness(s, r.st)
+  const hrc = bodyHardness(s, r.st)
   if (hrc >= FLEX.springFrom) return { id: 'flex', passed: true, score: 1, outcome: 'springsTrue', cause: null, value: null, at: null }
   const stays = clamp01((FLEX.springFrom - hrc) / (FLEX.springFrom - FLEX.setBase))
   const set = stays * FLEX.setPer100 * (r.guard / 100)
   // The blade goes on to the next test with the bend in it.
   r.bar.warp += set
-  const cause = s.soft >= CLAY.showFrom && edgeMartensite(s) >= WHY.partHard ? 'softBack' : whySoft(s, r.st)
+  const hard = edgeMartensite(s) >= WHY.partHard
+  const cause = hard && s.soft >= CLAY.showFrom ? 'softBack' : hard && s.jacket > 0 ? 'softSides' : whySoft(s, r.st)
   return { id: 'flex', passed: false, score: 1 - stays, outcome: 'takesSet', cause, value: set, at: r.centres[soft] as number }
 }
 

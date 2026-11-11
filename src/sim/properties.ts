@@ -6,8 +6,10 @@
  */
 import type { Steel } from '../data/steels'
 import { steel } from '../data/steels'
+import { JACKET } from '../data/billets'
 import { HARDNESS, TEMPER, TOUGHNESS, WARP, GRAIN } from '../data/treat'
 import type { Bar, QuenchCrack, Segment } from './bar'
+import { coreMissed } from './bar'
 import { equivalentTemp } from './temper'
 
 /** What a temper has done to martensite: HRC lost, and its toughness. */
@@ -54,9 +56,18 @@ function hardnessAt(s: Segment, mix: Mix, st: Steel, temper: number): number {
   return mix.martensite * hard + mix.pearlite * st.softHardness + mix.bainite * HARDNESS.bainite + mix.austenite * HARDNESS.retained
 }
 
-/** Hardness in HRC, taken across the whole width. Only means much once the steel is cold. */
+/**
+ * Hardness of the steel in HRC, taken across the whole width. Only means much
+ * once the steel is cold. In a san-mai blade this is the hard core.
+ */
 export function hardness(s: Segment, st: Steel): number {
   return hardnessAt(s, s, st, s.temper)
+}
+
+/** Hardness of the blade as a whole: the steel's, less whatever share of the thickness is soft sides. */
+export function bodyHardness(s: Segment, st: Steel): number {
+  const h = hardness(s, st)
+  return s.jacket > 0 ? (1 - s.jacket) * h + s.jacket * JACKET.hardness : h
 }
 
 /** How far the edge has been tempered: as far as the rest, or further if the belt overheated it. */
@@ -66,11 +77,13 @@ export function edgeTemperOf(s: Segment): number {
 
 /** Hardness at the cutting edge, HRC. Lower than the blade behind it if the belt drew its temper. */
 export function edgeHardness(s: Segment, st: Steel): number {
+  if (coreMissed(s)) return JACKET.hardness
   return hardnessAt(s, edgeMix(s), st, edgeTemperOf(s))
 }
 
 /** How many HRC softer the cutting edge is than the steel just behind it, because the belt drew its temper. */
 export function edgeDrawn(s: Segment, st: Steel): number {
+  if (coreMissed(s)) return 0
   const mix = edgeMix(s)
   return hardnessAt(s, mix, st, s.temper) - hardnessAt(s, mix, st, edgeTemperOf(s))
 }
@@ -80,8 +93,15 @@ export function toughness(s: Segment, st: Steel): number {
   return toughnessAt(s, s, st, s.temper)
 }
 
+/** Toughness of the blade as a whole: the steel's, helped by whatever share of the thickness is soft sides. */
+export function bodyToughness(s: Segment, st: Steel): number {
+  const t = toughness(s, st)
+  return s.jacket > 0 ? (1 - s.jacket) * t + s.jacket * JACKET.toughness : t
+}
+
 /** Toughness at the cutting edge. */
 export function edgeToughness(s: Segment, st: Steel): number {
+  if (coreMissed(s)) return JACKET.toughness
   return toughnessAt(s, edgeMix(s), st, edgeTemperOf(s))
 }
 

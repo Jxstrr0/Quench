@@ -84,10 +84,12 @@ export interface Made {
   tilt?: number
   angle?: number
   medium?: MediumId
-  /** Oven temperature for the two tempers, in °C. */
+  /** Oven temperature for the two tempers, in °C. 0 leaves it untempered. */
   temper?: number
   handle?: HandleId
   seed?: number
+  /** Which sides are ground. Both, unless this says otherwise. */
+  sides?: Side[]
   /** What it was built from. A billet comes out welded sound, unless `prep` says otherwise. */
   billet?: BilletId
   /** Something done to the bar once it has its shape, before it is ground. */
@@ -114,7 +116,7 @@ export function makeBlade(id: PatternId, how: Made = {}): Bar {
   const edge = (): number => work.reduce((e, s) => e + edgeThickness(s), 0) / work.length
   const grind = (target: number, pressure: number): void => {
     for (let n = 0; n < 1500 && edge() > target; n++) {
-      for (const side of BOTH) for (let at = blade * 0.05; at <= blade * 0.97; at += 5) stepGrind(bar, { at, side, tilt: how.tilt ?? 5, pressure })
+      for (const side of how.sides ?? BOTH) for (let at = blade * 0.05; at <= blade * 0.97; at += 5) stepGrind(bar, { at, side, tilt: how.tilt ?? 5, pressure })
     }
   }
   grind(how.rough ?? 1.5, 1)
@@ -126,8 +128,10 @@ export function makeBlade(id: PatternId, how: Made = {}): Bar {
   }
   advance(bar, { where: 'quench', medium: how.medium ?? 'fastOil', agitation: 1 }, 60)
   coolToRoom(bar)
-  temperInOven(bar, how.temper ?? 200, 60)
-  temperInOven(bar, how.temper ?? 200, 60)
+  if (how.temper !== 0) {
+    temperInOven(bar, how.temper ?? 200, 60)
+    temperInOven(bar, how.temper ?? 200, 60)
+  }
   grind(how.thin ?? 0.3, 0.4)
   coolToRoom(bar)
   for (let pass = 0; pass < 8; pass++) for (let at = 10; at <= blade - 5; at += 10) strokeStone(bar, { at, angle: how.angle ?? 20, pressure: 1 })
