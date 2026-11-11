@@ -5,11 +5,12 @@
  */
 import type { ToolId } from '../data/career'
 import { MONEY, PROVINGS, REP, TOOLS } from '../data/career'
+import type { PatternId } from '../data/patterns'
 import type { StringKey } from '../data/strings'
 import { t } from '../data/strings'
 import type { CareerSave } from '../persist/career'
 import type { Brief, CareerState } from '../sim/career'
-import { accept, buyTool, drop, nextRating, oddJob, provingBar, provingDay } from '../sim/career'
+import { accept, buyTool, drop, nextRating, oddJob, provingBar, provingDay, wantedPattern } from '../sim/career'
 import { briefNeeds, briefTerms, briefTitle, briefWhat, money, ratingName, testList } from './careerWords'
 import type { Sheet } from './dom'
 import { button, createSheet, el } from './dom'
@@ -25,6 +26,8 @@ export interface CareerHost {
   leave(): void
   /** The card changed the career: save it and show it. */
   changed(): void
+  /** The pattern of the bar on the bench. */
+  barPattern(): PatternId
   /** Open the save code and backup card. */
   openBackup(): void
   /** True when it is time to suggest a backup. */
@@ -178,6 +181,11 @@ export function createCareerSheet(host: HTMLElement, forge: CareerHost): Sheet {
         ledger(state)
       })
       body.append(briefCard(state, state.job, back), note(t('career.job.how'), 'sheet-note sheet-small'))
+      const want = wantedPattern(state)
+      if (want !== forge.barPattern()) {
+        const words = { have: t(`pattern.${forge.barPattern()}`).toLowerCase(), want: t(`pattern.${want}`).toLowerCase() }
+        body.append(note(t('career.job.wrongBar', words), 'sheet-note'))
+      }
     }
 
     body.append(el('h3', 'sheet-sub', t('career.board')))

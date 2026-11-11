@@ -37,6 +37,12 @@ export const HOURS: Record<StageId, number> = {
   finish: 1,
 }
 
+/** How much longer than a plain knife each pattern takes at every stage. A short sword is two days' work. */
+export const EFFORT: Record<PatternId, number> = {
+  campKnife: 1,
+  shortSword: 2,
+}
+
 export const MONEY = {
   start: 600,
   /** A day of plain sharpening and repair jobs: what a broke smith falls back on. */
@@ -98,7 +104,16 @@ export const CUSTOMERS: Record<CustomerId, Customer> = {
   cuttingClub: { name: 'Aldersay Cutting Club', group: 'collectors' },
 }
 
-export type BriefKind = 'deckKnife' | 'croftKnife' | 'loftKnife' | 'galleyKnife' | 'smokehouseKnife' | 'showKnife' | 'clubKnife'
+export type BriefKind =
+  | 'deckKnife'
+  | 'croftKnife'
+  | 'loftKnife'
+  | 'galleyKnife'
+  | 'smokehouseKnife'
+  | 'showKnife'
+  | 'clubKnife'
+  | 'collectorSword'
+  | 'clubSword'
 
 export interface BriefTemplate {
   customer: CustomerId
@@ -130,6 +145,10 @@ export const BRIEFS: Record<BriefKind, BriefTemplate> = {
   showKnife: { customer: 'leith', pattern: 'campKnife', needs: ['fit'], fine: true, pay: [1300, 1700], days: [6, 10], rating: 'apprentice' },
   /** A sport cutting club's competition knife: every test, no excuses. */
   clubKnife: { customer: 'cuttingClub', pattern: 'campKnife', needs: ['rope', 'brass', 'chop', 'shave'], fine: false, pay: [1200, 1500], days: [6, 10], rating: 'apprentice' },
+  /** A collector's short sword: it must be a true spring, and finely finished. */
+  collectorSword: { customer: 'leith', pattern: 'shortSword', needs: ['flex'], fine: true, pay: [3200, 4000], days: [9, 13], rating: 'journeyman' },
+  /** The cutting club's short sword for the mats: it must spring true and cut. */
+  clubSword: { customer: 'cuttingClub', pattern: 'shortSword', needs: ['flex', 'mat'], fine: false, pay: [2800, 3500], days: [9, 13], rating: 'journeyman' },
 }
 
 export const PROVING = {
@@ -159,7 +178,7 @@ export const PROVINGS: Record<Exclude<Rating, 'none'>, ProvingRule> = {
   master: { pattern: null, trials: ['fit'], fee: 500, delivered: 10 },
 }
 
-/** Swords: sizes and who asks for them. The patterns and their tests come in a later PR. */
+/** Swords: sizes and who asks for them. The short sword is in; the full sword comes with the Master's Proving. */
 export const SWORDS = {
   shortLength: 450,
   fullLength: 750,

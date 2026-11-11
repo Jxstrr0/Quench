@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import type { BriefKind } from '../src/data/career'
-import { BOARD, BRIEFS, CUSTOMERS, DAY, HOURS, MONEY, PROVING, PROVINGS, REP, TOOLS } from '../src/data/career'
+import { BOARD, BRIEFS, CUSTOMERS, DAY, EFFORT, HOURS, MONEY, PROVING, PROVINGS, REP, TOOLS } from '../src/data/career'
 import { PATTERNS } from '../src/data/patterns'
 import type { TrialId } from '../src/data/trials'
 import type { CareerState } from '../src/sim/career'
@@ -20,7 +20,9 @@ import {
   sitProving,
   spendHours,
   startBlade,
+  swapBlade,
   unmet,
+  wantedPattern,
 } from '../src/sim/career'
 import { fitHandle, strokeStone } from '../src/sim/finish'
 import type { Outcome, TrialReport } from '../src/sim/trials'
@@ -146,12 +148,12 @@ describe('bench hours', () => {
   it('a plain knife is a day of work', () => {
     expect(HOURS.forge + HOURS.treat + HOURS.grind + HOURS.finish).toBe(DAY.hours)
     const c = newCareer(1)
-    benchWork(c, 'forge')
+    benchWork(c, 'forge', 'campKnife')
     expect(c.day).toBe(1)
     expect(c.hoursLeft).toBe(DAY.hours - HOURS.forge)
-    benchWork(c, 'treat')
-    benchWork(c, 'grind')
-    benchWork(c, 'finish')
+    benchWork(c, 'treat', 'campKnife')
+    benchWork(c, 'grind', 'campKnife')
+    benchWork(c, 'finish', 'campKnife')
     expect(c.day).toBe(2)
     expect(c.hoursLeft).toBe(DAY.hours)
   })
@@ -159,7 +161,7 @@ describe('bench hours', () => {
   it('work runs over into the next day and is never refused', () => {
     const c = newCareer(1)
     spendHours(c, DAY.hours - 1)
-    benchWork(c, 'forge')
+    benchWork(c, 'forge', 'campKnife')
     expect(c.day).toBe(2)
     expect(c.hoursLeft).toBe(DAY.hours - (HOURS.forge - 1))
   })
@@ -230,30 +232,30 @@ describe('commissions', () => {
   })
 
   it('says what a blade still lacks', () => {
-    expect(unmet('loftKnife', report(['rope', 'shave']))).toEqual({ trials: [], finish: false })
-    expect(unmet('loftKnife', report(['rope'], ['shave']))).toEqual({ trials: ['shave'], finish: false })
-    expect(unmet('loftKnife', report(['shave']))).toEqual({ trials: ['rope'], finish: false })
-    expect(unmet('showKnife', report(['fit'], [], 'fair'))).toEqual({ trials: [], finish: true })
-    expect(unmet('showKnife', report(['fit'], [], 'fine'))).toEqual({ trials: [], finish: false })
+    expect(unmet('loftKnife', report(['rope', 'shave']), 'campKnife')).toEqual({ pattern: false, trials: [], finish: false })
+    expect(unmet('loftKnife', report(['rope'], ['shave']), 'campKnife')).toEqual({ pattern: false, trials: ['shave'], finish: false })
+    expect(unmet('loftKnife', report(['shave']), 'campKnife')).toEqual({ pattern: false, trials: ['rope'], finish: false })
+    expect(unmet('showKnife', report(['fit'], [], 'fair'), 'campKnife')).toEqual({ pattern: false, trials: [], finish: true })
+    expect(unmet('showKnife', report(['fit'], [], 'fine'), 'campKnife')).toEqual({ pattern: false, trials: [], finish: false })
   })
 
   it('pays in full on time, and the group thinks more of the smith', () => {
     const c = newCareer(2)
     take(c, 'deckKnife')
-    const d = deliver(c, report(ALL))
+    const d = deliver(c, report(ALL), 'campKnife')
     expect(d).toMatchObject({ taken: true, late: 0, pay: 1000, tip: 0, rep: REP.delivered })
     expect(c.money).toBe(MONEY.start + 1000)
     expect(c.rep.working).toBe(REP.start + REP.delivered)
     expect(c.rep.cooks).toBe(REP.start)
     expect(c.delivered).toBe(1)
     expect(c.job).toBeNull()
-    expect(deliver(c, report(ALL))).toBeNull()
+    expect(deliver(c, report(ALL), 'campKnife')).toBeNull()
   })
 
   it('tips for a fine finish', () => {
     const c = newCareer(2)
     take(c, 'galleyKnife')
-    const d = deliver(c, report(ALL, [], 'fine'))
+    const d = deliver(c, report(ALL, [], 'fine'), 'campKnife')
     expect(d).toMatchObject({ taken: true, pay: 1000, tip: 1000 * MONEY.tip, rep: REP.delivered + REP.fine })
     expect(c.rep.cooks).toBe(REP.start + REP.delivered + REP.fine)
   })
@@ -262,23 +264,23 @@ describe('commissions', () => {
     const c = newCareer(2)
     take(c, 'croftKnife')
     const before = JSON.stringify(c)
-    const d = deliver(c, report(['fit', 'rope'], ['chop']))
+    const d = deliver(c, report(['fit', 'rope'], ['chop']), 'campKnife')
     expect(d).toMatchObject({ taken: false, pay: 0, unmet: { trials: ['chop'] } })
     expect(JSON.stringify(c)).toBe(before)
     const snapped = report(ALL)
     snapped.broke = { how: 'chop', segment: 20, at: 137, grain: 0.5, cause: 'coarseGrain' }
-    expect(deliver(c, snapped)?.taken).toBe(false)
-    expect(deliver(c, report(ALL))?.taken).toBe(true)
+    expect(deliver(c, snapped, 'campKnife')?.taken).toBe(false)
+    expect(deliver(c, report(ALL), 'campKnife')?.taken).toBe(true)
   })
 
   it('late work is paid less, but never less than the floor, and still more than the blade cost', () => {
     const c = newCareer(2)
     take(c, 'deckKnife', 3)
     c.day = 5
-    expect(deliver(c, report(ALL))).toMatchObject({ taken: true, late: 2, pay: 800, rep: REP.late })
+    expect(deliver(c, report(ALL), 'campKnife')).toMatchObject({ taken: true, late: 2, pay: 800, rep: REP.late })
     take(c, 'deckKnife', 3)
     c.day = 60
-    const d = deliver(c, report(ALL))
+    const d = deliver(c, report(ALL), 'campKnife')
     expect(d?.pay).toBe(1000 * MONEY.lateFloor)
     expect(d?.pay).toBeGreaterThan(bladeCost('campKnife'))
   })
@@ -317,7 +319,7 @@ describe('the Proving', () => {
   it('wants commissions delivered and the fee in hand first', () => {
     const c = newCareer(4)
     expect(provingBar(c)).toBe('delivered')
-    expect(sitProving(c, report(ALL))).toBeNull()
+    expect(sitProving(c, report(ALL), 'campKnife')).toBeNull()
     c.delivered = PROVINGS.apprentice.delivered
     c.money = PROVINGS.apprentice.fee - 1
     expect(provingBar(c)).toBe('fee')
@@ -329,7 +331,7 @@ describe('the Proving', () => {
     const c = newCareer(4)
     c.delivered = 1
     c.day = 3
-    const r = sitProving(c, report(['fit', 'rope', 'chop']))
+    const r = sitProving(c, report(['fit', 'rope', 'chop']), 'campKnife')
     expect(r).toEqual({ rating: 'apprentice', passed: true, failed: [], day: PROVING.every })
     expect(c.rating).toBe('apprentice')
     expect(c.day).toBe(PROVING.every + 1)
@@ -340,11 +342,11 @@ describe('the Proving', () => {
   it('a failed Proving costs the fee and the day, and the next one is open', () => {
     const c = newCareer(4)
     c.delivered = 1
-    const r = sitProving(c, report(['fit', 'rope'], ['chop']))
+    const r = sitProving(c, report(['fit', 'rope'], ['chop']), 'campKnife')
     expect(r).toMatchObject({ passed: false, failed: ['chop'] })
     expect(c.rating).toBe('none')
     expect(c.money).toBe(MONEY.start - PROVINGS.apprentice.fee)
-    expect(sitProving(c, report(['fit', 'rope', 'chop']))).toMatchObject({ passed: true, day: PROVING.every * 2 })
+    expect(sitProving(c, report(['fit', 'rope', 'chop']), 'campKnife')).toMatchObject({ passed: true, day: PROVING.every * 2 })
   })
 
   it('Master waits for the sword', () => {
@@ -373,20 +375,20 @@ describe('a whole career', () => {
     const c = newCareer(2026)
     const forge = (): void => {
       expect(startBlade(c, 'campKnife')).toBe(true)
-      for (const s of ['forge', 'treat', 'grind', 'finish'] as const) benchWork(c, s)
+      for (const s of ['forge', 'treat', 'grind', 'finish'] as const) benchWork(c, s, 'campKnife')
     }
     let late = 0
     for (let n = 0; n < 40 && c.rating !== 'journeyman'; n++) {
       if (provingBar(c) === null) {
         forge()
-        expect(sitProving(c, sound)?.passed).toBe(true)
+        expect(sitProving(c, sound, 'campKnife')?.passed).toBe(true)
         continue
       }
-      const pick = c.board.find((b) => !unmet(b.kind, sound).finish)
+      const pick = c.board.find((b) => !unmet(b.kind, sound, 'campKnife').finish)
       expect(pick).toBeDefined()
       accept(c, (pick as { id: number }).id)
       forge()
-      const d = deliver(c, sound)
+      const d = deliver(c, sound, 'campKnife')
       expect(d?.taken).toBe(true)
       if (d && d.late > 0) late++
     }
@@ -394,5 +396,87 @@ describe('a whole career', () => {
     expect(late).toBe(0)
     expect(c.day).toBeLessThan(PROVING.every * 3 + 2)
     expect(c.money).toBeGreaterThan(MONEY.start)
+  })
+})
+
+describe('sword commissions', () => {
+  const SWORD: TrialId[] = ['fit', 'flex', 'mat']
+  const kindsOn = (c: CareerState): BriefKind[] => c.board.map((b) => b.kind)
+
+  it('are not offered before Journeyman', () => {
+    for (const rating of ['none', 'apprentice'] as const) {
+      for (let seed = 1; seed <= 30; seed++) {
+        const c = newCareer(seed)
+        c.rating = rating
+        c.board = []
+        fillBoard(c)
+        expect(kindsOn(c).some((k) => BRIEFS[k].pattern === 'shortSword')).toBe(false)
+      }
+    }
+  })
+  it('reach the board once the smith is a Journeyman, from collectors and the cutting club', () => {
+    const seen = new Set<BriefKind>()
+    for (let seed = 1; seed <= 60; seed++) {
+      const c = newCareer(seed)
+      c.rating = 'journeyman'
+      c.board = []
+      fillBoard(c)
+      for (const k of kindsOn(c)) if (BRIEFS[k].pattern === 'shortSword') seen.add(k)
+    }
+    expect([...seen].sort()).toEqual(['clubSword', 'collectorSword'])
+    for (const k of seen) expect(CUSTOMERS[BRIEFS[k].customer].group).toBe('collectors')
+  })
+  it('ask for sword stock, which costs a little more than a knife bar', () => {
+    const c = newCareer(3)
+    expect(wantedPattern(c)).toBe('campKnife')
+    take(c, 'clubSword')
+    expect(wantedPattern(c)).toBe('shortSword')
+    expect(bladeCost('shortSword')).toBeGreaterThan(bladeCost('campKnife'))
+  })
+  it('swap an unworked bar for the right stock at the difference in price', () => {
+    const c = newCareer(3)
+    startBlade(c, 'campKnife')
+    const before = c.money
+    expect(swapBlade(c, 'campKnife', 'shortSword')).toBe(0)
+    expect(c.money).toBe(before + bladeCost('campKnife') - bladeCost('shortSword'))
+    expect(c.bars).toBe(1)
+  })
+  it('take twice the bench time of a knife', () => {
+    const knife = newCareer(3)
+    const sword = newCareer(3)
+    for (const s of ['forge', 'treat', 'grind', 'finish'] as const) {
+      benchWork(knife, s, 'campKnife')
+      benchWork(sword, s, 'shortSword')
+    }
+    expect(EFFORT.shortSword).toBe(2)
+    expect(knife.day).toBe(2)
+    expect(sword.day).toBe(3)
+  })
+  it('will not take a knife where a sword was asked for, however good', () => {
+    const c = newCareer(3)
+    take(c, 'clubSword')
+    const d = deliver(c, report([...ALL, ...SWORD]), 'campKnife')
+    expect(d).toMatchObject({ taken: false, unmet: { pattern: true } })
+    expect(c.job).not.toBeNull()
+  })
+  it('pay for a sword that springs true and cuts the mat', () => {
+    const c = newCareer(3)
+    take(c, 'clubSword')
+    expect(deliver(c, report(['fit', 'flex'], ['mat']), 'shortSword')).toMatchObject({ taken: false, unmet: { pattern: false, trials: ['mat'] } })
+    expect(deliver(c, report(SWORD), 'shortSword')).toMatchObject({ taken: true, pay: 1000 })
+    expect(c.rep.collectors).toBe(REP.start + REP.delivered)
+  })
+  it('want a fine finish for the collector', () => {
+    const c = newCareer(3)
+    take(c, 'collectorSword')
+    expect(deliver(c, report(SWORD), 'shortSword')).toMatchObject({ taken: false, unmet: { finish: true } })
+    expect(deliver(c, report(SWORD, [], 'fine'), 'shortSword')?.taken).toBe(true)
+  })
+  it('are no use at a Proving that sets a knife', () => {
+    const c = newCareer(3)
+    c.delivered = PROVINGS.apprentice.delivered
+    expect(sitProving(c, report(['fit', 'rope', 'chop']), 'shortSword')).toBeNull()
+    expect(c.money).toBe(MONEY.start)
+    expect(sitProving(c, report(['fit', 'rope', 'chop']), 'campKnife')?.passed).toBe(true)
   })
 })

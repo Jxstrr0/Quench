@@ -35,7 +35,7 @@ import type { ForgeView } from '../render/forgeScene'
 import type { Bar } from '../sim/bar'
 import { barLength, cloneBar, createBar, hottest } from '../sim/bar'
 import type { CareerState } from '../sim/career'
-import { benchWork, bladeCost, deliver, fundBlade, newCareer, nextRating, provingBar, provingDay, sitProving } from '../sim/career'
+import { benchWork, bladeCost, deliver, fundBlade, newCareer, nextRating, provingBar, provingDay, sitProving, swapBlade, wantedPattern } from '../sim/career'
 import { heatWord } from '../sim/glow'
 import type { CrackCause } from '../sim/bar'
 import type { Fault } from '../sim/hammer'
@@ -338,11 +338,11 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
     job: () => career?.job?.kind ?? null,
     deliver: (report: TrialReport) => {
       if (!career) return null
-      const d = deliver(career, report)
+      const d = deliver(career, report, target.id)
       if (d?.taken) careerChanged()
       return d
     },
-    barCost: () => (career ? bladeCost(target.id) : 0),
+    barCost: () => (career ? bladeCost(wantedPattern(career)) : 0),
     sees: () => ({
       hardness: !career || career.tools.includes('hardnessTester'),
       grain: !career || career.tools.includes('loupe'),
@@ -350,14 +350,14 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
     }),
     proving: () => {
       const next = career ? nextRating(career.rating) : null
-      if (!career || !next || provingBar(career)) return null
+      if (!career || !next || provingBar(career) || PROVINGS[next].pattern !== target.id) return null
       const day = provingDay(career.day)
       // The commission in hand would fall due while the smith is at the Guild hall.
       return { rating: next, fee: PROVINGS[next].fee, day, late: career.job !== null && career.job.due <= day }
     },
     sitProving: (report: TrialReport) => {
       if (!career) return null
-      const r = sitProving(career, report)
+      const r = sitProving(career, report, target.id)
       if (r) careerChanged()
       return r
     },
@@ -508,7 +508,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
 
   // --- The career ----------------------------------------------------------------
   const saveCareer = () => {
-    if (career) saveSlot(slot, { v: 1, career, bar: cloneBar(bar), stages, saved: Date.now() })
+    if (career) saveSlot(slot, { v: 1, career, bar: cloneBar(bar), pattern: target.id, stages, saved: Date.now() })
   }
   const showCareer = () => {
     mode.textContent = t(career ? 'mode.career' : 'mode.freeForge')
@@ -525,12 +525,14 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   const charge = (stage: StageId) => {
     if (!career || stages.includes(stage)) return
     stages.push(stage)
-    benchWork(career, stage)
+    benchWork(career, stage, target.id)
     careerChanged()
   }
   /** In a career a bar is bought. A smith short of money does odd jobs first: never stuck, only a day or two older. */
   const buyBar = () => {
     if (!career) return
+    // The stock is for whatever the commission in hand asks.
+    if (wantedPattern(career) !== target.id) setPattern(wantedPattern(career))
     const days = fundBlade(career, target.id)
     stages = []
     freshBar()
@@ -542,7 +544,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
     const save = fresh ? null : loadSlot(n)
     if (bench.active) leaveBench()
     slot = n
-    setPattern('campKnife')
+    setPattern(save?.pattern ?? 'campKnife')
     if (save) {
       career = save.career
       stages = save.stages
@@ -568,12 +570,37 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
     applySettings()
     freshBar()
   }
+  /**
+   * After the card took or gave back a commission: is the bar on the bench
+   * the right stock for it? An untouched bar is changed for the right one;
+   * a blade already under way is left alone, and the smith is told.
+   */
+  const matchBar = () => {
+    if (!career) return
+    const want = wantedPattern(career)
+    if (want === target.id) return
+    const name = t(`pattern.${want}`).toLowerCase()
+    if (stages.length > 0) {
+      say(t('note.wrongBar', { want: name }), 6000)
+      return
+    }
+    const had = target.id
+    if (bench.active) leaveBench()
+    setPattern(want)
+    swapBlade(career, had, want)
+    freshBar()
+    say(t('note.swapBar', { pattern: name }), 4000)
+  }
   const careerSheet = createCareerSheet(app, {
     career: () => career,
     slots: loadSlots,
     play: playCareer,
     leave: leaveCareer,
-    changed: careerChanged,
+    changed: () => {
+      matchBar()
+      careerChanged()
+    },
+    barPattern: () => target.id,
     openBackup: () => backupSheet.open(),
     backupDue: () => backupDue(Date.now()),
   })
@@ -609,7 +636,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
       buyBar()
     } else {
       scrapAskedAt = now
-      say(t('note.scrapSure', { money: money(bladeCost(target.id)) }), 4000)
+      say(t('note.scrapSure', { money: money(bladeCost(career ? wantedPattern(career) : target.id)) }), 4000)
     }
   })
 

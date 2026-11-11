@@ -30,6 +30,8 @@ const BRIEF_KEY: Record<BriefKind, StringKey> = {
   smokehouseKnife: 'brief.smokehouseKnife',
   showKnife: 'brief.showKnife',
   clubKnife: 'brief.clubKnife',
+  collectorSword: 'brief.collectorSword',
+  clubSword: 'brief.clubSword',
 }
 
 export function customerName(kind: BriefKind): string {
@@ -72,6 +74,7 @@ export function briefTerms(state: CareerState, brief: Brief): string {
 /** Why a customer would not take a blade. */
 export function refusal(kind: BriefKind, unmet: Unmet, broke: boolean): string {
   const name = customerName(kind)
+  if (unmet.pattern) return t('deliver.wrongPattern', { name, want: t(`pattern.${BRIEFS[kind].pattern}`).toLowerCase() })
   if (broke) return t('deliver.broken', { name })
   const parts: string[] = []
   if (unmet.trials.length > 0) parts.push(t('deliver.refused', { name, list: testList(unmet.trials) }))
