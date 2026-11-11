@@ -9,6 +9,7 @@
  *
  * Units: Skerrow crowns (kr), bench hours, days, unless a name says otherwise.
  */
+import type { BilletId } from './billets'
 import type { PatternId } from './patterns'
 import type { SteelId } from './steels'
 import type { TrialId } from './trials'
@@ -123,6 +124,8 @@ export type BriefKind =
   | 'clubChopper'
   | 'collectorSword'
   | 'clubSword'
+  | 'patternKnife'
+  | 'sanMaiKnife'
   | 'masterSword'
   | 'clubFullSword'
 
@@ -141,6 +144,13 @@ export interface BriefTemplate {
   rating: Rating
   /** True for the commission a career opens with. It never comes up on the board, and giving it back costs no regard. */
   first?: true
+  /**
+   * The billet the blade must be built from, etched so that it shows. Left
+   * out: that is the smith's choice. With `layers`, a layered billet must
+   * have been folded to at least that many.
+   */
+  billet?: Exclude<BilletId, 'plain'>
+  layers?: number
 }
 
 /** The commission a new career opens with: the one the coach teaches on. */
@@ -173,6 +183,10 @@ export const BRIEFS: Record<BriefKind, BriefTemplate> = {
   collectorSword: { customer: 'leith', pattern: 'shortSword', needs: ['flex'], fine: true, pay: [3200, 4000], days: [9, 13], rating: 'journeyman' },
   /** The cutting club's short sword for the mats: it must spring true and cut. */
   clubSword: { customer: 'cuttingClub', pattern: 'shortSword', needs: ['flex', 'mat'], fine: false, pay: [2800, 3500], days: [9, 13], rating: 'journeyman' },
+  /** A collector's pattern-welded knife: it is the pattern that is being bought. 16 layers is one fold of the billet. */
+  patternKnife: { customer: 'leith', pattern: 'campKnife', needs: ['fit'], fine: true, pay: [2600, 3200], days: [8, 12], rating: 'journeyman', billet: 'layered', layers: 16 },
+  /** The cutting club's show-table knife: a hard core between soft sides, and it still has to cut. */
+  sanMaiKnife: { customer: 'cuttingClub', pattern: 'campKnife', needs: ['rope', 'brass', 'shave'], fine: false, pay: [1900, 2300], days: [7, 11], rating: 'journeyman', billet: 'sanMai' },
   /** Full swords: asked for only of a Master. */
   masterSword: { customer: 'leith', pattern: 'fullSword', needs: ['flex', 'mat'], fine: true, pay: [7000, 8500], days: [14, 18], rating: 'master' },
   clubFullSword: { customer: 'cuttingClub', pattern: 'fullSword', needs: ['flex', 'mat'], fine: false, pay: [5500, 6800], days: [14, 18], rating: 'master' },
@@ -211,6 +225,27 @@ export const SWORDS = {
   fullLength: 750,
   /** The first sword commission arrives once this rating is held. */
   from: 'journeyman' as Rating,
+} as const
+
+/**
+ * Billets in the Career. Kelbo's decision (11 November 2026): what a bar is
+ * built from is the smith's choice on any commission, from Journeyman. A
+ * billet costs a little more and takes longer; collectors pay more for a
+ * blade whose etch shows it, and a couple of their commissions ask for one.
+ */
+export const BILLET_WORK = {
+  /** A smith may start from a billet once this rating is held. */
+  from: 'journeyman' as Rating,
+  /** What a billet adds to the price of a bar: the second steel, and the fuel that welding heats burn. */
+  cost: { plain: 0, sanMai: 60, layered: 120 } satisfies Record<BilletId, number>,
+  /** The bench hours that welding it up adds to the forging of a plain knife. */
+  hours: { plain: 0, sanMai: 1, layered: 3 } satisfies Record<BilletId, number>,
+  /**
+   * What a collector adds, as a share of the price, for a blade whose etch
+   * shows its billet and whose welds are sound. Not paid on a commission
+   * that asked for the billet: its price already allows for it.
+   */
+  bonus: { plain: 0, sanMai: 0.1, layered: 0.25 } satisfies Record<BilletId, number>,
 } as const
 
 export type ToolId = 'pyrometer' | 'hardnessTester' | 'loupe' | 'trenchForge'

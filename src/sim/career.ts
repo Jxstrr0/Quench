@@ -6,14 +6,17 @@
  * The state is plain data (it goes into the save as it is) and is changed in
  * place. Every draw comes from the seeded generator held in the state.
  */
+import type { BilletId } from '../data/billets'
 import type { BriefKind, Group, Rating, StageId, ToolId } from '../data/career'
-import { BOARD, BRIEFS, CUSTOMERS, DAY, EFFORT, FIRST_JOB, GROUPS, HOURS, MONEY, PROVING, PROVINGS, RATINGS, REP, SUPPLIES, TOOLS } from '../data/career'
+import { BILLET_WORK, BOARD, BRIEFS, CUSTOMERS, DAY, EFFORT, FIRST_JOB, GROUPS, HOURS, MONEY, PROVING, PROVINGS, RATINGS, REP, SUPPLIES, TOOLS } from '../data/career'
 import type { PatternId } from '../data/patterns'
 import { pattern } from '../data/patterns'
 import type { TrialId } from '../data/trials'
 import type { RngState } from './rng'
 import { Rng } from './rng'
 import type { TrialReport } from './trials'
+import type { Built } from './weld'
+import { PLAIN_BUILT } from './weld'
 
 /** One commission on the board. */
 export interface Brief {
@@ -136,9 +139,19 @@ export function spendHours(state: CareerState, hours: number): void {
   if (state.hoursLeft <= 0) nextDay(state)
 }
 
-/** The bench time a stage of a blade of this pattern takes. */
-export function benchWork(state: CareerState, stage: StageId, id: PatternId): void {
-  spendHours(state, HOURS[stage] * EFFORT[id])
+/** The bench time a stage of a blade of this pattern takes. A billet has to be welded up first: its forging takes longer. */
+export function benchWork(state: CareerState, stage: StageId, id: PatternId, billet: BilletId = 'plain'): void {
+  spendHours(state, (HOURS[stage] + (stage === 'forge' ? BILLET_WORK.hours[billet] : 0)) * EFFORT[id])
+}
+
+/** May the smith start a bar from this billet yet? A plain bar always. */
+export function billetOffered(state: CareerState, billet: BilletId): boolean {
+  return billet === 'plain' || holds(state.rating, BILLET_WORK.from)
+}
+
+/** The billet the commission in hand asks for, or null when that is the smith's choice. */
+export function askedBillet(state: CareerState): BilletId | null {
+  return (state.job && BRIEFS[state.job.kind].billet) ?? null
 }
 
 /**
@@ -154,15 +167,15 @@ export function wantedPattern(state: CareerState): PatternId {
   return 'campKnife'
 }
 
-/** What it costs to start a blade of this pattern: the bar, fuel, belts and oil. */
-export function bladeCost(id: PatternId): number {
+/** What it costs to start a blade of this pattern: the bar, fuel, belts and oil, and a little more for a billet. */
+export function bladeCost(id: PatternId, billet: BilletId = 'plain'): number {
   const p = pattern(id)
-  return Math.round((p.stock.length / 100) * SUPPLIES.steelPer100[p.steel]) + SUPPLIES.fuel + SUPPLIES.belts + SUPPLIES.oil
+  return Math.round((p.stock.length / 100) * SUPPLIES.steelPer100[p.steel]) + SUPPLIES.fuel + SUPPLIES.belts + SUPPLIES.oil + BILLET_WORK.cost[billet]
 }
 
 /** Buy the bar and supplies for a blade. False, and nothing spent, when the money is not there. */
-export function startBlade(state: CareerState, id: PatternId): boolean {
-  const cost = bladeCost(id)
+export function startBlade(state: CareerState, id: PatternId, billet: BilletId = 'plain'): boolean {
+  const cost = bladeCost(id, billet)
   if (state.money < cost) return false
   state.money -= cost
   state.bars++
@@ -174,9 +187,9 @@ export function startBlade(state: CareerState, id: PatternId): boolean {
  * Returns how many days that was: none, for a smith with money. This is what
  * being broke costs, and all it costs.
  */
-export function fundBlade(state: CareerState, id: PatternId): number {
+export function fundBlade(state: CareerState, id: PatternId, billet: BilletId = 'plain'): number {
   let days = 0
-  while (!startBlade(state, id)) {
+  while (!startBlade(state, id, billet)) {
     oddJob(state)
     days++
   }
@@ -184,14 +197,14 @@ export function fundBlade(state: CareerState, id: PatternId): number {
 }
 
 /**
- * Hand an unworked bar back and take the stock for another pattern instead.
- * The first bar's price comes back; the new one is bought as any bar is.
- * Returns the days of odd jobs it took.
+ * Hand an unworked bar back and take the stock for another pattern, or
+ * another billet, instead. The first bar's price comes back; the new one is
+ * bought as any bar is. Returns the days of odd jobs it took.
  */
-export function swapBlade(state: CareerState, from: PatternId, to: PatternId): number {
-  state.money += bladeCost(from)
+export function swapBlade(state: CareerState, from: PatternId, to: PatternId, fromBillet: BilletId = 'plain', toBillet: BilletId = 'plain'): number {
+  state.money += bladeCost(from, fromBillet)
   state.bars--
-  return fundBlade(state, to)
+  return fundBlade(state, to, toBillet)
 }
 
 /** A day of sharpening and repairs for the harbour: the rest of today goes, and a little money comes in. */
@@ -226,21 +239,30 @@ export function drop(state: CareerState): boolean {
   return true
 }
 
-/** What a brief still wants that the blade does not show: the right pattern, a test not passed, or a finish that is not fine. */
+/**
+ * How a blade falls short of the billet a brief asked for: it is built from
+ * something else, it has too few layers, or it has not been etched to show.
+ */
+export type BilletMiss = 'wrong' | 'layers' | 'etch'
+
+/** What a brief still wants that the blade does not show: the right pattern, the billet asked for, a test not passed, or a finish that is not fine. */
 export interface Unmet {
   /** True when the blade is not the pattern that was asked for. */
   pattern: boolean
+  /** Set when the brief asked for a billet and the blade does not show one. */
+  billet: BilletMiss | null
   trials: TrialId[]
   /** True when the brief wants a fine finish and did not get one. */
   finish: boolean
 }
 
-/** `made` is the pattern the blade was made to. */
-export function unmet(kind: BriefKind, report: TrialReport, made: PatternId): Unmet {
+/** `made` is the pattern the blade was made to; `built`, what it was built from. */
+export function unmet(kind: BriefKind, report: TrialReport, made: PatternId, built: Built = PLAIN_BUILT): Unmet {
   const b = BRIEFS[kind]
   const trials = b.needs.filter((id) => !report.results.some((r) => r.id === id && r.passed))
   const fit = report.results.find((r) => r.id === 'fit')
-  return { pattern: made !== b.pattern, trials, finish: b.fine && fit?.outcome !== 'fine' }
+  const billet: BilletMiss | null = !b.billet ? null : built.billet !== b.billet ? 'wrong' : built.layers < (b.layers ?? 0) ? 'layers' : !built.etched ? 'etch' : null
+  return { pattern: made !== b.pattern, billet, trials, finish: b.fine && fit?.outcome !== 'fine' }
 }
 
 export interface Delivery {
@@ -251,30 +273,45 @@ export interface Delivery {
   late: number
   pay: number
   tip: number
+  /** What a collector added for a billet that shows in the etch. */
+  extra: number
   rep: number
 }
 
 /**
- * Hand over a blade for the commission in hand, with the pattern it was made
- * to and the report its trials gave. A blade that misses a must-have is not taken, and the commission
- * stays open: the smith can fix it or make another, but the due day stands.
+ * What a customer adds to this price for a blade built like this: collectors
+ * pay more for a billet that shows in the etch, on a commission that did not
+ * ask for one.
  */
-export function deliver(state: CareerState, report: TrialReport, made: PatternId): Delivery | null {
+export function billetBonus(kind: BriefKind, price: number, built: Built): number {
+  const b = BRIEFS[kind]
+  if (b.billet || CUSTOMERS[b.customer].group !== 'collectors' || !built.etched || !built.sound) return 0
+  return Math.round(price * BILLET_WORK.bonus[built.billet])
+}
+
+/**
+ * Hand over a blade for the commission in hand, with the pattern it was made
+ * to, the report its trials gave and what it was built from. A blade that
+ * misses a must-have is not taken, and the commission stays open: the smith
+ * can fix it or make another, but the due day stands.
+ */
+export function deliver(state: CareerState, report: TrialReport, made: PatternId, built: Built = PLAIN_BUILT): Delivery | null {
   const job = state.job
   if (!job) return null
-  const miss = unmet(job.kind, report, made)
+  const miss = unmet(job.kind, report, made, built)
   const late = Math.max(0, state.day - job.due)
-  if (report.broke || miss.pattern || miss.trials.length > 0 || miss.finish) return { taken: false, unmet: miss, late, pay: 0, tip: 0, rep: 0 }
+  if (report.broke || miss.pattern || miss.billet || miss.trials.length > 0 || miss.finish) return { taken: false, unmet: miss, late, pay: 0, tip: 0, extra: 0, rep: 0 }
   const fine = report.results.some((r) => r.id === 'fit' && r.outcome === 'fine')
   const pay = Math.round(job.pay * Math.max(MONEY.lateFloor, 1 - late * MONEY.latePerDay))
   const tip = fine ? Math.round(job.pay * MONEY.tip) : 0
+  const extra = billetBonus(job.kind, job.pay, built)
   const rep = (late > 0 ? REP.late : REP.delivered) + (fine ? REP.fine : 0)
-  state.money += pay + tip
+  state.money += pay + tip + extra
   addRep(state, CUSTOMERS[BRIEFS[job.kind].customer].group, rep)
   state.delivered++
   state.job = null
   fillBoard(state)
-  return { taken: true, unmet: miss, late, pay, tip, rep }
+  return { taken: true, unmet: miss, late, pay, tip, extra, rep }
 }
 
 /** True when this tool is on offer at the smith's rating. */

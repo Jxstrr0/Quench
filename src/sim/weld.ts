@@ -88,6 +88,24 @@ export function worstSeam(bar: Bar, among?: readonly number[]): { segment: numbe
   return worst >= 0 ? { segment: worst, seam: most } : null
 }
 
+/** What a blade was built from, as a customer sees it. */
+export interface Built {
+  billet: BilletId
+  layers: number
+  /** It has been etched, so its layers or its core show. */
+  etched: boolean
+  /** No weld in it is bad enough to see. */
+  sound: boolean
+}
+
+/** A plain bar: what a blade is taken to be when nothing says otherwise. */
+export const PLAIN_BUILT: Built = { billet: 'plain', layers: 1, etched: false, sound: true }
+
+export function builtOf(bar: Bar): Built {
+  const worst = worstSeam(bar)
+  return { billet: bar.billet, layers: bar.layers, etched: bar.etched, sound: !worst || worst.seam < WELD.shows }
+}
+
 /** Is any of the bar still loose layers? */
 export function isLoose(bar: Bar): boolean {
   for (const s of bar.segments) if (s.weld < 1) return true

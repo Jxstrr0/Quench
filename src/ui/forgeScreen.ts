@@ -17,7 +17,7 @@ import { createAudioEngine } from '../audio/engine'
 import type { BilletId } from '../data/billets'
 import { BILLETS, BILLET_ORDER, WELD } from '../data/billets'
 import type { StageId } from '../data/career'
-import { BRIEFS, FIRST_JOB, PROVINGS } from '../data/career'
+import { BILLET_WORK, BRIEFS, EFFORT, FIRST_JOB, PROVINGS } from '../data/career'
 import { COACH } from '../data/coach'
 import type { BlowType } from '../data/hammer'
 import { BLOWS, RHYTHM } from '../data/hammer'
@@ -45,7 +45,7 @@ import { barLength, cloneBar, createBar, hottest } from '../sim/bar'
 import type { CareerState } from '../sim/career'
 import type { Tested } from '../sim/coach'
 import { COACH_STAGES, coachStage, coachStep } from '../sim/coach'
-import { benchWork, bladeCost, deliver, fundBlade, newCareer, nextRating, provingBar, provingDay, sitProving, swapBlade, takeFirstJob, wantedPattern } from '../sim/career'
+import { askedBillet, benchWork, billetOffered, bladeCost, deliver, fundBlade, newCareer, nextRating, provingBar, provingDay, sitProving, swapBlade, takeFirstJob, wantedPattern } from '../sim/career'
 import { heatWord } from '../sim/glow'
 import type { CrackCause } from '../sim/bar'
 import type { Fault } from '../sim/hammer'
@@ -55,7 +55,7 @@ import type { Placement } from '../sim/heat'
 import { advance } from '../sim/heat'
 import { magnetTest } from '../sim/inspect'
 import { railReach, shapeScore, wantsLongFire } from '../sim/shape'
-import { atWeldingHeat, billetStock, fold, isLoose, partnerSteel, sweating, weldHeat, weldedShare, whyNoFold, worstSeam } from '../sim/weld'
+import { atWeldingHeat, billetStock, builtOf, fold, isLoose, partnerSteel, sweating, weldHeat, weldedShare, whyNoFold, worstSeam } from '../sim/weld'
 import type { FixStage } from '../sim/report'
 import type { TrialReport, TrialResult } from '../sim/trials'
 import { createBackupSheet } from './backupSheet'
@@ -119,6 +119,8 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
   let steelId: SteelId = target.steel
   /** What a new bar is built from, in Free forge. A career's bars are plain. */
   let billetId: BilletId = 'plain'
+  /** In a career, from Journeyman: what the smith has chosen to build the next bar from. */
+  let careerBillet: BilletId = 'plain'
   let bar: Bar = createBar(steelId, target.stock)
   let blowType: BlowType = 'flat'
   /** When the last blow landed, in ms, or -1 before the first. */
@@ -366,8 +368,20 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
     // At the grinder the edge's heat is always given in words.
     readout.hidden = !(bench.active || settings.heatWords || showsNumber())
   }
+  /**
+   * What the next bar is built from. In Free forge, what was picked. In a
+   * career, what the commission in hand asks; failing that, the smith's own
+   * choice, once billets are on offer.
+   */
+  const nextBillet = (): BilletId => (!career ? billetId : (askedBillet(career) ?? (billetOffered(career, careerBillet) ? careerBillet : 'plain')))
   const applySteel = () => {
     const name = STEELS[steelId].name
+    if (career) {
+      // In a career the steel comes with the pattern. The button is for what the bar is built from.
+      const next = nextBillet()
+      steelBtn.textContent = `${t(next === bar.billet ? 'pick.billet' : 'billet.nextBar')}: ${t(`billet.${next}`)}`
+      return
+    }
     steelBtn.textContent = `${t('steel.label')}: ${billetId === 'plain' ? name : t('steel.billet', { steel: name, billet: t(`billet.${billetId}`).toLowerCase() })}`
   }
   /** The Fold button shows for a bar that can be folded, with its layers on it. */
@@ -491,7 +505,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
     deliver: (report: TrialReport) => {
       if (!career) return null
       const first = career.job?.kind === FIRST_JOB
-      const d = deliver(career, report, target.id)
+      const d = deliver(career, report, target.id, builtOf(bar))
       if (d?.taken) {
         audio.forge('coins')
         careerChanged()
@@ -500,7 +514,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
       }
       return d
     },
-    barCost: () => (career ? bladeCost(wantedPattern(career)) : 0),
+    barCost: () => (career ? bladeCost(wantedPattern(career), nextBillet()) : 0),
     sees: () => ({
       hardness: !career || career.tools.includes('hardnessTester'),
       grain: !career || career.tools.includes('loupe'),
@@ -709,8 +723,40 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
     redraw()
     say(t('note.folded', { n: bar.layers }), 7000)
   })
+  // A career, from Journeyman: the smith picks what the next bar is built from.
+  const careerBilletSheet = createPickSheet<BilletId>(
+    app,
+    'pick.billet',
+    () => {
+      if (!career) return []
+      const asked = askedBillet(career)
+      return BILLET_ORDER.filter((id) => !asked || id === asked).map((id) => {
+        const more = bladeCost(target.id, id) - bladeCost(target.id)
+        const lines = billetLines(id)
+        if (asked) lines.push(t('billet.asked'))
+        else if (id !== 'plain') {
+          const hours = BILLET_WORK.hours[id] * EFFORT[target.id]
+          lines.push(t(hours === 1 ? 'billet.costsOne' : 'billet.costs', { money: money(more), n: hours }))
+        }
+        return { id, name: t(`billet.${id}`), lines }
+      })
+    },
+    nextBillet,
+    (id) => {
+      if (!career) return
+      careerBillet = id
+      // An untouched bar goes back to the merchant for the one wanted. A blade under way is finished first.
+      if (stages.length === 0 && bar.billet !== id) {
+        if (bench.active) leaveBench()
+        swapBlade(career, target.id, target.id, bar.billet, id)
+        freshBar()
+        say(t(id === 'plain' ? 'note.swapPlain' : 'note.billet'), 8000)
+      } else if (bar.billet !== id) say(t('note.nextBillet', { billet: t(`billet.${id}`).toLowerCase() }), 6000)
+      careerChanged()
+    },
+  )
   patternBtn.addEventListener('click', patternSheet.open)
-  steelBtn.addEventListener('click', steelSheet.open)
+  steelBtn.addEventListener('click', () => (career ? careerBilletSheet : steelSheet).open())
   /** Lay the bar cold on the anvil end of the rail and show it. */
   const placeBar = () => {
     tipDepth = BENCH.railMin
@@ -745,8 +791,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
     // Each bar has its own luck in the quench. In a career it comes from the career's own seed.
     barsMade++
     const seed = career ? (career.rng ^ Math.imul(career.bars, 0x9e3779b1)) >>> 0 : barsMade
-    // In a career every bar is plain stock, for now.
-    const billet = career ? 'plain' : billetId
+    const billet = nextBillet()
     bar = createBar(steelId, billetStock(target.stock, billet), undefined, seed, billet)
     placeBar()
   }
@@ -758,8 +803,10 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
   const showCareer = () => {
     mode.textContent = t(career ? 'mode.career' : 'mode.freeForge')
     careerBtn.textContent = career ? t('career.hud', { day: career.day, money: money(career.money) }) : t('btn.career')
-    steelBtn.hidden = career !== null
+    // In a career the pattern and steel come with the commission. What the bar is built from is the smith's choice, once billets are on offer.
+    steelBtn.hidden = career !== null && !billetOffered(career, 'layered')
     patternBtn.hidden = career !== null
+    applySteel()
   }
   const careerChanged = () => {
     showCareer()
@@ -771,7 +818,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
   const charge = (stage: StageId) => {
     if (!career || stages.includes(stage)) return
     stages.push(stage)
-    benchWork(career, stage, target.id)
+    benchWork(career, stage, target.id, bar.billet)
     careerChanged()
   }
   /** In a career a bar is bought. A smith short of money does odd jobs first: never stuck, only a day or two older. */
@@ -779,14 +826,17 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
     if (!career) return
     // The stock is for whatever the commission in hand asks.
     if (wantedPattern(career) !== target.id) setPattern(wantedPattern(career))
-    const days = fundBlade(career, target.id)
+    const days = fundBlade(career, target.id, nextBillet())
     stages = []
     freshBar()
     careerChanged()
+    const cost = money(bladeCost(target.id, bar.billet))
     // With no commission in hand, stock that is not the plain knife bar is for the Proving: say so.
     const setPiece = !career.job && target.id !== 'campKnife'
-    if (setPiece) say(t('note.setPieceBar', { pattern: t(`pattern.${target.id}`).toLowerCase(), money: money(bladeCost(target.id)) }), 6000)
-    else say(days === 0 ? t('note.newBar', { money: money(bladeCost(target.id)) }) : t(days === 1 ? 'note.oddJobOne' : 'note.oddJobs', { n: days }), 4000)
+    if (setPiece) say(t('note.setPieceBar', { pattern: t(`pattern.${target.id}`).toLowerCase(), money: cost }), 6000)
+    else if (days > 0) say(t(days === 1 ? 'note.oddJobOne' : 'note.oddJobs', { n: days }), 4000)
+    else if (bar.billet !== 'plain') say(t('note.newBillet', { billet: t(`billet.${bar.billet}`).toLowerCase(), money: cost }), 8000)
+    else say(t('note.newBar', { money: cost }), 4000)
     if (thanks) say(t('coach.done'), 9000)
     thanks = false
   }
@@ -799,11 +849,13 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
     if (save) {
       career = save.career
       stages = save.stages
+      careerBillet = save.bar?.billet ?? 'plain'
       if (save.bar) {
         bar = save.bar
         placeBar()
       } else buyBar()
     } else {
+      careerBillet = 'plain'
       career = newCareer((Date.now() ^ Math.floor(Math.random() * 0x100000000)) >>> 0)
       // A new career opens with the neighbour's knife already in hand.
       takeFirstJob(career)
@@ -832,18 +884,23 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
   const matchBar = () => {
     if (!career) return
     const want = wantedPattern(career)
-    if (want === target.id) return
+    const asked = askedBillet(career)
+    const rightStock = want === target.id
+    // What an asking commission leaves open, the bar on the anvil already answers.
+    if (rightStock && (!asked || asked === bar.billet)) return
     const name = t(`pattern.${want}`).toLowerCase()
+    const billet = t(`billet.${nextBillet()}`).toLowerCase()
     if (stages.length > 0) {
-      say(t('note.wrongBar', { want: name }), 6000)
+      say(rightStock ? t('note.wrongBillet', { billet }) : t('note.wrongBar', { want: name }), 6000)
       return
     }
     const had = target.id
+    const hadBillet = bar.billet
     if (bench.active) leaveBench()
     setPattern(want)
-    swapBlade(career, had, want)
+    swapBlade(career, had, want, hadBillet, nextBillet())
     freshBar()
-    say(t('note.swapBar', { pattern: name }), 4000)
+    say(rightStock ? t('note.swapBillet', { billet }) : t('note.swapBar', { pattern: name }), rightStock ? 8000 : 4000)
   }
   const careerSheet = createCareerSheet(app, {
     career: () => career,
@@ -893,7 +950,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
       buyBar()
     } else {
       scrapAskedAt = now
-      say(t('note.scrapSure', { money: money(bladeCost(career ? wantedPattern(career) : target.id)) }), 4000)
+      say(t('note.scrapSure', { money: money(bladeCost(wantedPattern(career), nextBillet())) }), 4000)
     }
   })
 
