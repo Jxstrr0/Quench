@@ -590,6 +590,9 @@ Kelbo has asked for Quench to be added to the studio site, so this plan allows
 | Q22 | The studio-site listing (PR 13)? | **Add it hidden.** The card, with the cover and the card clip, goes on the studio site with `"hidden": true`. Nobody sees it until Kelbo says so. |
 | Q23 | When is it 1.0.0.0? | **Now, as it stands.** Every stage of the plan is built. Tuning carries on afterwards as 1.0.x. |
 | Q24 | The cover: the hot bar on the anvil, or painted key art? | **The hot bar on the anvil**, recorded from the game (`npm run cover`). No Higgsfield key art, no credits spent. |
+| Q25 | What status does the studio-site card carry at 1.0.0.0? | **Polishing.** Playable, still being tuned. |
+| Q26 | Update Quench's profile in the studio catalogue (`LONGLIGHT-STUDIO.md`)? | **Yes.** The Quench lines in the master are brought up to 1.0.0.0, and the copy here is recopied from it. |
+| Q27 | When is the card shown on longlight.games? | **Not yet.** It stays hidden until Kelbo has played 1.0.0.0 and says so. |
 
 Working rules agreed the same day:
 
