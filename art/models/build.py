@@ -369,7 +369,58 @@ def tongs():
     return finish("tongs", bm, [black_iron()], bevel=0.001)
 
 
-MODELS = {"anvil": anvil, "forge": forge, "trench": trench, "tank": tank, "bench": bench, "tongs": tongs}
+def cast_iron():
+    """The vice's castings: painted once, long ago."""
+    return material("castIron", (0.085, 0.1, 0.12), 0.6, 0.45)
+
+
+def vice():
+    """
+    A bench vice, seen along the blade's edge in the bend test: a jaw on each
+    flat of the blade, the screw's housing in front, the screw and its tommy
+    bar out to one side. Its origin is on the table top, in the middle of the
+    gap between the jaws. Blender's -y is toward the camera.
+    """
+    top = DIMS["viceTop"] * MM
+    jaw = DIMS["viceJaw"] * MM
+    gap = DIMS["viceGap"] * MM
+    head = top - 0.026           # where the castings end and the jaw heads begin
+    bm = bmesh.new()
+
+    # The foot, bolted to the table.
+    box(bm, -jaw - 0.03, jaw + 0.03, -0.06, 0.06, 0.0, 0.012)
+    for x in (-jaw - 0.018, jaw + 0.018):
+        for y in (-0.045, 0.045):
+            box(bm, x - 0.006, x + 0.006, y - 0.006, y + 0.006, 0.012, 0.017, mat=2)
+    for side in (1, -1):
+        inner, outer = side * gap, side * (gap + jaw)
+        x0, x1 = sorted((inner, outer))
+        # The casting leans in a little as it rises; its inner face stays true.
+        lean = side * (gap + jaw - 0.006)
+        a0, a1 = sorted((inner, lean))
+        frustum(bm, x0 - (0.008 if side < 0 else 0), x1 + (0.008 if side > 0 else 0), -0.05, 0.05, 0.012,
+                a0, a1, -0.05, 0.05, head)
+        # The jaw head, and the hard plate on its inner face.
+        plate = side * (gap + 0.008)
+        b0, b1 = sorted((plate, lean))
+        box(bm, b0, b1, -0.05, 0.05, head, top)
+        c0, c1 = sorted((inner, plate))
+        box(bm, c0, c1, -0.05, 0.05, head + 0.004, top, mat=1)
+    # The screw's housing across the front, below the jaws.
+    box(bm, -jaw - gap, jaw + gap, -0.07, -0.05, 0.012, head)
+    # The screw, out to the right, and the tommy bar through its end.
+    z = head * 0.55
+
+    def ring(x, r):
+        return [(x, -0.06 + r * math.cos(a), z + r * math.sin(a)) for a in (math.radians(22.5 + 45 * i) for i in range(8))]
+
+    end = jaw + gap + 0.06
+    loft(bm, [ring(jaw + gap - 0.004, 0.013), ring(jaw + gap + 0.012, 0.013), ring(jaw + gap + 0.012, 0.008), ring(end, 0.008)], mat=2)
+    box(bm, end - 0.012, end - 0.004, -0.064, -0.056, z - 0.05, z + 0.045, mat=1)
+    return finish("vice", bm, [cast_iron(), worn_steel(), steel()], bevel=0.002)
+
+
+MODELS = {"anvil": anvil, "forge": forge, "trench": trench, "tank": tank, "bench": bench, "tongs": tongs, "vice": vice}
 
 
 def export(name):

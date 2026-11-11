@@ -19,5 +19,8 @@
   "benchLength": 1100,
   "benchWidth": 340,
   "benchTop": -21,
-  "tongsLength": 360
+  "tongsLength": 360,
+  "viceTop": 130,
+  "viceJaw": 50,
+  "viceGap": 4
 }
