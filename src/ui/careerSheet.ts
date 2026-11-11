@@ -3,12 +3,14 @@
  * With one in play it is the smith's ledger: the day, the money, the Guild
  * rating, the commission in hand and the board.
  */
-import { MONEY, REP } from '../data/career'
+import type { ToolId } from '../data/career'
+import { MONEY, PROVINGS, REP, TOOLS } from '../data/career'
+import type { StringKey } from '../data/strings'
 import { t } from '../data/strings'
 import type { CareerSave } from '../persist/career'
 import type { Brief, CareerState } from '../sim/career'
-import { accept, drop, oddJob } from '../sim/career'
-import { briefNeeds, briefTerms, briefTitle, briefWhat, money, ratingName } from './careerWords'
+import { accept, buyTool, drop, nextRating, oddJob, provingBar, provingDay } from '../sim/career'
+import { briefNeeds, briefTerms, briefTitle, briefWhat, money, ratingName, testList } from './careerWords'
 import type { Sheet } from './dom'
 import { button, createSheet, el } from './dom'
 import { note } from './trialParts'
@@ -23,6 +25,12 @@ export interface CareerHost {
   leave(): void
   /** The card changed the career: save it and show it. */
   changed(): void
+}
+
+const TOOL_KEY: Record<ToolId, [StringKey, StringKey]> = {
+  pyrometer: ['tool.pyrometer', 'tool.pyrometer.what'],
+  hardnessTester: ['tool.hardnessTester', 'tool.hardnessTester.what'],
+  loupe: ['tool.loupe', 'tool.loupe.what'],
 }
 
 /** A button that asks for a second tap before it acts. */
@@ -81,6 +89,56 @@ export function createCareerSheet(host: HTMLElement, forge: CareerHost): Sheet {
     return card
   }
 
+  /** The next Proving: when it is, what it asks, and what stands in the way. */
+  const provingCard = (state: CareerState): HTMLElement => {
+    const card = el('div', 'brief')
+    const next = nextRating(state.rating)
+    const bar = provingBar(state)
+    if (!next || bar === 'top') {
+      card.append(el('p', 'brief-what', t('career.proving.top')))
+      return card
+    }
+    const rule = PROVINGS[next]
+    card.append(el('p', 'brief-what', t('career.proving.next', { day: provingDay(state.day), rating: ratingName(next) })))
+    if (!rule.pattern) {
+      card.append(el('p', 'brief-needs', t('career.proving.noPattern')))
+      return card
+    }
+    card.append(
+      el('p', 'brief-needs', t('career.proving.tests', { pattern: t(`pattern.${rule.pattern}`).toLowerCase(), list: testList(rule.trials), money: money(rule.fee) })),
+    )
+    const where =
+      bar === 'delivered'
+        ? t('career.proving.delivered', { n: rule.delivered, have: state.delivered })
+        : bar === 'fee'
+          ? t('career.proving.fee')
+          : t('career.proving.ready')
+    card.append(el('p', 'brief-terms', where))
+    return card
+  }
+
+  const toolCard = (state: CareerState, id: ToolId): HTMLElement => {
+    const card = el('div', 'brief')
+    const [name, what] = TOOL_KEY[id]
+    card.append(el('h4', 'brief-title', t(name)), el('p', 'brief-what', t(what)))
+    const price = TOOLS[id].price
+    if (state.tools.includes(id)) {
+      card.append(el('p', 'brief-terms', t('tool.owned')))
+    } else if (state.money < price) {
+      card.append(el('p', 'brief-needs', t('tool.short', { money: money(price) })))
+    } else {
+      const buy = button('btn btn-wide')
+      buy.textContent = t('tool.buy', { money: money(price) })
+      buy.addEventListener('click', () => {
+        buyTool(state, id)
+        forge.changed()
+        ledger(state)
+      })
+      card.append(buy)
+    }
+    return card
+  }
+
   const ledger = (state: CareerState, said = '') => {
     body.replaceChildren()
     const facts = el('div', 'ledger')
@@ -121,6 +179,10 @@ export function createCareerSheet(host: HTMLElement, forge: CareerHost): Sheet {
       }
       body.append(briefCard(state, brief, take))
     }
+
+    body.append(el('h3', 'sheet-sub', t('career.proving')), provingCard(state))
+    body.append(el('h3', 'sheet-sub', t('career.tools')))
+    for (const id of Object.keys(TOOLS) as ToolId[]) body.append(toolCard(state, id))
 
     const odd = button('btn btn-wide btn-quiet')
     odd.textContent = t('career.oddJob', { money: money(MONEY.oddJob) })
