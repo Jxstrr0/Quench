@@ -176,7 +176,7 @@ export function createTrialSheet(host: HTMLElement, forge: TrialHost): Sheet {
       const r = forge.sitProving(report)
       if (!r) return
       if (!r.passed) {
-        said.textContent = t('proving.failed', { day: r.day, list: testList(r.failed) })
+        said.textContent = `${t('proving.failed', { day: r.day, list: testList(r.failed) })} “${t('examiner.provingFail')}”`
         said.hidden = false
         enter.remove()
         return
@@ -185,6 +185,7 @@ export function createTrialSheet(host: HTMLElement, forge: TrialHost): Sheet {
       ended = true
       body.replaceChildren(
         note(t('proving.passed', { day: r.day, rating: ratingName(r.rating) })),
+        note(`“${t('examiner.provingPass')}”`),
         note(t('proving.next', { money: money(forge.barCost()) }), 'sheet-note sheet-small'),
       )
       sheet.card.scrollTop = 0

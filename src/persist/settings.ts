@@ -9,6 +9,8 @@ export interface Settings {
   dimLights: boolean
   sound: boolean
   haptics: boolean
+  /** The Guild examiner speaks the trial results. */
+  voice: boolean
   /** How loud the game is, 0 to 1. */
   volume: number
 }
@@ -23,6 +25,7 @@ export const DEFAULT_SETTINGS: Settings = {
   dimLights: false,
   sound: true,
   haptics: true,
+  voice: true,
   volume: 0.7,
 }
 

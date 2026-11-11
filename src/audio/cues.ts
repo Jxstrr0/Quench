@@ -2,7 +2,7 @@
  * Sound cues: a pure map from what happened to what to play. No Web Audio
  * here, so it can be tested. The engine turns a voice into sound.
  */
-import type { ForgeSound, TrialSound } from '../data/audio'
+import type { ExaminerLine, ForgeSound, TrialSound } from '../data/audio'
 import { BELT_SOUND, FIRE_SOUND, HAMMER_SOUND, QUENCH_SOUND, SEA_SOUND, SPARK_SOUND, STONE_SOUND, TRIAL_TIMES } from '../data/audio'
 import type { TrialId } from '../data/trials'
 import type { Outcome } from '../sim/trials'
@@ -178,4 +178,14 @@ export function sparkRate(where: Where, temp: number, burn: number): number {
 export function seaVoice(atWindow: boolean): FireVoice {
   const k = SEA_SOUND
   return { gain: atWindow ? k.windowGain : k.forgeGain, hz: k.hz, flutter: k.swell }
+}
+
+/** What the examiner says of one test. */
+export function examinerLine(id: TrialId, passed: boolean): ExaminerLine {
+  return `${id}.${passed ? 'pass' : 'fail'}`
+}
+
+/** What the examiner says once every test is done. */
+export function verdictLine(passed: number, of: number): ExaminerLine {
+  return passed === of ? 'allPass' : 'someFail'
 }

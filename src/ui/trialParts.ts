@@ -126,6 +126,8 @@ export function reportParts(bar: Bar, report: TrialReport, score: boolean, onFix
   if (score && report.results.length > 0) {
     const all = report.passed === report.results.length
     parts.push(note(all ? t('trial.allPassed') : t('trial.score', { n: report.passed, of: report.results.length }), 'sheet-note sheet-result'))
+    // The examiner's last word, as he says it.
+    if (!all) parts.push(note(`“${t('examiner.someFail')}”`, 'sheet-note sheet-small'))
   }
   if (report.broke) {
     parts.push(...breakParts(bar, report.broke))

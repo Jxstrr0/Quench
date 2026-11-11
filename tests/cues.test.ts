@@ -1,6 +1,8 @@
+import { existsSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { beltVoice, cuesDue, fireVoice, hammerVoice, placeCue, seaVoice, sparkRate, strokeVoice, trialCues } from '../src/audio/cues'
-import { FORGE_SOUNDS, SPARK_SOUND, TRIAL_SOUNDS } from '../src/data/audio'
+import { beltVoice, cuesDue, fireVoice, hammerVoice, examinerLine, placeCue, seaVoice, sparkRate, strokeVoice, trialCues, verdictLine } from '../src/audio/cues'
+import { EXAMINER_LINES, FORGE_SOUNDS, SPARK_SOUND, TRIAL_SOUNDS } from '../src/data/audio'
+import { t } from '../src/data/strings'
 
 describe('the sound of a blow', () => {
   it('hot, thick steel gives a dull thud with no ring', () => {
@@ -169,5 +171,38 @@ describe('the sea outside', () => {
     expect(seaVoice(true).gain).toBeGreaterThan(seaVoice(false).gain)
     expect(seaVoice(false).gain).toBeLessThan(fireVoice(0, false, false).gain)
     expect(seaVoice(true).flutter).toBeLessThanOrEqual(1)
+  })
+})
+
+describe('the examiner', () => {
+  const sheet = readFileSync('docs/voice/quench-examiner-v1.csv', 'utf8')
+    .trim()
+    .split('\n')
+    .slice(1)
+    .map((row) => {
+      const [id, , , , , ...rest] = row.split(',')
+      // The text is the sixth column; it is quoted when it holds a comma.
+      const tail = rest.join(',')
+      const text = tail.startsWith('"') ? tail.slice(1, tail.indexOf('"', 1)) : (tail.split(',')[0] as string)
+      return { file: (id as string).toLowerCase().replace('qnc-', ''), text }
+    })
+
+  it('says of each test whether it passed', () => {
+    expect(examinerLine('rope', true)).toBe('rope.pass')
+    expect(examinerLine('bend', false)).toBe('bend.fail')
+    expect(verdictLine(5, 5)).toBe('allPass')
+    expect(verdictLine(4, 5)).toBe('someFail')
+  })
+  it('every line has a recording, and the words on screen are the words spoken', () => {
+    const lines = Object.entries(EXAMINER_LINES)
+    expect(lines.length).toBe(sheet.length)
+    for (const [key, file] of lines) {
+      expect(existsSync(`public/assets/audio/voice/${file}.mp3`), file).toBe(true)
+      const row = sheet.find((r) => r.file === file)
+      expect(row?.text, key).toBe(t(`examiner.${key as keyof typeof EXAMINER_LINES}`))
+    }
+  })
+  it('every recording in the game is named in the credits', () => {
+    expect(readFileSync('CREDITS.md', 'utf8')).toContain('public/assets/audio/voice/')
   })
 })

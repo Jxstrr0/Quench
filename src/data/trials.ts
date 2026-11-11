@@ -169,6 +169,8 @@ export const FIT = {
 export const PLAYBACK = {
   seconds: { fit: 2.2, rope: 2, brass: 2.2, chop: 2.8, shave: 1.8, board: 1.8, bend: 2.6, flex: 2.6, mat: 2.2 },
   hold: 1.6,
+  /** With the examiner speaking, the result holds this long, so he can finish. */
+  holdSpoken: 3.2,
 } as const
 
 /** How a trial names the cause of a failure. */

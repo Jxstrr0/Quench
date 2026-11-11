@@ -1,8 +1,18 @@
 # Quench voice and sound quotes
 
-Nothing here has been generated and no credits have been spent. Kelbo's
-ElevenLabs limit for Quench is 2,700 credits (plan 11.3). Each batch below
-needs its own plain yes from Kelbo before it runs.
+**Status (2026-11-11): both batches generated, with Kelbo's yes, at two takes each.**
+Spent: 1,478 credits on the examiner and 207 on the effects, 1,685 in all, of
+the 2,700 limit (plan 11.3). About 1,015 are left. Any further generation needs
+a new quote and a new yes.
+
+- The raw takes are in `art/audio/src/elevenlabs/` (`exam-0001_t1.mp3`, `_t2.mp3`, ...).
+- The game uses take 1 of every examiner line. To swap one, change `PICKS` in
+  `art/audio/build.py` and run it.
+- The six effects came out short (1 to 3 seconds each) and cheaper than quoted.
+  They are not in the game yet: Kelbo compares them with CC0 recordings first.
+- ElevenLabs flow: "QNC — Examiner and SFX v1".
+
+What follows is the quote as it was approved.
 
 Game code for file names: `QNC`.
 
