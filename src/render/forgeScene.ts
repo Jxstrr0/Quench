@@ -43,7 +43,7 @@ import type { MediumId } from '../data/media'
 import type { Pattern } from '../data/patterns'
 import { GRIND, SHARPEN } from '../data/grind'
 import { HANDLE_LOOK } from '../data/look'
-import { BENCH, FORGE, TANK, TONGS, TRENCH, WORKBENCH } from '../data/tuning'
+import { BENCH, FORGE, BELT, TANK, TONGS, TRENCH, WORKBENCH } from '../data/tuning'
 import type { Bar, Segment } from '../sim/bar'
 import { barLength, nearestSegment, segmentCentres } from '../sim/bar'
 import { patternLength } from '../sim/shape'
@@ -249,13 +249,16 @@ export function createForgeView(host: HTMLElement, start: TierSettings): ForgeVi
   const grinder = new Group()
   const platen = box(beltWide + 0.02, 0.022, 0.25, 0x3a4047, 0.5, 0.8)
   platen.position.y = beltTop - 0.013
-  const belt = box(beltWide, 0.002, 0.26, 0x4a3524, 1)
+  const beltLen = BELT.length * MM
+  const belt = box(beltWide, 0.002, beltLen, 0x4a3524, 1)
   belt.position.y = beltTop - 0.001
   grinder.add(platen, belt)
+  // The modelled machine sits under and round the belt; its origin is the middle of the belt.
+  swapIn('grinder', platen, () => {})
   // Lines of grit run along the belt so it reads as moving.
   const gritMat = new MeshBasicMaterial({ color: 0x8a6a48 })
   const grit: Mesh[] = []
-  const gritGap = 0.26 / 8
+  const gritGap = beltLen / 8
   for (let i = 0; i < 8; i++) {
     const line = new Mesh(new BoxGeometry(beltWide, 0.0004, 0.004), gritMat)
     line.position.y = beltTop + 0.0002

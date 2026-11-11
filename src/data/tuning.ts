@@ -179,3 +179,6 @@ export const TRIAL_WALL = { back: 350, windowFrom: 140, windowTo: 440, sill: 420
 
 /** The trial table, in mm: its top's length, depth and thickness, and how high the brass rod's block stands on it. The models are built to the same sizes. */
 export const TRIAL_TABLE = { length: 1400, depth: 400, thick: 40, rodBlockTop: 38 } as const
+
+/** The grinder's belt as drawn, in mm: how long the run of belt on show is. Its width is the grind's contact width. The grinder model is built to the same sizes. */
+export const BELT = { length: 260 } as const

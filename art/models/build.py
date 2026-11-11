@@ -610,9 +610,43 @@ def rodblock():
     return finish("rodblock", bm, [cast_iron(), worn_steel()], bevel=0.0015)
 
 
+def grinder():
+    """
+    The belt grinder's machine, under and round the belt the game draws: the
+    platen the belt runs over, a wheel at each end, a side rail and the motor
+    past the far wheel. Everything stays below the belt's top so the blade can
+    lie across it. Its origin is the middle of the belt, at the height of the
+    anvil's face; the belt runs along y.
+    """
+    half_w = DIMS["grinderBelt"] * MM / 2
+    half_l = DIMS["grinderLength"] * MM / 2
+    top = 0.002                  # just under the belt
+    bench = DIMS["benchTop"] * MM
+    bm = bmesh.new()
+    # The platen, and the post that carries it.
+    box(bm, -half_w - 0.008, half_w + 0.008, -half_l + 0.03, half_l - 0.03, top - 0.012, top)
+    box(bm, -0.02, 0.02, -0.03, 0.03, bench, top - 0.012)
+    # A wheel at each end of the belt.
+    r = 0.017
+    for y in (-half_l, half_l):
+        loft(bm, [[(x, y + r * math.cos(a), top - r + r * math.sin(a)) for a in (math.radians(15 + 30 * i) for i in range(12))]
+                  for x in (-half_w - 0.004, half_w + 0.004)], mat=1)
+    # The rail down one side that carries the wheels, and its feet.
+    box(bm, half_w + 0.012, half_w + 0.024, -half_l - 0.012, half_l + 0.012, top - 0.026, top - 0.008, mat=2)
+    for y in (-half_l + 0.02, half_l - 0.02):
+        box(bm, half_w + 0.01, half_w + 0.03, y - 0.012, y + 0.012, bench, top - 0.026, mat=2)
+    # The motor, past the far wheel, with cooling fins.
+    m0, m1 = half_l + 0.03, half_l + 0.13
+    box(bm, -0.04, 0.04, m0, m1, bench, -0.003)
+    for k in range(5):
+        y = m0 + 0.012 + k * 0.019
+        box(bm, -0.045, 0.045, y, y + 0.006, bench + 0.004, -0.001, mat=2)
+    return finish("grinder", bm, [cast_iron(), black_iron(), steel()], bevel=0.0015)
+
+
 MODELS = {"anvil": anvil, "forge": forge, "trench": trench, "tank": tank, "bench": bench, "tongs": tongs, "vice": vice,
           "peg": peg, "matstand": matstand, "floor": floor, "wall": wall, "table": table, "bracket": bracket,
-          "rodblock": rodblock}
+          "rodblock": rodblock, "grinder": grinder}
 
 
 def export(name):
