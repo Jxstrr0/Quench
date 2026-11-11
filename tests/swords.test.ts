@@ -232,3 +232,94 @@ describe('the trench forge', () => {
     expect(a.segments.map((s) => s.temp)).toEqual(b.segments.map((s) => s.temp))
   })
 })
+
+describe('the full sword', () => {
+  const F = PATTERNS.fullSword
+  const FS = steel(F.steel)
+  const SHARE_F = F.bladeShare
+  const SEGS = Math.floor(48 * SHARE_F)
+  const shaped = (seed = 5): Bar => {
+    const bar = createBar(F.steel, { length: patternLength(F), width: 30, thickness: 5 }, 48, seed)
+    let x = 0
+    for (const s of bar.segments) {
+      const size = patternAt(F, x + s.length / 2)
+      x += s.length
+      if (size) Object.assign(s, size)
+    }
+    return bar
+  }
+  const edgeOf = (bar: Bar): number => {
+    let e = 0
+    for (let i = 6; i < SEGS - 4; i++) e += edgeThickness(bar.segments[i] as Segment)
+    return e / (SEGS - 10)
+  }
+  const grind = (bar: Bar, target: number, pressure = 1): void => {
+    for (let n = 0; n < 900 && edgeOf(bar) > target; n++) {
+      for (const side of ['left', 'right'] as const) for (let at = 60; at <= 730; at += 8) stepGrind(bar, { at, side, tilt: 5, pressure })
+    }
+  }
+  const made = (): Bar => {
+    const bar = shaped()
+    grind(bar, 1)
+    coolToRoom(bar)
+    for (let k = 0; k < 240; k++) {
+      for (let i = 0; i < SEGS; i++) (bar.segments[i] as Segment).temp = FS.austenitize
+      stepHeat(bar, { where: 'air' })
+    }
+    advance(bar, { where: 'quench', medium: 'fastOil', agitation: 1 }, 90)
+    coolToRoom(bar)
+    temperInOven(bar, 200, 60)
+    temperInOven(bar, 200, 60)
+    grind(bar, 0.3, 0.4)
+    coolToRoom(bar)
+    for (let pass = 0; pass < 8; pass++) for (let at = 20; at <= 740; at += 20) strokeStone(bar, { at, angle: 20, pressure: 1 })
+    fitHandle(bar, 'ash')
+    return bar
+  }
+
+  it('is a blade of about 750 mm, and its bar holds enough steel', () => {
+    expect(patternLength(F) * SHARE_F).toBeCloseTo(750, 0)
+    const stock = F.stock.length * F.stock.width * F.stock.thickness
+    expect(stock).toBeGreaterThan(patternVolume(F) * 1.04)
+    expect(stock).toBeLessThan(patternVolume(F) * 1.12)
+  })
+
+  it('is longer than the trench forge too: it goes out through the back of both fires', () => {
+    expect(wantsLongFire(F)).toBe(true)
+    expect(railReach(F)).toBeGreaterThan(750)
+    expect(railReach(F, true)).toBe(750 + TRENCH.coreStart)
+    expect(railReach(F, true)).toBeGreaterThan(TRENCH.depth)
+    // The short sword still fits the trench.
+    expect(railReach(P, true)).toBe(TRENCH.depth - TRENCH.backGap)
+  })
+
+  it('comes to hardening heat in the trench by sliding it through, not by holding it still', () => {
+    const stretch = (bar: Bar): [number, number] => {
+      const c = segmentCentres(bar)
+      const temps = bar.segments.filter((_, i) => (c[i] as number) >= 750 * 0.1 && (c[i] as number) <= 750 * 0.95).map((x) => x.temp)
+      return [Math.min(...temps), Math.max(...temps)]
+    }
+    const far = railReach(F, true)
+    const still = shaped()
+    for (let n = 0; n < 20 * 300; n++) stepHeat(still, { where: 'fire', depth: far, blast: 0.4, long: true })
+    expect(stretch(still)[0]).toBeLessThan(FS.austenitize)
+    // Tip end in the fire, push through, heel end in the fire, pull back: a few seconds at each end.
+    const slid = shaped()
+    const near = TRENCH.depth
+    for (let n = 0; n < 20 * 300; n++) {
+      const phase = ((n / 20) % 6) / 6
+      const swing = phase < 0.4 ? 0 : phase < 0.5 ? (phase - 0.4) * 10 : phase < 0.9 ? 1 : 1 - (phase - 0.9) * 10
+      stepHeat(slid, { where: 'fire', depth: near + (far - near) * swing, blast: 0.2, long: true })
+    }
+    const [coolest, hottest] = stretch(slid)
+    expect(coolest).toBeGreaterThan(FS.austenitize)
+    expect(hottest).toBeLessThan(FS.burn)
+    // The middle never leaves the fire, so it runs hotter than the ends: that is the full sword's trouble.
+    expect(hottest - coolest).toBeGreaterThan(150)
+  })
+
+  it('passes the sword tests when it is sound', () => {
+    const r = runTrials(made(), F, SHARE_F)
+    expect(told(r)).toEqual({ fit: 'fine', flex: 'springsTrue', mat: 'cut' })
+  })
+})

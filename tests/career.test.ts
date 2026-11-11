@@ -351,13 +351,20 @@ describe('the Proving', () => {
     expect(sitProving(c, report(['fit', 'rope', 'chop']), 'campKnife')).toMatchObject({ passed: true, day: PROVING.every * 2 })
   })
 
-  it('Master waits for the sword', () => {
+  it('Master is won with a full sword that springs true and cuts the mat', () => {
     const c = newCareer(4)
     c.rating = 'journeyman'
-    c.delivered = 99
-    c.money = 9999
-    expect(provingBar(c)).toBe('noPattern')
-    c.rating = 'master'
+    c.delivered = PROVINGS.master.delivered
+    c.money = PROVINGS.master.fee
+    expect(PROVINGS.master.pattern).toBe('fullSword')
+    expect(provingBar(c)).toBeNull()
+    // The wrong blade is not the set piece.
+    expect(sitProving(c, report(['fit', 'flex', 'mat']), 'shortSword')).toBeNull()
+    const failed = structuredClone(c)
+    expect(sitProving(failed, report(['fit', 'flex'], ['mat']), 'fullSword')).toMatchObject({ passed: false })
+    expect(failed.rating).toBe('journeyman')
+    expect(sitProving(c, report(['fit', 'flex', 'mat']), 'fullSword')).toMatchObject({ passed: true, rating: 'master' })
+    expect(c.rating).toBe('master')
     expect(provingBar(c)).toBe('top')
   })
 })
@@ -427,6 +434,23 @@ describe('sword commissions', () => {
     }
     expect([...seen].sort()).toEqual(['clubSword', 'collectorSword'])
     for (const k of seen) expect(CUSTOMERS[BRIEFS[k].customer].group).toBe('collectors')
+  })
+  it('ask a Master, and only a Master, for a full sword', () => {
+    const full = (rating: 'journeyman' | 'master'): Set<BriefKind> => {
+      const seen = new Set<BriefKind>()
+      for (let seed = 1; seed <= 80; seed++) {
+        const c = newCareer(seed)
+        c.rating = rating
+        c.board = []
+        fillBoard(c)
+        for (const k of kindsOn(c)) if (BRIEFS[k].pattern === 'fullSword') seen.add(k)
+      }
+      return seen
+    }
+    expect(full('journeyman').size).toBe(0)
+    expect([...full('master')].sort()).toEqual(['clubFullSword', 'masterSword'])
+    expect(EFFORT.fullSword).toBeGreaterThan(EFFORT.shortSword)
+    expect(BRIEFS.masterSword.pay[0]).toBeGreaterThan(BRIEFS.collectorSword.pay[1])
   })
   it('ask for sword stock, which costs a little more than a knife bar', () => {
     const c = newCareer(3)

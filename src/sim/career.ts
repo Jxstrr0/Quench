@@ -294,14 +294,13 @@ export function provingDay(day: number): number {
   return Math.ceil(day / PROVING.every) * PROVING.every
 }
 
-export type ProvingBar = 'top' | 'noPattern' | 'delivered' | 'fee'
+export type ProvingBar = 'top' | 'delivered' | 'fee'
 
 /** What stands between the smith and the next Proving, or null when the way is clear. */
 export function provingBar(state: CareerState): ProvingBar | null {
   const next = nextRating(state.rating)
   if (!next) return 'top'
   const rule = PROVINGS[next]
-  if (!rule.pattern) return 'noPattern'
   if (state.delivered < rule.delivered) return 'delivered'
   if (state.money < rule.fee) return 'fee'
   return null

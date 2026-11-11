@@ -33,6 +33,8 @@ const BRIEF_KEY: Record<BriefKind, StringKey> = {
   clubKnife: 'brief.clubKnife',
   collectorSword: 'brief.collectorSword',
   clubSword: 'brief.clubSword',
+  masterSword: 'brief.masterSword',
+  clubFullSword: 'brief.clubFullSword',
 }
 
 export function customerName(kind: BriefKind): string {
