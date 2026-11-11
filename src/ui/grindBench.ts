@@ -71,6 +71,8 @@ export interface GrindBench {
   readonly active: boolean
   enter(): void
   exit(): void
+  /** Bring out the sharpening stone, or put the belt back. */
+  useStone(on: boolean): void
   /** A finger went down on the scene, moved, or lifted. */
   press(clientX: number, clientY: number): void
   move(clientX: number, clientY: number): void
@@ -222,6 +224,9 @@ export function createGrindBench(host: BenchHost): GrindBench {
       at = barLength(host.bar()) / 3
       show()
       for (const part of parts) part.hidden = false
+    },
+    useStone(on) {
+      if (stone !== on) swapTool()
     },
     exit() {
       active = false

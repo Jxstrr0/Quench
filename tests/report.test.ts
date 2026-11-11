@@ -9,7 +9,7 @@ import { grindFor } from '../src/sim/grind'
 import { strike } from '../src/sim/hammer'
 import { advance, coolToRoom, stepHeat } from '../src/sim/heat'
 import type { Explanation } from '../src/sim/report'
-import { explain, fractureReport, grainWord } from '../src/sim/report'
+import { explain, fixFor, fractureReport, grainWord } from '../src/sim/report'
 import { temperInOven } from '../src/sim/temper'
 import type { TrialCause } from '../src/sim/trials'
 import { runTrials } from '../src/sim/trials'
@@ -301,6 +301,27 @@ describe('the bad moment', () => {
       expect(e.bad).toBe(-1)
       expect(e.lesson).toBe(lesson)
       expect(e.moments.some((m) => m.bad)).toBe(false)
+    }
+  })
+})
+
+describe('where a failure can still be put right', () => {
+  it('sends edge trouble to the grinder or the stone, and a missing handle to the handle', () => {
+    expect(fixFor('grindThinner')).toBe('grinder')
+    expect(fixFor('evenBevels')).toBe('grinder')
+    expect(fixFor('sharpen')).toBe('stone')
+    expect(fixFor('stouterAngle')).toBe('stone')
+    expect(fixFor('fitHandle')).toBe('handle')
+  })
+  it('sends a soft blade back to the fire, and an untempered one to the oven', () => {
+    expect(fixFor('harden')).toBe('fire')
+    expect(fixFor('quenchFaster')).toBe('fire')
+    expect(fixFor('temper')).toBe('temper')
+    expect(fixFor('temperHotter')).toBe('temper')
+  })
+  it('offers nothing for what cannot be undone on this blade', () => {
+    for (const lesson of ['temperCooler', 'avoidBand', 'easyOnBelt', 'forgeHotter', 'hardenCooler', 'shorterHeats', 'softerBack', 'matchShape', 'seeChop'] as const) {
+      expect(fixFor(lesson), lesson).toBeNull()
     }
   })
 })

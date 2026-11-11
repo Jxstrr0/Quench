@@ -9,10 +9,10 @@ import type { TrialId } from '../data/trials'
 import { WHY } from '../data/trials'
 import type { Bar } from '../sim/bar'
 import { heatWord } from '../sim/glow'
-import type { Explanation, Moment } from '../sim/report'
-import { explain, fractureReport } from '../sim/report'
+import type { Explanation, FixStage, Moment } from '../sim/report'
+import { explain, fixFor, fractureReport } from '../sim/report'
 import type { Break, TrialReport, TrialResult } from '../sim/trials'
-import { el } from './dom'
+import { button, el } from './dom'
 import { glossed } from './gloss'
 
 export const TRIAL_NAME: Record<TrialId, StringKey> = {
@@ -98,6 +98,15 @@ function timeline(e: Explanation): HTMLElement {
 const lesson = (e: Explanation): HTMLElement =>
   note(t(`lesson.${e.lesson}`, { from: WHY.brittleFrom, to: WHY.brittleTo }), 'sheet-note sheet-next')
 
+/** Under a lesson that this blade can still act on: a button that takes it to the stage that puts it right. */
+function fixLink(e: Explanation, onFix: (stage: FixStage) => void): HTMLElement | null {
+  const stage = fixFor(e.lesson)
+  if (!stage) return null
+  const go = button('btn btn-wide btn-quiet', `fix.${stage}`)
+  go.addEventListener('click', () => onFix(stage))
+  return go
+}
+
 function breakParts(bar: Bar, broke: Break): HTMLElement[] {
   const report = fractureReport(bar, broke)
   const parts: HTMLElement[] = [el('h3', 'sheet-sub', t('report.title'))]
@@ -107,8 +116,12 @@ function breakParts(bar: Bar, broke: Break): HTMLElement[] {
   return parts
 }
 
-/** A trial report, told in full. `score` adds the "n of m passed" line. */
-export function reportParts(bar: Bar, report: TrialReport, score: boolean): HTMLElement[] {
+/**
+ * A trial report, told in full. `score` adds the "n of m passed" line. With
+ * `onFix`, a failure the blade can still recover from gets a button to the
+ * stage that fixes it.
+ */
+export function reportParts(bar: Bar, report: TrialReport, score: boolean, onFix?: (stage: FixStage) => void): HTMLElement[] {
   const parts: HTMLElement[] = report.results.map(resultBox)
   if (score && report.results.length > 0) {
     const all = report.passed === report.results.length
@@ -125,5 +138,7 @@ export function reportParts(bar: Bar, report: TrialReport, score: boolean): HTML
   parts.push(el('h3', 'sheet-sub', t(main ? 'report.title' : 'report.heats')))
   parts.push(timeline(main ?? explain(bar, 'hardThroughout')))
   if (main) parts.push(lesson(main))
+  const link = main && onFix ? fixLink(main, onFix) : null
+  if (link) parts.push(link)
   return parts
 }

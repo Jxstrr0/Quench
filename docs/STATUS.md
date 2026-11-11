@@ -4,6 +4,7 @@ The plan is `docs/QUENCH-PLAN.md`. Newest line first.
 
 | Version | PR | What changed |
 | --- | --- | --- |
+| 0.8.3.0 | PR 8d: Fix-it links | When a blade fails a test and is still in one piece, the report's lesson now has a **Fix it now** button that takes the blade straight to the stage that puts it right: the Grinder, the stone, the handle, the Temper card, or back to the fire. Lessons that cannot be undone on this blade (burnt, over-tempered, cold-worked) stay as advice for the next bar. Also a test that no screen code writes its own words: all text comes from the string table. 6 new tests (319 in total). **This finishes PR 8 (Teaching) as planned.** |
 | 0.8.2.0 | PR 8c: The glossary | **Tap-to-explain words.** Smithing words in the blade card, the trial report and the temper card are underlined with dots; tapping one opens a short plain explanation over the card. A **?** button at the top lists all 18 words (harden, quench, temper, normalize, grain, magnet, brittle, hardness, warp, burnt, bevel, tang, etch, stone, peen, forging heat, the Proving, bench hours). 7 new tests (313 in total). |
 | 0.8.1.0 | PR 8b: The coach | While the neighbour's knife is the job in hand, **Maren talks you through it**: one instruction at a time under the shape readout ("step 3 of 9"), from the first heat to handing the knife over. She reads the blade itself, so the next step shows when the last is really done, and you stay free to do anything. A spoiled bar or a failed rope cut gets its own advice. Giving the commission back turns her off. 8 new tests (306 in total). |
 | 0.8.0.0 | PR 8a: The neighbour's knife | A new career now opens with a commission already in hand: a plain knife for **Maren Sollow**, your neighbour on the quay. It only has to cut rope, pays kr 650 and allows three weeks. It never comes up on the board, and giving it back costs no regard. This is the blade the coach will teach on (next PR). 5 new tests (298 in total). |
@@ -38,7 +39,7 @@ The plan is `docs/QUENCH-PLAN.md`. Newest line first.
 
 Pages is on and the custom domain is set: https://quench.longlight.games/. Each merge to `main` publishes there.
 
-## Questions for Kelbo after playing 0.8.2.0
+## Questions for Kelbo after playing 0.8.3.0
 
 Kelbo said to keep rolling and tune later, so these are saved up, not blocking.
 
