@@ -7,7 +7,6 @@ import type { BriefKind, Rating } from '../data/career'
 import type { Pattern } from '../data/patterns'
 import { t } from '../data/strings'
 import type { TrialId } from '../data/trials'
-import { BENCH } from '../data/tuning'
 import { COLLECTION_MAX } from '../persist/collection'
 import type { Bar } from '../sim/bar'
 import type { Delivery, ProvingResult } from '../sim/career'
@@ -61,7 +60,7 @@ export function createTrialSheet(host: HTMLElement, forge: TrialHost): Sheet {
     coolToRoom(bar)
     forge.changed()
     const p = forge.pattern()
-    const report = runTrials(bar, p, BENCH.tangShare, ids ?? p.trials)
+    const report = runTrials(bar, p, p.bladeShare, ids ?? p.trials)
     // Watch the tests first; the card comes back with what they found.
     playing = true
     sheet.close()

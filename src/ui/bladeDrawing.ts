@@ -4,7 +4,6 @@
  * kept blade is shown from its saved parameters.
  */
 import { HANDLE_LOOK, STEEL_LOOK } from '../data/look'
-import { BENCH } from '../data/tuning'
 import type { Bar, Segment } from '../sim/bar'
 
 /** The handle stands this far proud of the tang all round, and runs this far past its end, in mm. */
@@ -21,7 +20,7 @@ function blend(a: number, b: number, k: number): string {
 }
 
 /** Draw the blade to fill the canvas: tip to the left, spine up, edge down. */
-export function drawBlade(canvas: HTMLCanvasElement, bar: Bar): void {
+export function drawBlade(canvas: HTMLCanvasElement, bar: Bar, bladeShare: number): void {
   const ctx = canvas.getContext('2d')
   if (!ctx) return
   const segs = bar.segments
@@ -92,8 +91,8 @@ export function drawBlade(canvas: HTMLCanvasElement, bar: Bar): void {
   }
 
   if (bar.handle) {
-    const from = left + length * BENCH.tangShare * scale
+    const from = left + length * bladeShare * scale
     ctx.fillStyle = css(HANDLE_LOOK[bar.handle])
-    ctx.fillRect(from, spine - proud * scale, (reach - length * BENCH.tangShare) * scale, (last.width + 2 * proud) * scale)
+    ctx.fillRect(from, spine - proud * scale, (reach - length * bladeShare) * scale, (last.width + 2 * proud) * scale)
   }
 }

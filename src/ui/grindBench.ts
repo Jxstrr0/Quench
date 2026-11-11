@@ -16,9 +16,9 @@ import { GRIND, GRINDER, HANDLE_ORDER, PRESSURES, SHARPEN } from '../data/grind'
 import type { StringKey } from '../data/strings'
 import { t } from '../data/strings'
 import { INSPECT } from '../data/treat'
-import { BENCH } from '../data/tuning'
 import type { Settings } from '../persist/settings'
 import type { ForgeView } from '../render/forgeScene'
+import type { Pattern } from '../data/patterns'
 import type { Bar } from '../sim/bar'
 import { barLength, hottest } from '../sim/bar'
 import type { Side } from '../sim/grind'
@@ -47,6 +47,7 @@ export interface BenchHost {
   audio: AudioEngine
   settings: Settings
   bar(): Bar
+  pattern(): Pattern
   /** Say something beside the place name for a moment. */
   say(text: string, ms: number): void
   openInspect(): void
@@ -162,7 +163,7 @@ export function createGrindBench(host: BenchHost): GrindBench {
     // Acid and glue both want a cold blade: whatever heat is left goes first.
     coolToRoom(bar)
     if (!etch(bar)) return
-    host.say(t(inspect(bar, BENCH.tangShare).hardened ? 'note.etched' : 'note.etchedSoft'), 3000)
+    host.say(t(inspect(bar, host.pattern().bladeShare).hardened ? 'note.etched' : 'note.etchedSoft'), 3000)
     host.view.setBar(bar)
   }
   const nextHandle = () => {
@@ -170,7 +171,7 @@ export function createGrindBench(host: BenchHost): GrindBench {
     coolToRoom(bar)
     const id = HANDLE_ORDER[(bar.handle ? HANDLE_ORDER.indexOf(bar.handle) + 1 : 0) % HANDLE_ORDER.length] as HandleId
     if (!fitHandle(bar, id)) return
-    host.say(t('note.handle', { name: t(HANDLE_KEY[id]), fit: t(FIT_KEY[fitWord(handleFit(bar, BENCH.tangShare))]) }), 3000)
+    host.say(t('note.handle', { name: t(HANDLE_KEY[id]), fit: t(FIT_KEY[fitWord(handleFit(bar, host.pattern().bladeShare))]) }), 3000)
     host.view.setBar(bar)
     show()
   }

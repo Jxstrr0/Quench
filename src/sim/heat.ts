@@ -173,7 +173,8 @@ export function stepHeat(bar: Bar, placement: Placement): void {
     let watts = conduction[i] as number
 
     let floor = -Infinity
-    if (placement.where === 'fire' && placement.depth - x > 0) {
+    // The fire is open at the back: steel pushed out through it is in the air again.
+    if (placement.where === 'fire' && placement.depth - x > 0 && placement.depth - x <= FORGE.depth) {
       watts += fireWatts(s, area, fireTempAt(placement.depth - x, placement.blast))
     } else if (placement.where === 'quench' && bath && (placement.depth === undefined || placement.depth - x > 0)) {
       watts += quenchWatts(s, area, bath, placement.agitation)

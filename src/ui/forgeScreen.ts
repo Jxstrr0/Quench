@@ -18,7 +18,8 @@ import { RHYTHM } from '../data/hammer'
 import type { HeatWord } from '../data/heatRamp'
 import type { MediumId } from '../data/media'
 import { MEDIUM_ORDER } from '../data/media'
-import { pattern } from '../data/patterns'
+import type { PatternId } from '../data/patterns'
+import { PATTERNS, pattern } from '../data/patterns'
 import type { SteelId } from '../data/steels'
 import { STEELS } from '../data/steels'
 import type { StringKey } from '../data/strings'
@@ -43,7 +44,7 @@ import { barFault, blowForce, strike } from '../sim/hammer'
 import type { Placement } from '../sim/heat'
 import { advance } from '../sim/heat'
 import { magnetTest } from '../sim/inspect'
-import { shapeScore } from '../sim/shape'
+import { railReach, shapeScore } from '../sim/shape'
 import type { TrialReport, TrialResult } from '../sim/trials'
 import { createBackupSheet } from './backupSheet'
 import { createCareerSheet } from './careerSheet'
@@ -100,7 +101,7 @@ function placementFor(tipDepth: number, blast: number, lane: number, medium: Med
 export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   const settings: Settings = loadSettings()
   const audio = createAudioEngine()
-  const target = pattern('campKnife')
+  let target = pattern('campKnife')
   let steelId: SteelId = target.steel
   let bar: Bar = createBar(steelId, target.stock)
   let blowType: BlowType = 'flat'
@@ -152,7 +153,11 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   const rackBtn = button('btn hud-rack')
   const careerBtn = button('btn hud-rack')
   head.append(mode, rackBtn, careerBtn)
-  top.append(head, place, shape, readout, faultLine)
+  // The pattern in use, with a small button to change it (Free forge only).
+  const shapeRow = el('div', 'hud-shape-row')
+  const patternBtn = button('btn hud-rack', 'btn.pattern')
+  shapeRow.append(shape, patternBtn)
+  top.append(head, place, shapeRow, readout, faultLine)
 
   // The blades kept so far, and how many, on the button that opens them.
   let kept = loadCollection()
@@ -272,6 +277,13 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   const applySteel = () => {
     steelBtn.textContent = `${t('steel.label')}: ${STEELS[steelId].name}`
   }
+  /** Forge to this pattern from now on: its outline, its steel, and how far its bar can go into the fire. */
+  const setPattern = (id: PatternId) => {
+    target = pattern(id)
+    steelId = target.steel
+    view.setTarget(target)
+    applySteel()
+  }
   const applyMedium = () => {
     tankBtn.textContent = `${t('tank.label')}: ${t(MEDIUM_KEY[mediumId][0])}`
     view.setMedium(mediumId)
@@ -288,14 +300,14 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
     hint.style.bottom = wide ? '' : `${box.height + 56}px`
   }
   const refreshShape = () => {
-    shape.textContent = t('shape.label', { name: t('pattern.campKnife'), n: shapePercent() })
+    shape.textContent = t('shape.label', { name: t(`pattern.${target.id}`), n: shapePercent() })
   }
   const showFault = () => {
     faultLine.hidden = fault === null
     view.setCrack(bar, fault && fault.kind !== 'burnt' ? fault.at : null)
     if (!fault) return
     const share = fault.at / barLength(bar)
-    const where = t(share < BENCH.tipShare ? 'where.tip' : share < BENCH.tangShare ? 'where.blade' : 'where.tang')
+    const where = t(share < BENCH.tipShare ? 'where.tip' : share < target.bladeShare ? 'where.blade' : 'where.tang')
     faultLine.textContent =
       fault.kind === 'quenchCrack'
         ? t('fault.quenchCrack', { where, why: t(CRACK_KEY[fault.cause ?? 'tooFast']) })
@@ -404,6 +416,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
     audio,
     settings,
     bar: () => bar,
+    pattern: () => target,
     say: (text, ms) => say(text, ms),
     openInspect: () => inspectSheet.open(),
     leave: leaveBench,
@@ -455,13 +468,19 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   assists.addEventListener('click', sheet.open)
   temperBtn.addEventListener('click', temperSheet.open)
   inspectBtn.addEventListener('click', inspectSheet.open)
-  const useMagnet = () => say(t(MAGNET_KEY[magnetTest(bar, BENCH.tangShare)]), 2500)
+  const useMagnet = () => say(t(MAGNET_KEY[magnetTest(bar, target.bladeShare)]), 2500)
   magnet.addEventListener('click', useMagnet)
   tankBtn.addEventListener('click', () => {
     // The tank cannot be changed with the blade in it.
     if (lane > BENCH.laneRail) return
     mediumId = MEDIUM_ORDER[(MEDIUM_ORDER.indexOf(mediumId) + 1) % MEDIUM_ORDER.length] as MediumId
     applyMedium()
+  })
+  patternBtn.addEventListener('click', () => {
+    const ids = Object.keys(PATTERNS) as PatternId[]
+    if (bench.active) leaveBench()
+    setPattern(ids[(ids.indexOf(target.id) + 1) % ids.length] as PatternId)
+    freshBar()
   })
   steelBtn.addEventListener('click', () => {
     const ids = Object.keys(STEELS) as SteelId[]
@@ -495,6 +514,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
     mode.textContent = t(career ? 'mode.career' : 'mode.freeForge')
     careerBtn.textContent = career ? t('career.hud', { day: career.day, money: money(career.money) }) : t('btn.career')
     steelBtn.hidden = career !== null
+    patternBtn.hidden = career !== null
   }
   const careerChanged = () => {
     showCareer()
@@ -522,8 +542,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
     const save = fresh ? null : loadSlot(n)
     if (bench.active) leaveBench()
     slot = n
-    steelId = target.steel
-    applySteel()
+    setPattern('campKnife')
     if (save) {
       career = save.career
       stages = save.stages
@@ -667,7 +686,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
     lastX = e.clientX
     lastY = e.clientY
     const before = tipDepth
-    tipDepth = Math.min(BENCH.railMax, Math.max(BENCH.railMin, tipDepth + pixels * view.mmPerPixel))
+    tipDepth = Math.min(railReach(target), Math.max(BENCH.railMin, tipDepth + pixels * view.mmPerPixel))
     // The bar crosses to the tank only once its tip is clear of the fire.
     if (lane > 0 || tipDepth <= BENCH.tankFrom) {
       lane = Math.min(1, Math.max(0, lane + (across * view.mmPerPixel) / BENCH.tankOffset))
@@ -698,7 +717,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
       return
     }
     const step = e.shiftKey ? 40 : 12
-    if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') tipDepth = Math.min(BENCH.railMax, tipDepth + step)
+    if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') tipDepth = Math.min(railReach(target), tipDepth + step)
     else if (e.key === 'ArrowDown' || e.key === 'ArrowRight') tipDepth = Math.max(BENCH.railMin, tipDepth - step)
     else if (e.key === 'b' || e.key === 'B') hold(true)
     else if (e.key === 'q' || e.key === 'Q') {
@@ -725,7 +744,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   applySettings()
   applySteel()
   applyMedium()
-  view.setTarget(target)
+  setPattern(target.id)
   freshBar()
   showCareer()
   // Carry on the career that was in play last time, if there was one.

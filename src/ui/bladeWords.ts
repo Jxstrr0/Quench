@@ -1,7 +1,7 @@
 /** A kept blade in words: what it is, when it was kept, how it did, and its size and fittings. */
+import { pattern } from '../data/patterns'
 import { STEELS } from '../data/steels'
 import { t } from '../data/strings'
-import { BENCH } from '../data/tuning'
 import type { KeptBlade } from '../persist/collection'
 import { barLength } from '../sim/bar'
 import { massAndBalance } from '../sim/trials'
@@ -23,9 +23,10 @@ export function keptVerdict(blade: KeptBlade): string {
 /** Its size and fittings, in a line. */
 export function keptSpec(blade: KeptBlade): string {
   const bar = blade.bar
+  const share = pattern(blade.pattern).bladeShare
   const parts = [
-    t('collection.length', { n: Math.round(barLength(bar) * BENCH.tangShare) }),
-    t('collection.mass', { n: Math.round(massAndBalance(bar, BENCH.tangShare).mass) }),
+    t('collection.length', { n: Math.round(barLength(bar) * share) }),
+    t('collection.mass', { n: Math.round(massAndBalance(bar, share).mass) }),
     bar.edgeAngle > 0 ? t('collection.edge', { n: Math.round(bar.edgeAngle) }) : t('collection.noEdge'),
     bar.handle ? t('collection.handle', { handle: t(`handle.${bar.handle}`) }) : t('collection.noHandle'),
   ]

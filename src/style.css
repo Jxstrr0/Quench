@@ -72,6 +72,8 @@ html, body {
   font-size: 1rem;
 }
 .hud-shape { margin: 2px 0 0; font-size: 0.95rem; }
+.hud-shape-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.hud-shape-row .hud-rack { min-height: 32px; padding: 3px 10px; font-size: 0.82rem; }
 .hud-fault {
   margin: 8px 0 0;
   padding: 8px 10px;
