@@ -55,5 +55,9 @@
   "rodblock": {
     "triangles": 500,
     "bytes": 30000
+  },
+  "grinder": {
+    "triangles": 900,
+    "bytes": 50000
   }
 }

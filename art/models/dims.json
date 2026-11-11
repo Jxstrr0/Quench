@@ -38,5 +38,7 @@
   "tableLength": 1400,
   "tableDepth": 400,
   "tableThick": 40,
-  "rodBlockTop": 38
+  "rodBlockTop": 38,
+  "grinderBelt": 50,
+  "grinderLength": 260
 }

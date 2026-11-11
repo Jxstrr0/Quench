@@ -1,7 +1,8 @@
 // The room's models: their shared sizes match the game's, and every file is inside its budget.
 import { readFileSync, readdirSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { BENCH, FORGE, SWORD_PROPS, TANK, TONGS, TRENCH, TRIAL_TABLE, TRIAL_WALL, VICE, WORKBENCH } from '../src/data/tuning'
+import { GRIND } from '../src/data/grind'
+import { BELT, BENCH, FORGE, SWORD_PROPS, TANK, TONGS, TRENCH, TRIAL_TABLE, TRIAL_WALL, VICE, WORKBENCH } from '../src/data/tuning'
 
 const DIR = 'public/assets/models'
 const dims = JSON.parse(readFileSync('art/models/dims.json', 'utf8')) as Record<string, number>
@@ -33,6 +34,7 @@ describe('the room models', () => {
     expect([dims.pegTop, dims.matFoot, dims.matStandWidth]).toEqual([SWORD_PROPS.pegTop, SWORD_PROPS.matFoot, SWORD_PROPS.matStandWidth])
     expect([dims.wallBack, dims.windowFrom, dims.windowTo, dims.windowSill, dims.windowHead]).toEqual([TRIAL_WALL.back, TRIAL_WALL.windowFrom, TRIAL_WALL.windowTo, TRIAL_WALL.sill, TRIAL_WALL.head])
     expect([dims.tableLength, dims.tableDepth, dims.tableThick, dims.rodBlockTop]).toEqual([TRIAL_TABLE.length, TRIAL_TABLE.depth, TRIAL_TABLE.thick, TRIAL_TABLE.rodBlockTop])
+    expect([dims.grinderBelt, dims.grinderLength]).toEqual([GRIND.contact, BELT.length])
   })
   it('each have a budget, and keep to it', () => {
     expect(files.length).toBeGreaterThan(0)
