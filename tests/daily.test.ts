@@ -8,12 +8,13 @@ import { STEELS } from '../src/data/steels'
 import type { Bar } from '../src/sim/bar'
 import { createBar } from '../src/sim/bar'
 import type { Daily, DailyResult } from '../src/sim/daily'
-import { dailyFor, dailyScore, dailySeed, isDailyDate } from '../src/sim/daily'
+import { dailyFor, dailyScore, dailySeed, dayNumber, isDailyDate } from '../src/sim/daily'
 import type { TrialReport } from '../src/sim/trials'
 import { runTrials } from '../src/sim/trials'
 import type { DailySave } from '../src/persist/daily'
-import { loadDaily, loadScores, recordScore, saveDaily, soundDaily, soundResult } from '../src/persist/daily'
+import { loadDaily, loadDailyOpen, loadScores, recordScore, saveDaily, saveDailyOpen, soundDaily, soundResult } from '../src/persist/daily'
 import type { Store } from '../src/persist/sound'
+import { dailyWhat, dayShort, dayWords, hoursToNext, pastLine, scoreWords, shareLines, todayUtc } from '../src/ui/dailyWords'
 import { makeBlade } from './blades'
 
 /** The `n`th day from 1 January 2026, as `YYYY-MM-DD`. */
@@ -57,18 +58,22 @@ describe('the daily commission', () => {
     expect(() => dailyFor('tomorrow')).toThrow(RangeError)
   })
 
-  it('asks for every pattern it may, as often as its weight says, and never a full sword', () => {
-    const seen: Record<PatternId, number> = { campKnife: 0, cooksKnife: 0, cleaver: 0, cuttingKnife: 0, shortSword: 0, fullSword: 0 }
-    const days = 1300
-    for (let n = 0; n < days; n++) seen[dailyFor(day(n)).pattern]++
-    const total = PATTERN_ORDER.reduce((sum, id) => sum + DAILY.patterns[id], 0)
-    for (const id of PATTERN_ORDER) {
-      const due = (days * DAILY.patterns[id]) / total
-      if (due === 0) expect(seen[id]).toBe(0)
-      else expect(Math.abs(seen[id] - due)).toBeLessThan(due * 0.25)
+  it('counts days from 1 January 1970, with no clock', () => {
+    for (const date of ['1970-01-01', '2000-02-29', '2026-11-11', '2028-02-29', '2028-03-01', '2099-12-31']) {
+      expect(dayNumber(date)).toBe(Date.UTC(Number(date.slice(0, 4)), Number(date.slice(5, 7)) - 1, Number(date.slice(8, 10))) / 86_400_000)
     }
-    expect(seen.fullSword).toBe(0)
-    expect(seen.shortSword).toBeLessThan(seen.campKnife)
+  })
+
+  it('gives every pattern its days in each round of 13, and never a full sword', () => {
+    const round = PATTERN_ORDER.reduce((sum, id) => sum + DAILY.patterns[id], 0)
+    expect(round).toBe(13)
+    // Rounds start on days that divide by the round's length.
+    const start = Math.ceil(dayNumber('2026-01-01') / round) * round - dayNumber('2026-01-01')
+    for (let r = 0; r < 100; r++) {
+      const seen: Record<PatternId, number> = { campKnife: 0, cooksKnife: 0, cleaver: 0, cuttingKnife: 0, shortSword: 0, fullSword: 0 }
+      for (let i = 0; i < round; i++) seen[dailyFor(day(start + r * round + i)).pattern]++
+      expect(seen).toEqual(DAILY.patterns)
+    }
   })
 
   it('asks only for a steel that suits the pattern, and in time for every one of them', () => {
@@ -83,14 +88,18 @@ describe('the daily commission', () => {
     }
   })
 
-  it('does not ask for the same thing day after day', () => {
-    let same = 0
-    for (let n = 0; n < 365; n++) {
-      const a = dailyFor(day(n))
-      const b = dailyFor(day(n + 1))
-      if (a.pattern === b.pattern && a.steel === b.steel) same++
+  it('never asks for the same pattern two days running, nor the same pattern and steel twice in a round', () => {
+    const round = 13
+    for (let n = 0; n < 3000; n++) expect(dailyFor(day(n)).pattern, day(n)).not.toBe(dailyFor(day(n + 1)).pattern)
+    const start = Math.ceil(dayNumber('2026-01-01') / round) * round - dayNumber('2026-01-01')
+    for (let r = 0; r < 100; r++) {
+      const pairs = new Set<string>()
+      for (let i = 0; i < round; i++) {
+        const d = dailyFor(day(start + r * round + i))
+        pairs.add(`${d.pattern}:${d.steel}`)
+      }
+      expect(pairs.size).toBe(round)
     }
-    expect(same).toBeLessThan(40)
   })
 
   it('lists steels only for patterns that can come up, and every steel it lists is one the game has', () => {
@@ -222,5 +231,54 @@ describe('the daily on this device', () => {
     expect(loadScores(store)).toEqual([result])
     store.setItem('quench.daily.scores', '{not json')
     expect(loadScores(store)).toEqual([])
+  })
+})
+
+describe('the daily in words', () => {
+  const result: DailyResult = { date: '2026-11-11', pattern: 'cooksKnife', steel: 'W2', score: 87, passed: 3, total: 3, broke: false }
+
+  it('writes the day as a UTC day, whatever the clock on the phone says', () => {
+    expect(dayWords('2026-11-11')).toBe('11 November 2026')
+    expect(dayShort('2026-11-11')).toBe('11 Nov')
+    expect(dayWords('2026-01-01')).toBe('1 January 2026')
+    expect(todayUtc(new Date('2026-11-11T23:59:59Z'))).toBe('2026-11-11')
+    expect(todayUtc(new Date('2026-11-12T00:00:00Z'))).toBe('2026-11-12')
+    // Late evening in Vancouver is already the next day's commission.
+    expect(todayUtc(new Date('2026-11-11T20:30:00-08:00'))).toBe('2026-11-12')
+  })
+
+  it('counts the hours to the next commission, rounded up', () => {
+    expect(hoursToNext(new Date('2026-11-11T00:00:00Z'))).toBe(24)
+    expect(hoursToNext(new Date('2026-11-11T12:30:00Z'))).toBe(12)
+    expect(hoursToNext(new Date('2026-11-11T23:10:00Z'))).toBe(1)
+    expect(hoursToNext(new Date('2026-12-31T23:59:00Z'))).toBe(1)
+  })
+
+  it('says what the day asks', () => {
+    const what = dailyWhat({ date: '2026-11-11', seed: 1, pattern: 'cooksKnife', steel: 'W2' })
+    expect(what.startsWith('A cook’s knife in W2. It faces: ')).toBe(true)
+    expect(what.split(', ').length).toBe(PATTERNS.cooksKnife.trials.length)
+  })
+
+  it('makes a few lines to share: the day, the commission, the score and where the game is', () => {
+    expect(shareLines(result, 'https://quench.longlight.games/').split('\n')).toEqual([
+      'Quench daily · 11 November 2026',
+      'Cook’s knife in W2',
+      '87 out of 100 · 3 of 3 tests passed',
+      'https://quench.longlight.games/',
+    ])
+    expect(shareLines({ ...result, score: 31, passed: 1, broke: true }, 'x').split('\n')[2]).toBe('31 out of 100 · the blade broke')
+    expect(scoreWords(result)).toBe('87 out of 100 · 3 of 3 tests passed')
+    expect(pastLine(result)).toBe('11 Nov: Cook’s knife in W2 · 87')
+  })
+
+  it('remembers whether the daily was on the anvil', () => {
+    const store = memory()
+    expect(loadDailyOpen(store)).toBe(false)
+    saveDailyOpen(true, store)
+    expect(loadDailyOpen(store)).toBe(true)
+    saveDailyOpen(false, store)
+    expect(loadDailyOpen(store)).toBe(false)
+    expect(store.data.size).toBe(0)
   })
 })

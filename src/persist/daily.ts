@@ -1,7 +1,7 @@
 /**
  * The daily commission on this device: the day's one bar, so closing the
- * page never loses it, and the scores of past days. Two keys in
- * localStorage: `quench.daily` and `quench.daily.scores`.
+ * page never loses it, and the scores of past days. Three keys in
+ * localStorage: `quench.daily`, `quench.daily.scores` and `quench.daily.open`.
  */
 import { DAILY } from '../data/daily'
 import { PATTERNS } from '../data/patterns'
@@ -14,6 +14,7 @@ import { browserStore, isCount, isNumber, isObject, rounded, soundBar } from './
 
 const KEY = 'quench.daily'
 const SCORES_KEY = 'quench.daily.scores'
+const OPEN_KEY = 'quench.daily.open'
 
 /** The day's bar. There is one a day: once it is here, there is no other. */
 export interface DailySave {
@@ -88,4 +89,22 @@ export function recordScore(result: DailyResult, store: Store | null = browserSt
     // The score still shows for this visit.
   }
   return next
+}
+
+/** Was the daily commission on the anvil when the game was last open? */
+export function loadDailyOpen(store: Store | null = browserStore()): boolean {
+  try {
+    return store?.getItem(OPEN_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+export function saveDailyOpen(open: boolean, store: Store | null = browserStore()): void {
+  try {
+    if (open) store?.setItem(OPEN_KEY, '1')
+    else store?.removeItem(OPEN_KEY)
+  } catch {
+    // Nothing to do: the game opens in Free forge.
+  }
 }

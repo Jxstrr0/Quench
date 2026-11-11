@@ -5,12 +5,14 @@
  */
 import type { BriefKind, Rating } from '../data/career'
 import { BILLET_WORK } from '../data/career'
+import { DAILY } from '../data/daily'
 import type { Pattern } from '../data/patterns'
 import { t } from '../data/strings'
 import type { TrialId } from '../data/trials'
 import { COLLECTION_MAX } from '../persist/collection'
 import type { Bar } from '../sim/bar'
 import type { Delivery, ProvingResult } from '../sim/career'
+import type { DailyResult } from '../sim/daily'
 import { coolToRoom } from '../sim/heat'
 import type { FixStage } from '../sim/report'
 import type { TrialReport, TrialResult } from '../sim/trials'
@@ -18,6 +20,8 @@ import { runTrials } from '../sim/trials'
 import type { Sheet } from './dom'
 import { button, createSheet, el } from './dom'
 import { customerName, money, ratingName, refusal, testList } from './careerWords'
+import { dayWords } from './dailyWords'
+import type { Shared } from './shareCard'
 import { TRIAL_NAME, note, reportParts } from './trialParts'
 
 /** What came of asking to keep a blade: its place in the collection, or why not. */
@@ -46,6 +50,14 @@ export interface TrialHost {
   sitProving(report: TrialReport): ProvingResult | null
   /** Take the blade to the stage that would put a failed test right. */
   fix(stage: FixStage): void
+  /** The daily commission on the anvil: its day, and its score once it has one. Null in any other mode. */
+  daily(): { date: string; result: DailyResult | null } | null
+  /** Score the day's blade from its first full run of the tests. The first score stands. */
+  scoreDaily(report: TrialReport): DailyResult | null
+  /** Copy the day's score as a few lines of text. False when the device would not. */
+  copyDaily(): Promise<boolean>
+  /** Make the blade's card, as it stands with this report, and hand it to the share sheet. */
+  shareCard(report: TrialReport): Promise<Shared>
 }
 
 export function createTrialSheet(host: HTMLElement, forge: TrialHost): Sheet {
@@ -83,6 +95,12 @@ export function createTrialSheet(host: HTMLElement, forge: TrialHost): Sheet {
       forge.fix(stage)
     }
     body.replaceChildren(...reportParts(bar, report, !bendOnly && !bar.crack, live ? fix : undefined))
+    // The daily: the first full run of the tests is the day's score.
+    const day = forge.daily()
+    if (day && !day.result && !bendOnly) {
+      const result = forge.scoreDaily(report)
+      if (result) body.prepend(...scoreParts(result, report))
+    }
     if (bendOnly && total) {
       // The bend goes on the end of what the blade has already faced.
       total = { results: [...total.results, ...report.results], passed: total.passed + report.passed, broke: report.broke ?? total.broke }
@@ -105,6 +123,33 @@ export function createTrialSheet(host: HTMLElement, forge: TrialHost): Sheet {
       addBend()
     }
     sheet.card.scrollTop = 0
+  }
+
+  /** The day's score, large, with the ways to share it. */
+  const scoreParts = (result: DailyResult, report: TrialReport): HTMLElement[] => {
+    const box = el('div', 'daily-score')
+    box.append(
+      el('p', 'daily-score-n', t('daily.trial.score', { score: result.score, top: DAILY.top })),
+      el('p', 'daily-score-what', t(result.broke ? 'daily.trial.scoreBroke' : 'daily.trial.scoreNote', { day: dayWords(result.date), passed: result.passed, total: result.total })),
+    )
+    const said = note('', 'sheet-note sheet-small')
+    said.setAttribute('role', 'status')
+    said.hidden = true
+    const tell = (text: string) => {
+      said.textContent = text
+      said.hidden = false
+    }
+    const copy = button('btn btn-wide', 'daily.copy')
+    copy.addEventListener('click', () => void forge.copyDaily().then((ok) => tell(t(ok ? 'daily.copied' : 'daily.copyFailed'))))
+    const card = button('btn btn-wide', 'share.card')
+    card.addEventListener('click', () => {
+      void forge.shareCard(report).then((how) => {
+        if (how === 'saved') tell(t('share.saved'))
+        else if (how === 'failed') tell(t('share.failed'))
+      })
+    })
+    box.append(copy, card, said)
+    return [box]
   }
 
   const keptNote = (kept: Kept): HTMLElement => {
@@ -211,8 +256,17 @@ export function createTrialSheet(host: HTMLElement, forge: TrialHost): Sheet {
     const list = el('ol', 'moments')
     for (const id of p.trials) list.append(el('li', 'moment', t(TRIAL_NAME[id])))
     const go = button('btn btn-wide', 'trial.run')
-    go.addEventListener('click', () => run())
-    body.replaceChildren(note(t('trial.intro', { pattern: t(`pattern.${p.id}`).toLowerCase(), n: p.trials.length })), list, go)
+    // In the daily the first run sets the day's score for good: ask twice.
+    let sure = forge.daily()?.result !== null
+    go.addEventListener('click', () => {
+      if (sure) return run()
+      sure = true
+      go.textContent = t('daily.trial.sure')
+    })
+    const parts = [note(t('trial.intro', { pattern: t(`pattern.${p.id}`).toLowerCase(), n: p.trials.length })), list]
+    const day = forge.daily()
+    if (day) parts.push(note(day.result ? t('daily.trial.done', { score: day.result.score, top: DAILY.top }) : t('daily.trial.intro'), 'sheet-note'))
+    body.replaceChildren(...parts, go)
   }
 
   const sheet = createSheet(host, 'trial.title', undefined, () => {

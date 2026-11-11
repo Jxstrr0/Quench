@@ -43,6 +43,9 @@ import { CHOICES } from '../render/perf'
 import type { Bar } from '../sim/bar'
 import { barLength, cloneBar, createBar, hottest } from '../sim/bar'
 import type { CareerState } from '../sim/career'
+import type { Daily, DailyResult } from '../sim/daily'
+import { dailyFor, dailyScore } from '../sim/daily'
+import { loadDaily, loadDailyOpen, loadScores, recordScore, saveDaily, saveDailyOpen } from '../persist/daily'
 import type { Tested } from '../sim/coach'
 import { COACH_STAGES, coachStage, coachStep } from '../sim/coach'
 import { askedBillet, benchWork, billetOffered, bladeCost, deliver, fundBlade, newCareer, nextRating, provingBar, provingDay, sitProving, swapBlade, takeFirstJob, wantedPattern } from '../sim/career'
@@ -62,6 +65,8 @@ import { createBackupSheet } from './backupSheet'
 import { createCareerSheet } from './careerSheet'
 import { money, testList } from './careerWords'
 import { createCollectionSheet } from './collectionSheet'
+import { dayShort, hoursToNext, shareLines, todayUtc } from './dailyWords'
+import { shareBlade } from './shareCard'
 import { button, createSheet, el } from './dom'
 import { createGrindBench } from './grindBench'
 import { MAGNET_KEY, createInspectSheet, createTemperSheet } from './treatSheets'
@@ -158,6 +163,9 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
   /** The career in play and the slot it is saved in, or null and 0 in Free forge. */
   let career: CareerState | null = null
   let slot = 0
+  /** The daily commission whose bar is on the anvil, and what that bar scored, or null. Never set in a career. */
+  let daily: Daily | null = null
+  let dailyResult: DailyResult | null = null
   /** The stages of the bar on the bench whose bench hours have been spent. */
   let stages: StageId[] = []
   /** When New bar was last tapped in a career: a second tap soon after scraps the blade. */
@@ -373,7 +381,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
    * career, what the commission in hand asks; failing that, the smith's own
    * choice, once billets are on offer.
    */
-  const nextBillet = (): BilletId => (!career ? billetId : (askedBillet(career) ?? (billetOffered(career, careerBillet) ? careerBillet : 'plain')))
+  const nextBillet = (): BilletId => (daily ? 'plain' : !career ? billetId : (askedBillet(career) ?? (billetOffered(career, careerBillet) ? careerBillet : 'plain')))
   const applySteel = () => {
     const name = STEELS[steelId].name
     if (career) {
@@ -516,9 +524,10 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
     },
     barCost: () => (career ? bladeCost(wantedPattern(career), nextBillet()) : 0),
     sees: () => ({
-      hardness: !career || career.tools.includes('hardnessTester'),
-      grain: !career || career.tools.includes('loupe'),
-      free: !career,
+      // The daily is the same for everyone: no tester and no loupe.
+      hardness: daily ? false : !career || career.tools.includes('hardnessTester'),
+      grain: daily ? false : !career || career.tools.includes('loupe'),
+      free: !career && !daily,
     }),
     proving: () => {
       const next = career ? nextRating(career.rating) : null
@@ -546,10 +555,22 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
       return { id }
     },
     newBar: () => {
+      // The daily has one bar, whatever became of it.
+      if (daily) return
       if (bench.active) leaveBench()
       if (career) buyBar()
       else freshBar()
     },
+    daily: () => (daily ? { date: daily.date, result: dailyResult } : null),
+    scoreDaily: (report: TrialReport) => {
+      if (!daily || dailyResult) return dailyResult
+      dailyResult = dailyScore(daily, report)
+      recordScore(dailyResult)
+      saveDailyBar()
+      return dailyResult
+    },
+    copyDaily: () => copyDaily(),
+    shareCard: (report: TrialReport) => shareBlade({ id: 'shared', pattern: target.id, kept: Date.now(), bar: cloneBar(bar), trials: report }),
     changed: () => {
       // The blade comes back cold, lying on the anvil.
       lane = 0
@@ -790,7 +811,8 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
     tested = 'no'
     // Each bar has its own luck in the quench. In a career it comes from the career's own seed.
     barsMade++
-    const seed = career ? (career.rng ^ Math.imul(career.bars, 0x9e3779b1)) >>> 0 : barsMade
+    // The daily's one bar has the day's luck, the same for everyone.
+    const seed = daily ? daily.seed : career ? (career.rng ^ Math.imul(career.bars, 0x9e3779b1)) >>> 0 : barsMade
     const billet = nextBillet()
     bar = createBar(steelId, billetStock(target.stock, billet), undefined, seed, billet)
     placeBar()
@@ -801,12 +823,68 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
     if (career) saveSlot(slot, { v: 1, career, bar: cloneBar(bar), pattern: target.id, stages, saved: Date.now() })
   }
   const showCareer = () => {
-    mode.textContent = t(career ? 'mode.career' : 'mode.freeForge')
-    careerBtn.textContent = career ? t('career.hud', { day: career.day, money: money(career.money) }) : t('btn.career')
+    mode.textContent = t(daily ? 'mode.daily' : career ? 'mode.career' : 'mode.freeForge')
+    careerBtn.textContent = daily ? t('daily.hud', { day: dayShort(daily.date) }) : career ? t('career.hud', { day: career.day, money: money(career.money) }) : t('btn.career')
     // In a career the pattern and steel come with the commission. What the bar is built from is the smith's choice, once billets are on offer.
-    steelBtn.hidden = career !== null && !billetOffered(career, 'layered')
-    patternBtn.hidden = career !== null
+    steelBtn.hidden = daily !== null || (career !== null && !billetOffered(career, 'layered'))
+    patternBtn.hidden = career !== null || daily !== null
+    // The daily has one bar: there is no other to take.
+    newBar.hidden = daily !== null
     applySteel()
+  }
+
+  // --- The daily commission ------------------------------------------------------
+  const saveDailyBar = () => {
+    if (daily) saveDaily({ v: 1, date: daily.date, bar: cloneBar(bar), result: dailyResult, saved: Date.now() })
+  }
+  /** Put the daily away: its bar is saved, and the forge is no longer in that mode. */
+  const closeDaily = () => {
+    if (!daily) return
+    saveDailyBar()
+    daily = null
+    dailyResult = null
+    saveDailyOpen(false)
+  }
+  /** Today's bar on the anvil: the one already started today, or a new one. Whatever was in play is saved first. */
+  const playDaily = () => {
+    saveCareer()
+    closeDaily()
+    if (bench.active) leaveBench()
+    career = null
+    slot = 0
+    stages = []
+    saveActive(0)
+    const today = todayUtc()
+    const save = loadDaily()
+    const mine = save && save.date === today ? save : null
+    daily = dailyFor(today)
+    dailyResult = mine?.result ?? null
+    setPattern(daily.pattern)
+    // The day sets the steel, not the pattern.
+    steelId = daily.steel
+    if (mine) {
+      bar = mine.bar
+      placeBar()
+    } else {
+      freshBar()
+      saveDailyBar()
+    }
+    saveDailyOpen(true)
+    showCareer()
+    applySettings()
+    applyFire()
+    const words = { steel: STEELS[daily.steel].name, pattern: t(`pattern.${daily.pattern}`).toLowerCase() }
+    say(t(mine ? 'note.dailyBack' : 'note.dailyBar', words), 8000)
+  }
+  const copyDaily = async (): Promise<boolean> => {
+    const result = dailyResult ?? loadScores().find((s) => s.date === todayUtc())
+    if (!result || !navigator.clipboard?.writeText) return false
+    try {
+      await navigator.clipboard.writeText(shareLines(result, `${location.origin}${location.pathname}`))
+      return true
+    } catch {
+      return false
+    }
   }
   const careerChanged = () => {
     showCareer()
@@ -842,6 +920,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
   }
   const playCareer = (n: number, fresh: boolean) => {
     saveCareer()
+    closeDaily()
     const save = fresh ? null : loadSlot(n)
     if (bench.active) leaveBench()
     slot = n
@@ -866,11 +945,15 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
   }
   const leaveCareer = () => {
     saveCareer()
+    const wasDaily = daily !== null
+    closeDaily()
     if (bench.active) leaveBench()
     career = null
     slot = 0
     stages = []
     saveActive(0)
+    // Free forge takes the pattern's own steel again.
+    if (wasDaily) setPattern(target.id)
     showCareer()
     applySettings()
     applyFire()
@@ -914,6 +997,22 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
     barPattern: () => target.id,
     openBackup: () => backupSheet.open(),
     backupDue: () => backupDue(Date.now()),
+    daily: () => {
+      const today = todayUtc()
+      const scores = loadScores()
+      const onAnvil = daily?.date === today
+      return {
+        today: dailyFor(today),
+        started: onAnvil || loadDaily()?.date === today,
+        onAnvil,
+        result: onAnvil ? dailyResult : (scores.find((s) => s.date === today) ?? null),
+        scores,
+        hoursLeft: hoursToNext(),
+      }
+    },
+    playDaily,
+    inDaily: () => daily !== null,
+    copyDaily,
   })
   const backupSheet = createBackupSheet(app, {
     flush: saveCareer,
@@ -935,11 +1034,15 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
   const glossary = createGlossarySheet(app)
   helpBtn.addEventListener('click', () => glossary.show(null))
   // Save when the page is put away, and every so often while it is open.
+  const saveAll = () => {
+    saveCareer()
+    saveDailyBar()
+  }
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') saveCareer()
+    if (document.visibilityState === 'hidden') saveAll()
   })
-  window.addEventListener('pagehide', saveCareer)
-  window.setInterval(saveCareer, BENCH.careerSaveSeconds * 1000)
+  window.addEventListener('pagehide', saveAll)
+  window.setInterval(saveAll, BENCH.careerSaveSeconds * 1000)
 
   newBar.addEventListener('click', () => {
     if (!career) return freshBar()
@@ -1094,6 +1197,9 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
   // Carry on the career that was in play last time, if there was one.
   const lastSlot = loadActive()
   if (lastSlot && loadSlot(lastSlot)) playCareer(lastSlot, false)
+  // Or today's daily commission, if that was on the anvil and it is still the same day.
+  else if (loadDailyOpen() && loadDaily()?.date === todayUtc()) playDaily()
+  else saveDailyOpen(false)
   if (backupDue(Date.now())) say(t('note.backupDue'), 8000)
   layout()
 
