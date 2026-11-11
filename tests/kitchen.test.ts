@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import type { BriefKind } from '../src/data/career'
 import { BRIEFS, CUSTOMERS, EFFORT } from '../src/data/career'
 import type { PatternId } from '../src/data/patterns'
-import { PATTERNS } from '../src/data/patterns'
+import { PATTERNS, PATTERN_ORDER } from '../src/data/patterns'
+import { t } from '../src/data/strings'
 import { BOARD } from '../src/data/trials'
 import type { Bar } from '../src/sim/bar'
 import { fillBoard, newCareer } from '../src/sim/career'
@@ -119,5 +120,12 @@ describe('kitchen commissions', () => {
       for (const need of b.needs) expect(PATTERNS[b.pattern].trials).toContain(need)
       expect(EFFORT[b.pattern]).toBe(1)
     }
+  })
+})
+
+describe('the pattern list', () => {
+  it('names every pattern once, with a line about each', () => {
+    expect([...PATTERN_ORDER].sort()).toEqual(Object.keys(PATTERNS).sort())
+    for (const id of PATTERN_ORDER) expect(t(`pattern.${id}.note`).length).toBeGreaterThan(10)
   })
 })

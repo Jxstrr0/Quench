@@ -579,6 +579,9 @@ Kelbo has asked for Quench to be added to the studio site, so this plan allows
 | Q11 | How does teaching work (PR 8)? | The guided first blade is the first career job, a real commission from a neighbour. The coach goes step by step: one instruction at a time, the next shows when the last is done, and the player stays free to do anything. The glossary is both underlined words in reports and cards, and a Help button listing every word. |
 | Q12 | Bake a lightmap for the room, or keep it lit live only (PR 9)? | Do the bake. Model the last small props first, then bake, then go on to sound. |
 | Q13 | Recorded sounds, or keep everything made in code (PR 10)? | Add CC0 recordings over the made-in-code sounds. ElevenLabs sound effects may be quoted and used where no CC0 recording fits, under the same quote-first rule. |
+| Q14 | Seax and hatchet (PR 11)? | **Leave both out.** The blade model has a straight back; a seax's dropped back and a hatchet's eye do not fit it. Six patterns ship: camp knife, cook's knife, cleaver, cutting knife, short sword, full sword. |
+| Q15 | How deep do pattern welding and san-mai go (PR 11)? | **Simple billets.** Pick a billet on the rack: plain, san-mai or layered. It must be struck at welding heat or it leaves a flaw that opens at the trial. A Fold button doubles the layers; the etch shows the pattern. No separate welding bench. |
+| Q16 | Pattern and steel in Free forge: tap through, or a list? | **A list card** for each, with a line about every choice. |
 
 Working rules agreed the same day:
 

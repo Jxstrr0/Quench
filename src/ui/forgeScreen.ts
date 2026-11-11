@@ -23,7 +23,7 @@ import type { HeatWord } from '../data/heatRamp'
 import type { MediumId } from '../data/media'
 import { MEDIUM_ORDER } from '../data/media'
 import type { PatternId } from '../data/patterns'
-import { PATTERNS, pattern } from '../data/patterns'
+import { PATTERNS, PATTERN_ORDER, pattern } from '../data/patterns'
 import type { SteelId } from '../data/steels'
 import { STEEL_ORDER, STEELS } from '../data/steels'
 import type { StringKey } from '../data/strings'
@@ -57,11 +57,12 @@ import type { FixStage } from '../sim/report'
 import type { TrialReport, TrialResult } from '../sim/trials'
 import { createBackupSheet } from './backupSheet'
 import { createCareerSheet } from './careerSheet'
-import { money } from './careerWords'
+import { money, testList } from './careerWords'
 import { createCollectionSheet } from './collectionSheet'
 import { button, createSheet, el } from './dom'
 import { createGrindBench } from './grindBench'
 import { MAGNET_KEY, createInspectSheet, createTemperSheet } from './treatSheets'
+import { createPickSheet } from './pickSheet'
 import { createTrialPlayback } from './trialPlayback'
 import type { Kept } from './trialSheet'
 import { createGlossarySheet } from './gloss'
@@ -588,18 +589,37 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
     mediumId = MEDIUM_ORDER[(MEDIUM_ORDER.indexOf(mediumId) + 1) % MEDIUM_ORDER.length] as MediumId
     applyMedium()
   })
-  patternBtn.addEventListener('click', () => {
-    const ids = Object.keys(PATTERNS) as PatternId[]
-    if (bench.active) leaveBench()
-    setPattern(ids[(ids.indexOf(target.id) + 1) % ids.length] as PatternId)
-    freshBar()
-  })
-  steelBtn.addEventListener('click', () => {
-    steelId = STEEL_ORDER[(STEEL_ORDER.indexOf(steelId) + 1) % STEEL_ORDER.length] as SteelId
-    applySteel()
-    freshBar()
-    say(`${STEELS[steelId].name}. ${STEELS[steelId].note}`, 6000)
-  })
+  // Free forge: the pattern and the steel are each picked from a list.
+  const patternSheet = createPickSheet<PatternId>(
+    app,
+    'pick.pattern',
+    () =>
+      PATTERN_ORDER.map((id) => ({
+        id,
+        name: t(`pattern.${id}`),
+        lines: [t(`pattern.${id}.note`), t('pick.pattern.tests', { steel: STEELS[PATTERNS[id].steel].name, list: testList(PATTERNS[id].trials) })],
+      })),
+    () => target.id,
+    (id) => {
+      if (bench.active) leaveBench()
+      setPattern(id)
+      freshBar()
+    },
+  )
+  const steelSheet = createPickSheet<SteelId>(
+    app,
+    'pick.steel',
+    () => STEEL_ORDER.map((id) => ({ id, name: STEELS[id].name, lines: [STEELS[id].note] })),
+    () => steelId,
+    (id) => {
+      steelId = id
+      applySteel()
+      freshBar()
+      say(`${STEELS[steelId].name}. ${STEELS[steelId].note}`, 6000)
+    },
+  )
+  patternBtn.addEventListener('click', patternSheet.open)
+  steelBtn.addEventListener('click', steelSheet.open)
   /** Lay the bar cold on the anvil end of the rail and show it. */
   const placeBar = () => {
     tipDepth = BENCH.railMin
