@@ -108,6 +108,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   let laneTarget = -1
   let mediumId: MediumId = 'fastOil'
   let agitation = 0
+  let hadHandle = false
   /** How far the bar has been slid along the tank since the last frame, mm. */
   let stirMoved = 0
   let wasInTank = false
@@ -313,7 +314,6 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
     bar: () => bar,
     say: (text, ms) => say(text, ms),
     openInspect: () => inspectSheet.open(),
-    openAssists: () => sheet.open(),
     leave: leaveBench,
   })
   controls.append(...bench.parts)
@@ -573,7 +573,12 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
     }
     wasInTank = inTank
     const volumeBefore = bar.scaleLost
+    hadHandle = bar.handle !== null
     advance(bar, placement, dt * scale)
+    if (hadHandle && !bar.handle) {
+      say(t('note.handleBurnt'), 3000)
+      view.setBar(bar)
+    }
     if (!fault) {
       fault = barFault(bar)
       if (fault) {

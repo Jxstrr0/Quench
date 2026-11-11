@@ -22,6 +22,9 @@ const WARP_SHOWN = 3
 const SCALED = new Color(0x4d5157)
 const GROUND = new Color(0xc3c9d0)
 const BLUED = new Color(0x3a4f9c)
+/** After an etch: hardened steel goes dark, soft steel stays pale. */
+const ETCH_DARK = new Color(0x1f2226)
+const ETCH_PALE = new Color(0x9ea3a9)
 /** An edge this many HRC softer than the blade behind it shows fully blue. */
 const BLUE_AT = 6
 
@@ -92,6 +95,8 @@ export function createBarMesh(segmentCount: number): BarMesh {
   const ringX = new Float32Array(rings)
   const colour = new Color()
   const edgeColour = new Color()
+  const flatColour = new Color()
+  const bevelColour = new Color()
 
   const put = (v: number, x: number, y: number, z: number) => {
     positions[v * 3] = x
@@ -157,18 +162,25 @@ export function createBarMesh(segmentCount: number): BarMesh {
 
         // Scaled steel on the flats, bright steel on the bevels, blue where the belt drew the edge's temper.
         const soft = (hardness(a, st) - edgeHardness(a, st) + hardness(b, st) - edgeHardness(b, st)) / 2
-        edgeColour.copy(GROUND).lerp(BLUED, Math.min(1, Math.max(0, soft / BLUE_AT)))
+        flatColour.copy(SCALED)
+        bevelColour.copy(GROUND)
+        if (bar.etched) {
+          // The etch shows the hardening line: dark martensite, pale everything else.
+          flatColour.copy(ETCH_PALE).lerp(ETCH_DARK, (a.martensite + b.martensite) / 2)
+          bevelColour.copy(flatColour)
+        }
+        edgeColour.copy(bevelColour).lerp(BLUED, Math.min(1, Math.max(0, soft / BLUE_AT)))
         const ground = cutTop > 0 || cutBottom > 0
         for (const strip of [TOP_FLAT, BOTTOM_FLAT, SPINE]) {
-          paint(colours, at(strip), SCALED)
-          paint(colours, at(strip) + 1, SCALED)
+          paint(colours, at(strip), flatColour)
+          paint(colours, at(strip) + 1, flatColour)
         }
         paint(colours, at(TOP_BEVEL), edgeColour)
-        paint(colours, at(TOP_BEVEL) + 1, GROUND)
-        paint(colours, at(BOTTOM_BEVEL), GROUND)
+        paint(colours, at(TOP_BEVEL) + 1, bevelColour)
+        paint(colours, at(BOTTOM_BEVEL), bevelColour)
         paint(colours, at(BOTTOM_BEVEL) + 1, edgeColour)
-        paint(colours, at(EDGE), ground ? edgeColour : SCALED)
-        paint(colours, at(EDGE) + 1, ground ? edgeColour : SCALED)
+        paint(colours, at(EDGE), ground ? edgeColour : flatColour)
+        paint(colours, at(EDGE) + 1, ground ? edgeColour : flatColour)
 
         if (i === 0 || i === rings - 1) {
           const v = caps + (i === 0 ? 0 : CAP)
@@ -178,7 +190,7 @@ export function createBarMesh(segmentCount: number): BarMesh {
           put(v + 3, px, -t + cutBottom, edge)
           put(v + 4, px, -t, shoulderBottom)
           put(v + 5, px, -t, back)
-          for (let k = 0; k < CAP; k++) paint(colours, v + k, SCALED)
+          for (let k = 0; k < CAP; k++) paint(colours, v + k, flatColour)
         }
       }
       geometry.attributes.position!.needsUpdate = true

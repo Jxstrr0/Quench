@@ -7,12 +7,12 @@ import { steel } from '../src/data/steels'
 import { CRACK } from '../src/data/treat'
 import type { Bar, Segment } from '../src/sim/bar'
 import { bevelLean, cloneBar, createBar, edgeThickness, isGround, segmentVolume, steelVolume } from '../src/sim/bar'
-import { etch, fitHandle, handleFit, keenestFor, strokeStone } from '../src/sim/finish'
+import { etch, fitHandle, handleFit, keenestFor, sharpAt, strokeStone } from '../src/sim/finish'
 import type { Side } from '../src/sim/grind'
 import { beltBite, canHold, dip, edgeAt, edgeWord, grindFor, hottestEdge, stepGrind } from '../src/sim/grind'
 import { strike } from '../src/sim/hammer'
 import { advance, coolToRoom, stepHeat } from '../src/sim/heat'
-import { inspect } from '../src/sim/inspect'
+import { fitWord, inspect, keenWord } from '../src/sim/inspect'
 import { edgeHardness, edgeToughness, hardness, toughness } from '../src/sim/properties'
 import { patternAt } from '../src/sim/shape'
 import { temperInOven } from '../src/sim/temper'
@@ -578,6 +578,36 @@ describe('at the bench', () => {
     advance(hard, { where: 'air' }, 10)
     expect(was - edgeHardness(belly(light), ST)).toBeLessThan(1)
     expect(was - edgeHardness(belly(hard), ST)).toBeGreaterThan(3)
+  })
+})
+
+describe('finishing words', () => {
+  it('names an edge blunt, working sharp or keen', () => {
+    expect(keenWord(0)).toBe('blunt')
+    expect(keenWord(0.5)).toBe('working')
+    expect(keenWord(0.9)).toBe('keen')
+  })
+  it('names how a handle sits', () => {
+    expect(fitWord(1)).toBe('well')
+    expect(fitWord(HANDLE.fitGood)).toBe('well')
+    expect(fitWord(0.6)).toBe('loose')
+    expect(fitWord(0.1)).toBe('badly')
+  })
+  it('reads the keenness where the stone last was', () => {
+    const bar = finished()
+    expect(sharpAt(bar, AT)).toBe(0)
+    for (let n = 0; n < 6; n++) strokeStone(bar, { at: AT, angle: 20, pressure: 1 })
+    expect(sharpAt(bar, AT)).toBe(belly(bar).sharp)
+    expect(sharpAt(bar, AT)).toBeGreaterThan(0.5)
+    // The tang never met the stone.
+    expect(sharpAt(bar, 310)).toBe(0)
+  })
+  it('the inspection says how the handle sits on a camp knife tang', () => {
+    const bar = finished()
+    fitHandle(bar, 'ash')
+    const look = inspect(bar, BLADE)
+    expect(look.handle).toBe('ash')
+    expect(look.fit).toBe('well')
   })
 })
 

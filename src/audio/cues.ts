@@ -2,7 +2,7 @@
  * Sound cues: a pure map from what happened to what to play. No Web Audio
  * here, so it can be tested. The engine turns a voice into sound.
  */
-import { BELT_SOUND, HAMMER_SOUND, QUENCH_SOUND } from '../data/audio'
+import { BELT_SOUND, HAMMER_SOUND, QUENCH_SOUND, STONE_SOUND } from '../data/audio'
 import type { MediumId } from '../data/media'
 
 export interface HammerVoice {
@@ -65,4 +65,10 @@ export function beltVoice(pressure: number): BeltVoice {
   const k = BELT_SOUND
   const p = clamp01(pressure)
   return { gain: k.idleGain + (k.fullGain - k.idleGain) * p, hz: k.idleHz + (k.fullHz - k.idleHz) * p }
+}
+
+/** The sound of one stroke on the stone. It plays through the same voice as a hiss. */
+export function strokeVoice(pressure: number): HissVoice {
+  const k = STONE_SOUND
+  return { gain: k.lightGain + (k.fullGain - k.lightGain) * clamp01(pressure), hz: k.hz, seconds: k.seconds }
 }
