@@ -8,7 +8,7 @@ import type { BlowType } from '../data/hammer'
 import { BLOWS, HAMMER, RHYTHM } from '../data/hammer'
 import type { Steel } from '../data/steels'
 import { steel } from '../data/steels'
-import type { Bar, Segment } from './bar'
+import type { Bar, CrackCause, Segment } from './bar'
 import { segmentCentres } from './bar'
 import { detExp, detLog } from './det'
 
@@ -133,11 +133,13 @@ export function strike(bar: Bar, blow: Blow): BlowResult {
 }
 
 export interface Fault {
-  /** Cracked from cold work, or burnt from too much heat. */
-  kind: 'cracked' | 'burnt'
+  /** Cracked from cold work, burnt from too much heat, or cracked in the quench. */
+  kind: 'cracked' | 'burnt' | 'quenchCrack'
   segment: number
   /** Where along the bar, in mm from the tip. */
   at: number
+  /** For a quench crack: what made it crack. */
+  cause?: CrackCause
 }
 
 /** The first thing that has ruined this bar, or null if it is sound. Burnt wins over cracked. */
@@ -149,5 +151,9 @@ export function barFault(bar: Bar): Fault | null {
     if (s.burnt >= 1) return { kind: 'burnt', segment: i, at: centres[i] as number }
     if (cracked < 0 && s.damage >= 1) cracked = i
   }
-  return cracked < 0 ? null : { kind: 'cracked', segment: cracked, at: centres[cracked] as number }
+  if (cracked >= 0) return { kind: 'cracked', segment: cracked, at: centres[cracked] as number }
+  if (bar.crack) {
+    return { kind: 'quenchCrack', segment: bar.crack.segment, at: centres[bar.crack.segment] as number, cause: bar.crack.cause }
+  }
+  return null
 }
