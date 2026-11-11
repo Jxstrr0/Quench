@@ -69,6 +69,18 @@ html, body {
   font-weight: 700;
   font-size: 1rem;
 }
+.hud-shape { margin: 2px 0 0; font-size: 0.95rem; }
+.hud-fault {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border-left: 6px solid var(--crit);
+  background: var(--paper);
+  color: var(--ink);
+  font-weight: 700;
+  font-size: 0.95rem;
+  line-height: 1.3;
+}
 .hud-hint {
   position: absolute;
   left: 0;
@@ -111,7 +123,7 @@ html, body {
 .btn[aria-pressed='true'] { border-color: var(--straw); color: var(--straw); }
 .btn:focus-visible { outline: 2px solid var(--heat-5); outline-offset: 2px; }
 .btn-bellows {
-  min-height: 64px;
+  height: 70px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -121,6 +133,24 @@ html, body {
   touch-action: none;
 }
 .btn-bellows.held { background: var(--heat-1); border-color: var(--heat-4); }
+/* Blow buttons and the rhythm meter. */
+.btn-blow { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; padding: 4px 2px; }
+.blow-name { font-family: var(--font-head); font-weight: 600; font-size: 1.05rem; }
+.btn-blow .btn-sub { font-size: 0.72rem; }
+.btn-blow[aria-pressed='true'] { background: var(--iron); }
+.btn-blow[aria-pressed='true'] .btn-sub { color: var(--straw); }
+.meter {
+  position: relative;
+  height: 14px;
+  border: 1px solid #3a4047;
+  border-radius: 7px;
+  background: var(--stone);
+  overflow: hidden;
+}
+.controls-anvil { display: flex; flex-direction: column; gap: 8px; height: 70px; }
+.meter-sweet { position: absolute; top: 0; bottom: 0; background: var(--straw); opacity: 0.55; }
+.meter.full .meter-sweet { background: var(--good); opacity: 0.8; }
+.meter-mark { position: absolute; top: -2px; bottom: -2px; width: 4px; margin-left: -2px; border-radius: 2px; background: var(--chalk); }
 .btn-main { font-family: var(--font-head); font-weight: 600; font-size: 1.25rem; }
 .btn-sub { color: var(--muted); font-size: 0.8rem; }
 .btn-wide { width: 100%; margin-top: 14px; }
@@ -128,11 +158,13 @@ html, body {
 /* Landscape and desktop: scene on the left, controls in a column on the right. */
 #app.wide .controls {
   left: auto;
-  top: calc(64px + var(--safe-t));
+  top: calc(28px + var(--safe-t));
   bottom: auto;
   width: 230px;
 }
 #app.wide .controls-row { grid-template-columns: repeat(2, 1fr); }
+/* Two rows of blows here, so the shared slot is taller. */
+#app.wide .controls-anvil, #app.wide .btn-bellows { height: 126px; }
 #app.wide .hud-hint { bottom: calc(40px + var(--safe-b)); right: 250px; }
 
 /* Sheets: reports and settings are printed on paper cards. */

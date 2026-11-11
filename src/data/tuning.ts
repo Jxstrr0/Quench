@@ -96,8 +96,18 @@ export const BENCH = {
   /** Seconds for the bellows to reach full blast, and to die back. */
   bellowsRise: 0.6,
   bellowsFall: 1.5,
-  /** Sim seconds per real second at the forge. */
+  /** Sim seconds per real second while the bar heats or hangs in the air: waiting is sped up. */
   timeScale: 1.5,
+  /** Sim seconds per real second on the anvil: hammering runs in real time. */
+  anvilTimeScale: 1,
+  /** A tap this close to the bar (mm along it, and mm across from its middle line) is a hammer blow. */
+  strikeAlong: 12,
+  /** Below this the bar shows no glow, and a touch on it drags it instead of striking it. */
+  strikeMinTemp: 500,
+  strikeAcross: 55,
+  /** The fault report calls the first part of the bar the tip, and the last part the tang (shares of its length). */
+  tipShare: 0.2,
+  tangShare: 0.65,
   /** The stock a fresh bar is cut from. */
   stock: { length: 240, width: 32, thickness: 6 },
 } as const
