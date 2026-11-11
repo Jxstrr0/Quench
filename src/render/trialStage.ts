@@ -6,7 +6,7 @@
  * The blade is held in profile, tip to the left, edge down. Stage space is
  * metres from the middle of the table top; y is up.
  */
-import { BoxGeometry, CylinderGeometry, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, PointLight, Vector3 } from 'three'
+import { BoxGeometry, CylinderGeometry, DoubleSide, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, PointLight, Vector3 } from 'three'
 import type { TrialId } from '../data/trials'
 import { SWORD_PROPS, TRIAL_TABLE, TRIAL_WALL, VICE } from '../data/tuning'
 import type { Outcome } from '../sim/trials'
@@ -246,7 +246,38 @@ export function createTrialStage(): TrialStage {
   // The modelled stand's origin is on the table top under the mat.
   swapIn('matstand', matStand, () => {})
 
-  group.add(rope, timber, brass, vice, pad, shard, peg, mat)
+  // The kitchen board: a carrot, end on, on a board. It is in two halves so a thick blade can split it.
+  const boardTop = 0.018
+  const carrotR = 0.014
+  const kitchen = new Group()
+  const boardWood = prop(new BoxGeometry(0.27, boardTop, 0.2), 0x9a7a52, 0.85)
+  boardWood.position.set(spotX - 0.04, boardTop / 2, 0)
+  const carrotMat = new MeshStandardMaterial({ color: 0xcf6a1c, roughness: 0.8 })
+  const cutFace = new MeshStandardMaterial({ color: 0xe39a4a, roughness: 0.8, side: DoubleSide })
+  /** One half of the carrot, with the face a split would show. The group is what moves. */
+  const half = (from: number): Group => {
+    const round = new Mesh(new CylinderGeometry(carrotR, carrotR, 0.16, 14, 1, false, from, Math.PI), carrotMat)
+    round.rotation.x = Math.PI / 2
+    const face = new Mesh(new PlaneGeometry(0.16, carrotR * 2), cutFace)
+    face.rotation.y = Math.PI / 2
+    const piece = new Group()
+    piece.add(round, face)
+    return piece
+  }
+  const carrotRight = half(0)
+  const carrotLeft = half(Math.PI)
+  const carrot = new Group()
+  carrot.add(carrotLeft, carrotRight)
+  // The slices that come off, laid out beside the blade.
+  const slices: Mesh[] = []
+  for (let k = 0; k < 3; k++) {
+    const slice = new Mesh(new CylinderGeometry(carrotR, carrotR, 0.003, 14), carrotMat)
+    slices.push(slice)
+    kitchen.add(slice)
+  }
+  kitchen.add(boardWood, carrot)
+
+  group.add(rope, timber, brass, vice, pad, shard, peg, mat, kitchen)
 
   const local = new Vector3()
   const world = new Vector3()
@@ -279,6 +310,7 @@ export function createTrialStage(): TrialStage {
       pad.visible = show.id === 'shave'
       peg.visible = show.id === 'flex'
       mat.visible = show.id === 'mat'
+      kitchen.visible = show.id === 'board'
       shard.visible = false
 
       // Held by the grip unless a test says otherwise. `drop` is how far the edge hangs below the hand.
@@ -422,6 +454,43 @@ export function createTrialStage(): TrialStage {
           // Still standing: the top folds over at the cut, or the whole mat rocks on its stand.
           if (outcome === 'partCut') matHigh.rotation.z = 0.35 * over(t, hit, hit + 0.2)
           else mat.rotation.z = (6 * DEG * Math.sin(since * 8)) / (1 + since * 4)
+        }
+      } else if (show.id === 'board') {
+        // Three cuts down through a carrot, end on, on a board.
+        const lands = [0.12, 0.42, 0.7]
+        const wedged = outcome === 'wedges'
+        const high = carrotR * 2 + 0.014
+        let near = 1
+        for (const at of lands) {
+          const d = (t < at ? at - t : t - at) / 0.12
+          if (d < near) near = d
+        }
+        // How far the edge is above the board, 0 to 1: a keen thin blade drops straight through, a thick one sticks half way.
+        let up = over(near, 0, 1)
+        if (outcome === 'drags') up = near < 0.25 ? 0 : near < 0.7 ? 0.45 * over(near, 0.25, 0.4) : 0.45 + 0.55 * over(near, 0.7, 1)
+        // A blade that wedges gets a third of the way in and stops, is leaned on, and the carrot bursts.
+        const burst = wedged ? over(t, 0.7, 0.78) : 0
+        if (wedged) up = t < 0.12 ? 1 - 0.35 * over(t, 0, 0.12) : (0.65 - 0.05 * Math.sin((t - 0.12) * 30)) * (1 - burst)
+        // The heel leads: the blade rocks a little tip-down as it is lifted.
+        world.y = boardTop + drop + high * up
+        swing = 6 * up * DEG
+        carrot.position.set(spotX, boardTop + carrotR, 0)
+        const hop = Math.sin(burst * Math.PI) * 0.02
+        // The halves spring apart and roll onto their backs.
+        carrotLeft.position.set(-0.03 * burst, hop - 0.004 * burst, 0)
+        carrotRight.position.set(0.03 * burst, hop - 0.004 * burst, 0)
+        carrotLeft.rotation.z = 1.1 * burst
+        carrotRight.rotation.z = -1.1 * burst
+        for (let k = 0; k < slices.length; k++) {
+          const slice = slices[k] as Mesh
+          const at = lands[k] as number
+          slice.visible = !wedged && t >= at
+          // A dragging blade leaves thick, uneven pieces.
+          const thick = outcome === 'drags' ? 2.6 + k : 1
+          slice.scale.y = thick
+          const out = over(t, at, at + 0.1)
+          slice.position.set(spotX - 0.02 - (0.03 + 0.024 * k) * out, boardTop + 0.0015 * thick + 0.004, 0.02)
+          slice.rotation.z = (outcome === 'drags' ? 0.5 - 0.35 * k : 0.3) * out
         }
       } else {
         // Fit and finish, and anything without its own staging: turned over slowly in the light.

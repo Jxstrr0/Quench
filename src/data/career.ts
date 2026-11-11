@@ -40,6 +40,8 @@ export const HOURS: Record<StageId, number> = {
 /** How much longer than a plain knife each pattern takes at every stage. A short sword is two days' work. */
 export const EFFORT: Record<PatternId, number> = {
   campKnife: 1,
+  cooksKnife: 1,
+  cleaver: 1,
   shortSword: 2,
   fullSword: 3,
 }
@@ -115,6 +117,8 @@ export type BriefKind =
   | 'smokehouseKnife'
   | 'showKnife'
   | 'clubKnife'
+  | 'prepKnife'
+  | 'blockCleaver'
   | 'collectorSword'
   | 'clubSword'
   | 'masterSword'
@@ -157,6 +161,10 @@ export const BRIEFS: Record<BriefKind, BriefTemplate> = {
   showKnife: { customer: 'leith', pattern: 'campKnife', needs: ['fit'], fine: true, pay: [1300, 1700], days: [6, 10], rating: 'apprentice' },
   /** A sport cutting club's competition knife: every test, no excuses. */
   clubKnife: { customer: 'cuttingClub', pattern: 'campKnife', needs: ['rope', 'brass', 'chop', 'shave'], fine: false, pay: [1200, 1500], days: [6, 10], rating: 'apprentice' },
+  /** The cook's own prep knife: thin behind the edge, or it wedges. */
+  prepKnife: { customer: 'marsk', pattern: 'cooksKnife', needs: ['board'], fine: false, pay: [1100, 1400], days: [5, 8], rating: 'apprentice' },
+  /** The smokehouse's cleaver for the block: bone all morning, and still keen. */
+  blockCleaver: { customer: 'orrin', pattern: 'cleaver', needs: ['chop', 'shave'], fine: false, pay: [1100, 1400], days: [5, 8], rating: 'apprentice' },
   /** A collector's short sword: it must be a true spring, and finely finished. */
   collectorSword: { customer: 'leith', pattern: 'shortSword', needs: ['flex'], fine: true, pay: [3200, 4000], days: [9, 13], rating: 'journeyman' },
   /** The cutting club's short sword for the mats: it must spring true and cut. */

@@ -31,6 +31,8 @@ const BRIEF_KEY: Record<BriefKind, StringKey> = {
   smokehouseKnife: 'brief.smokehouseKnife',
   showKnife: 'brief.showKnife',
   clubKnife: 'brief.clubKnife',
+  prepKnife: 'brief.prepKnife',
+  blockCleaver: 'brief.blockCleaver',
   collectorSword: 'brief.collectorSword',
   clubSword: 'brief.clubSword',
   masterSword: 'brief.masterSword',
