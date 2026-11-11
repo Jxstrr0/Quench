@@ -119,10 +119,6 @@ export function createCareerSheet(host: HTMLElement, forge: CareerHost): Sheet {
     }
     const rule = PROVINGS[next]
     card.append(el('p', 'brief-what', t('career.proving.next', { day: provingDay(state.day), rating: ratingName(next) })))
-    if (!rule.pattern) {
-      card.append(el('p', 'brief-needs', t('career.proving.noPattern')))
-      return card
-    }
     card.append(
       el('p', 'brief-needs', t('career.proving.tests', { pattern: t(`pattern.${rule.pattern}`).toLowerCase(), list: testList(rule.trials), money: money(rule.fee) })),
     )

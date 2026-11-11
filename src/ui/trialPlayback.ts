@@ -111,9 +111,9 @@ export function createTrialPlayback(host: HTMLElement, voice: PlaybackVoice): Pl
       for (const name of cuesDue(trialCues(r.id, r.outcome, (r.value ?? BOW) / BOW), before, clock / seconds)) voice.sound(name)
       if (clock >= seconds && !result.textContent) {
         voice.sound(r.passed ? 'pass' : 'fail')
-        const line = examinerLine(r.id, r.passed)
-        voice.say(line)
-        said.textContent = `“${t(`examiner.${line}`)}”`
+        const line = examinerLine(r.id, r.passed, r.outcome)
+        if (line) voice.say(line)
+        said.textContent = line ? `“${t(`examiner.${line}`)}”` : ''
         result.textContent = `${r.passed ? '✓' : '✗'} ${t(r.passed ? 'trial.passed' : 'trial.failed')}. ${outcomeText(r)}`
       }
       if (clock >= seconds + (voice.spoken() ? PLAYBACK.holdSpoken : PLAYBACK.hold)) {

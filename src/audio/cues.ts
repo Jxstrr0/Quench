@@ -183,8 +183,12 @@ export function seaVoice(atWindow: boolean): FireVoice {
   return { gain: atWindow ? k.windowGain : k.forgeGain, hz: k.hz, flutter: k.swell }
 }
 
-/** What the examiner says of one test. */
-export function examinerLine(id: TrialId, passed: boolean): ExaminerLine {
+/**
+ * What the examiner says of one test, or null when he says nothing: a mat cut
+ * through with a torn face passes, but it is not the clean cut his line praises.
+ */
+export function examinerLine(id: TrialId, passed: boolean, outcome?: string): ExaminerLine | null {
+  if (id === 'mat' && passed && outcome === 'cut') return null
   return `${id}.${passed ? 'pass' : 'fail'}`
 }
 

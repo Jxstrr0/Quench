@@ -13,7 +13,7 @@ export interface Station {
   thickness: number
 }
 
-export type PatternId = 'campKnife' | 'shortSword'
+export type PatternId = 'campKnife' | 'shortSword' | 'fullSword'
 
 export interface Pattern {
   id: PatternId
@@ -64,6 +64,27 @@ export const PATTERNS: Record<PatternId, Pattern> = {
       { at: 450, width: 36, thickness: 5.8 },
       { at: 462, width: 20, thickness: 6.5 },
       { at: 600, width: 15, thickness: 6.5 },
+    ],
+    trials: ['fit', 'flex', 'mat'],
+  },
+  /**
+   * A full sword: a straight, one-edged blade of about 750 mm on a long tang.
+   * The Master's set piece. It is longer than any fire in the shop, so no
+   * heat is ever even without work, and every warp is half as bad again.
+   */
+  fullSword: {
+    id: 'fullSword',
+    steel: '5160',
+    stock: { length: 480, width: 39, thickness: 8 },
+    bladeShare: 750 / 930,
+    stations: [
+      { at: 0, width: 6, thickness: 2.4 },
+      { at: 60, width: 26, thickness: 3.4 },
+      { at: 250, width: 33, thickness: 4.2 },
+      { at: 720, width: 40, thickness: 5.6 },
+      { at: 750, width: 38, thickness: 6 },
+      { at: 765, width: 22, thickness: 7 },
+      { at: 930, width: 16, thickness: 7 },
     ],
     trials: ['fit', 'flex', 'mat'],
   },

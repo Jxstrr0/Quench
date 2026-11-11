@@ -41,6 +41,7 @@ export const HOURS: Record<StageId, number> = {
 export const EFFORT: Record<PatternId, number> = {
   campKnife: 1,
   shortSword: 2,
+  fullSword: 3,
 }
 
 export const MONEY = {
@@ -116,6 +117,8 @@ export type BriefKind =
   | 'clubKnife'
   | 'collectorSword'
   | 'clubSword'
+  | 'masterSword'
+  | 'clubFullSword'
 
 export interface BriefTemplate {
   customer: CustomerId
@@ -158,6 +161,9 @@ export const BRIEFS: Record<BriefKind, BriefTemplate> = {
   collectorSword: { customer: 'leith', pattern: 'shortSword', needs: ['flex'], fine: true, pay: [3200, 4000], days: [9, 13], rating: 'journeyman' },
   /** The cutting club's short sword for the mats: it must spring true and cut. */
   clubSword: { customer: 'cuttingClub', pattern: 'shortSword', needs: ['flex', 'mat'], fine: false, pay: [2800, 3500], days: [9, 13], rating: 'journeyman' },
+  /** Full swords: asked for only of a Master. */
+  masterSword: { customer: 'leith', pattern: 'fullSword', needs: ['flex', 'mat'], fine: true, pay: [7000, 8500], days: [14, 18], rating: 'master' },
+  clubFullSword: { customer: 'cuttingClub', pattern: 'fullSword', needs: ['flex', 'mat'], fine: false, pay: [5500, 6800], days: [14, 18], rating: 'master' },
 }
 
 export const PROVING = {
@@ -166,8 +172,8 @@ export const PROVING = {
 } as const
 
 export interface ProvingRule {
-  /** The set blade, or null while its pattern is not in the game yet. */
-  pattern: PatternId | null
+  /** The set blade. */
+  pattern: PatternId
   /** The set tests: all must pass. */
   trials: readonly TrialId[]
   fee: number
@@ -184,10 +190,10 @@ export interface ProvingRule {
 export const PROVINGS: Record<Exclude<Rating, 'none'>, ProvingRule> = {
   apprentice: { pattern: 'campKnife', trials: ['fit', 'rope', 'chop'], fee: 100, delivered: 1 },
   journeyman: { pattern: 'campKnife', trials: ['fit', 'rope', 'brass', 'chop', 'shave'], fee: 250, delivered: 4 },
-  master: { pattern: null, trials: ['fit'], fee: 500, delivered: 10 },
+  master: { pattern: 'fullSword', trials: ['fit', 'flex', 'mat'], fee: 500, delivered: 10 },
 }
 
-/** Swords: sizes and who asks for them. The short sword is in; the full sword comes with the Master's Proving. */
+/** Swords: sizes and who asks for them. The short sword comes at Journeyman; the full sword is the Master's set piece. */
 export const SWORDS = {
   shortLength: 450,
   fullLength: 750,
@@ -211,6 +217,6 @@ export const TOOLS: Record<ToolId, Tool> = {
   hardnessTester: { price: 1500 },
   /** Shows the grain on the Inspect card without breaking anything. */
   loupe: { price: 350 },
-  /** A long fire that heats a whole sword blade at once. Swords can be made without it. */
+  /** A long fire that heats a whole short sword at once. A full sword is slid through it. Swords can be made without it. */
   trenchForge: { price: 2400, from: SWORDS.from },
 }

@@ -192,6 +192,9 @@ describe('the examiner', () => {
   it('says of each test whether it passed', () => {
     expect(examinerLine('rope', true)).toBe('rope.pass')
     expect(examinerLine('bend', false)).toBe('bend.fail')
+    // He does not call a torn cut clean.
+    expect(examinerLine('mat', true, 'clean')).toBe('mat.pass')
+    expect(examinerLine('mat', true, 'cut')).toBeNull()
     expect(verdictLine(5, 5)).toBe('allPass')
     expect(verdictLine(4, 5)).toBe('someFail')
   })
