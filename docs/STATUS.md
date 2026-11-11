@@ -4,6 +4,7 @@ The plan is `docs/QUENCH-PLAN.md`. Newest line first.
 
 | Version | PR | What changed |
 | --- | --- | --- |
+| 0.9.12.0 | PR 9m: The baked floor | The room's **lightmap**: the soft shadows the forge, anvil, tank and bench cast on the floor are baked in Blender into one small texture on the flagstones (the whole floor is 22 KiB). The fire and the hot bar still light the room live. The bake puts each thing where the tuning table says it stands, and a test checks that. 1 new test (331 in total). |
 | 0.9.11.0 | PR 9l: The grinder | The **belt grinder** has a machine under its belt: the platen, a wheel at each end, a side rail on feet, and a finned motor past the far wheel. The belt, its grit lines and the sparks are still drawn live. |
 | 0.9.10.0 | PR 9k: The trial table and its fittings | The **trial table** is now three long planks on an apron and legs. The test rope hangs from an **iron bracket** out of the wall, which stays still while the rope swings. The brass rod lies on a **steel block** with a cheek each side. Kelbo's answer on the lightmap (do the bake) is in the plan as Q12. |
 | 0.9.9.0 | PR 9j: The wall and the harbour window | Behind the trial stand there is now a **coursed stone wall** with a timber-framed **window onto Aldersay harbour at dusk**: the last light on the horizon, the far headland, and the harbour light on the mole with its path on the water. The harbour is flat unlit shapes drawn by the game, so the lamp does not wash it out. |
@@ -51,7 +52,7 @@ The plan is `docs/QUENCH-PLAN.md`. Newest line first.
 
 Pages is on and the custom domain is set: https://quench.longlight.games/. Each merge to `main` publishes there.
 
-## Questions for Kelbo after playing 0.9.11.0
+## Questions for Kelbo after playing 0.9.12.0
 
 Kelbo said to keep rolling and tune later, so these are saved up, not blocking.
 

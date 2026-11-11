@@ -40,5 +40,12 @@
   "tableThick": 40,
   "rodBlockTop": 38,
   "grinderBelt": 50,
-  "grinderLength": 260
+  "grinderLength": 260,
+  "anvilGap": 55,
+  "tankOffset": 230,
+  "benchAlong": 305,
+  "benchAcross": 620,
+  "lightmapSize": 512,
+  "lightmapSamples": 64,
+  "lightmapReach": 350
 }

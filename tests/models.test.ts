@@ -35,6 +35,8 @@ describe('the room models', () => {
     expect([dims.wallBack, dims.windowFrom, dims.windowTo, dims.windowSill, dims.windowHead]).toEqual([TRIAL_WALL.back, TRIAL_WALL.windowFrom, TRIAL_WALL.windowTo, TRIAL_WALL.sill, TRIAL_WALL.head])
     expect([dims.tableLength, dims.tableDepth, dims.tableThick, dims.rodBlockTop]).toEqual([TRIAL_TABLE.length, TRIAL_TABLE.depth, TRIAL_TABLE.thick, TRIAL_TABLE.rodBlockTop])
     expect([dims.grinderBelt, dims.grinderLength]).toEqual([GRIND.contact, BELT.length])
+    // Where the floor's baked shadows put the things that cast them.
+    expect([dims.anvilGap, dims.tankOffset, dims.benchAlong, dims.benchAcross]).toEqual([BENCH.anvilGap, BENCH.tankOffset, WORKBENCH.lead - BENCH.railMin, WORKBENCH.across])
   })
   it('each have a budget, and keep to it', () => {
     expect(files.length).toBeGreaterThan(0)
@@ -66,6 +68,11 @@ describe('the room models', () => {
       expect(-from).toBeLessThan(fire.depth / 1000 + 0.06)
       expect(to).toBeLessThan(0.02)
     }
+  })
+  it('the floor carries its baked shadows as one small texture', () => {
+    const { doc } = read('floor.glb')
+    const images = (doc as unknown as { images?: { mimeType: string }[] }).images ?? []
+    expect(images.map((i) => i.mimeType)).toEqual(['image/jpeg'])
   })
   it('the anvil is the right size, and nothing stands above its face', () => {
     const { doc } = read('anvil.glb')

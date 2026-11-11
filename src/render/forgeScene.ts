@@ -234,17 +234,17 @@ export function createForgeView(host: HTMLElement, start: TierSettings): ForgeVi
   const sunk = -0.022
 
   // --- The grinder: a bench on the other side of the rail from the tank -----
-  const benchZ = 0.62
+  const benchZ = WORKBENCH.across * MM
   /** Where the blade's tip lies on the bench. */
   const benchX = -BENCH.railMin * MM
   /** The top of the belt, in metres above the anvil face. */
   const beltTop = 0.004
   const beltWide = GRIND.contact * MM
   const benchTop = box(WORKBENCH.length * MM, 0.05, WORKBENCH.wide * MM, 0x33291f, 0.95)
-  benchTop.position.set(benchX + 0.22, WORKBENCH.top * MM - 0.025, benchZ)
+  benchTop.position.set(benchX + WORKBENCH.lead * MM, WORKBENCH.top * MM - 0.025, benchZ)
   scene.add(benchTop)
   // The modelled bench's origin is the middle of its top, at the height of the anvil's face.
-  swapIn('bench', benchTop, (model) => model.position.set(benchX + 0.22, 0, benchZ))
+  swapIn('bench', benchTop, (model) => model.position.set(benchX + WORKBENCH.lead * MM, 0, benchZ))
   // The belt and its platen follow the grinding spot: the camera stays with the blade.
   const grinder = new Group()
   const platen = box(beltWide + 0.02, 0.022, 0.25, 0x3a4047, 0.5, 0.8)

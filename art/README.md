@@ -23,3 +23,13 @@ game always runs.
 
 To add a model: write its function in `build.py`, add it to `MODELS`, give it
 a budget, build it, then swap it in from the scene with `swapIn`.
+
+## The baked floor
+
+`floor.glb` carries the room's lightmap. When the floor is built, the script
+stands the forge, anvil, tank and bench where the game puts them
+(`dims.json`), bakes the soft shadow they cast on the flagstones with Cycles
+(a few seconds on a CPU), and packs it into the model as one small JPEG. Each
+flag's own tint is multiplied by it. Move a piece in `src/data/tuning.ts` and
+the test in `tests/models.test.ts` will fail until `dims.json` matches and
+the floor is rebuilt.

@@ -106,9 +106,14 @@ def loft(bm, rings, mat=0, cap_start=True, cap_end=True):
         bm.faces.new(made[-1]).material_index = mat
 
 
-def finish(name, bm, mats, bevel=0.0):
-    """Turn the bmesh into an object, with sharp-edged shading and, if asked, a small bevel on every edge."""
-    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+def finish(name, bm, mats, bevel=0.0, recalc=True):
+    """
+    Turn the bmesh into an object, with sharp-edged shading and, if asked, a
+    small bevel on every edge. Loose flat faces (the floor's flags) have no
+    inside to judge by, so they pass recalc=False and keep the way they were made.
+    """
+    if recalc:
+        bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
     mesh = bpy.data.meshes.new(name)
     bm.to_mesh(mesh)
     bm.free()
@@ -479,6 +484,7 @@ def floor():
     rnd = random.Random(11)
     joint = 0.008
     bm = bmesh.new()
+    uv = bm.loops.layers.uv.new("light")
     y = y0
     while y < y1 - 0.02:
         deep = min(y1 - y, rnd.uniform(0.24, 0.38))
@@ -493,10 +499,63 @@ def floor():
                 tilt = rnd.uniform(-0.0015, 0.0015)
                 quad = [(a + joint / 2, y + joint / 2, z + lift), (b - joint / 2, y + joint / 2, z + lift + tilt),
                         (b - joint / 2, y + deep - joint / 2, z + lift + tilt), (a + joint / 2, y + deep - joint / 2, z + lift)]
-                bm.faces.new([bm.verts.new(p) for p in quad]).material_index = rnd.randrange(3)
+                face = bm.faces.new([bm.verts.new(p) for p in quad])
+                face.material_index = rnd.randrange(3)
+                # The lightmap lies flat over the whole floor: each corner's UV is its place on it.
+                for loop in face.loops:
+                    loop[uv].uv = ((loop.vert.co.x - x0) / (x1 - x0), (loop.vert.co.y - y0) / (y1 - y0))
             x += wide
         y += deep
-    return finish("floor", bm, [flag(0), flag(1), flag(2)])
+    obj = finish("floor", bm, [flag(0), flag(1), flag(2)], recalc=False)
+    bake_shadows(obj)
+    return obj
+
+
+def bake_shadows(obj):
+    """
+    The room's lightmap: bake the soft shadow the forge, anvil, tank and bench
+    cast on the floor into a texture, and multiply each flag's own tint by it.
+    The fire and the hot bar still light the room live; this only grounds the
+    things that never move.
+    """
+    scene = bpy.context.scene
+    casters = []
+    for build, at in ((forge, (0, 0)), (anvil, (DIMS["anvilGap"] * MM, 0)), (tank, (0, DIMS["tankOffset"] * MM)),
+                      (bench, (DIMS["benchAlong"] * MM, -DIMS["benchAcross"] * MM))):
+        caster = build()
+        caster.location = (at[0], at[1], 0)
+        casters.append(caster)
+    size = DIMS["lightmapSize"]
+    image = bpy.data.images.new("floorLight", size, size, alpha=False)
+    image.generated_color = (1, 1, 1, 1)   # anywhere no flag lies stays unshadowed
+    for mat in obj.data.materials:
+        nodes, links = mat.node_tree.nodes, mat.node_tree.links
+        shader = nodes["Principled BSDF"]
+        tint = tuple(shader.inputs["Base Color"].default_value)
+        tex = nodes.new("ShaderNodeTexImage")
+        tex.image = image
+        mix = nodes.new("ShaderNodeMix")
+        mix.data_type = "RGBA"
+        mix.blend_type = "MULTIPLY"
+        mix.inputs["Factor"].default_value = 1.0
+        links.new(tex.outputs["Color"], mix.inputs["A"])
+        mix.inputs["B"].default_value = tint
+        links.new(mix.outputs["Result"], shader.inputs["Base Color"])
+        nodes.active = tex
+    scene.render.engine = "CYCLES"
+    scene.cycles.device = "CPU"
+    scene.cycles.samples = DIMS["lightmapSamples"]
+    if scene.world is None:
+        scene.world = bpy.data.worlds.new("world")
+    scene.world.light_settings.distance = DIMS["lightmapReach"] * MM
+    bpy.context.view_layer.update()
+    bpy.ops.object.select_all(action="DESELECT")
+    obj.select_set(True)
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.bake(type="AO", margin=4)
+    image.pack()
+    for caster in casters:
+        bpy.data.objects.remove(caster)
 
 
 def wall_stone(k):
@@ -649,6 +708,10 @@ MODELS = {"anvil": anvil, "forge": forge, "trench": trench, "tank": tank, "bench
           "rodblock": rodblock, "grinder": grinder}
 
 
+# Models that carry a texture. The rest are flat colours and need no UVs.
+TEXTURED = {"floor"}
+
+
 def export(name):
     bpy.ops.wm.read_factory_settings(use_empty=True)
     obj = MODELS[name]()
@@ -663,7 +726,9 @@ def export(name):
         use_selection=True,
         export_apply=True,
         export_yup=True,
-        export_texcoords=False,
+        export_texcoords=name in TEXTURED,
+        export_image_format="JPEG",
+        export_jpeg_quality=85,
         export_animations=False,
     )
     print(f"built {os.path.relpath(path, ROOT)}")
