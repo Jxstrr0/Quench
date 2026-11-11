@@ -5,18 +5,32 @@
  */
 import type { HandleId } from '../data/grind'
 import { steel } from '../data/steels'
+import { HANDLE } from '../data/grind'
 import { COOL, INSPECT } from '../data/treat'
 import type { Bar, QuenchCrack } from './bar'
 import { bevelLean, edgeThickness, hottest, isGround } from './bar'
+import { handleFit } from './finish'
 import { edgeHardness, hardness, isMagnetic, summarize } from './properties'
 
 export type MagnetWord = 'sticks' | 'letsGoPart' | 'letsGo'
 export type FileWord = 'skates' | 'bitesALittle' | 'bites'
 export type GrainWord = 'fine' | 'medium' | 'coarse'
 export type ToughWord = 'brittle' | 'fair' | 'tough'
-/** What the blade needs next. */
 export type KeenWord = 'blunt' | 'working' | 'keen'
+/** How a handle sits on the tang. */
+export type FitWord = 'well' | 'loose' | 'badly'
+/** What the blade needs next. */
 export type NextStep = 'harden' | 'temper' | 'temperAgain' | 'grind' | 'sharpen' | 'handle' | 'done' | 'cracked'
+
+/** The word for an edge this keen, 0 to 1. */
+export function keenWord(sharp: number): KeenWord {
+  return sharp >= INSPECT.keenFrom ? 'keen' : sharp >= INSPECT.workingFrom ? 'working' : 'blunt'
+}
+
+/** The word for a handle fit, 0 to 1. */
+export function fitWord(fit: number): FitWord {
+  return fit >= HANDLE.fitGood ? 'well' : fit >= HANDLE.fitFair ? 'loose' : 'badly'
+}
 
 /**
  * Touch a magnet along the blade: the first `bladeShare` of the bar from the
@@ -77,6 +91,8 @@ export interface Inspection {
   keen: KeenWord
   etched: boolean
   handle: HandleId | null
+  /** How a handle sits, or would sit, on this tang. */
+  fit: FitWord
   next: NextStep
 }
 
@@ -157,9 +173,10 @@ export function inspect(bar: Bar, bladeShare: number): Inspection {
     edgeSoft,
     lopsided: bevelLean(bar) >= INSPECT.bevelLean,
     sharp,
-    keen: sharp >= INSPECT.keenFrom ? 'keen' : sharp >= INSPECT.workingFrom ? 'working' : 'blunt',
+    keen: keenWord(sharp),
     etched: bar.etched,
     handle: bar.handle,
+    fit: fitWord(handleFit(bar, bladeShare)),
     next,
   }
 }

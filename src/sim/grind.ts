@@ -13,7 +13,7 @@ import { EDGE_WORDS, GRIND } from '../data/grind'
 import { steel } from '../data/steels'
 import { SIM, STEEL_PHYSICS } from '../data/tuning'
 import type { Bar, Segment } from './bar'
-import { fitBevels, hottest, segmentCentres, steelVolume } from './bar'
+import { edgeThickness, fitBevels, hottest, nearestSegment, segmentCentres, steelVolume } from './bar'
 import { PI, detCos, detSin } from './det'
 import { edgeZone, stepHeat } from './heat'
 import { hardness } from './properties'
@@ -212,14 +212,5 @@ export function dip(bar: Bar): boolean {
 
 /** Thickness of the edge under the middle of the belt, mm. */
 export function edgeAt(bar: Bar, at: number): number {
-  const centres = segmentCentres(bar)
-  let near = 0
-  for (let i = 1; i < centres.length; i++) {
-    const d = (centres[i] as number) - at
-    const best = (centres[near] as number) - at
-    if ((d < 0 ? -d : d) < (best < 0 ? -best : best)) near = i
-  }
-  const s = bar.segments[near] as Segment
-  const edge = s.thickness - s.cutLeft - s.cutRight
-  return edge > 0 ? edge : 0
+  return edgeThickness(nearestSegment(bar, at))
 }

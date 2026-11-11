@@ -40,7 +40,8 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import type { BlowType } from '../data/hammer'
 import type { MediumId } from '../data/media'
 import type { Pattern } from '../data/patterns'
-import { GRIND } from '../data/grind'
+import type { HandleId } from '../data/grind'
+import { GRIND, SHARPEN } from '../data/grind'
 import { BENCH, FORGE } from '../data/tuning'
 import type { Bar, Segment } from '../sim/bar'
 import { barLength, segmentCentres } from '../sim/bar'
@@ -61,6 +62,8 @@ export interface BenchPose {
   tilt: number
   /** How hard the steel is being ground, 0 to 1. Drives the sparks. */
   sparks: number
+  /** True when the sharpening stone is out in place of the belt. */
+  stone: boolean
 }
 
 export interface ForgeView {
@@ -216,6 +219,11 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
   }
   grinder.position.set(benchX, 0, benchZ)
   scene.add(grinder)
+  // The sharpening stone: a grey block that takes the belt's place.
+  const stoneBlock = box(SHARPEN.contact * MM, 0.02, 0.2, 0x8d9298, 0.95)
+  stoneBlock.position.set(benchX, beltTop - 0.01, benchZ)
+  stoneBlock.visible = false
+  scene.add(stoneBlock)
   // Sparks: a small pool of points, thrown off the edge while steel is on the belt.
   const SPARKS = 90
   const sparkPos = new Float32Array(SPARKS * 3)
@@ -250,6 +258,13 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
   const jawB = jawA.clone()
   tongs.add(jawA, jawB)
   holder.add(tongs)
+
+  // The handle: a plain grip over the tang, once one is fitted.
+  const HANDLE_LOOK: Record<HandleId, number> = { ash: 0xc8ae84, bogOak: 0x2b2019, cord: 0x39485a }
+  const gripMat = new MeshStandardMaterial({ color: 0xc8ae84, roughness: 0.85 })
+  const grip = new Mesh(new BoxGeometry(1, 1, 1), gripMat)
+  grip.visible = false
+  holder.add(grip)
 
   // The target shape, drawn in chalk just above the bar.
   const outlineGeo = new BufferGeometry()
@@ -405,6 +420,14 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
       const length = barLength(bar) * MM
       barLen = length
       const half = (last.thickness / 2) * MM + 0.003
+      // The grip covers the tang: everything past the blade.
+      grip.visible = bar.handle !== null
+      if (bar.handle) {
+        const from = length * BENCH.tangShare
+        gripMat.color.setHex(HANDLE_LOOK[bar.handle])
+        grip.scale.set(length - from + 0.012, (last.thickness + 12) * MM, (last.width + 6) * MM)
+        grip.position.set((from + length + 0.012) / 2, 0, (last.width / 2 - spine) * MM)
+      }
       tongs.position.set(length - 0.025 + 0.18, 0, (last.width / 2 - spine) * MM)
       jawA.position.y = half
       jawB.position.y = -half
@@ -507,7 +530,10 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
         holder.position.z += (benchZ - holder.position.z) * ease
       }
       tongs.visible = atBench < 0.5
+      grinder.visible = !pose?.stone
+      stoneBlock.visible = pose?.stone === true
       if (pose) {
+        stoneBlock.position.x = benchX + pose.at * MM
         grinder.position.x = benchX + pose.at * MM
         beltRun = (beltRun + dt * 0.9) % gritGap
         for (let i = 0; i < grit.length; i++) (grit[i] as Mesh).position.z = -0.13 + beltRun + i * gritGap

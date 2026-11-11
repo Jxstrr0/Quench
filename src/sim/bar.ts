@@ -247,6 +247,18 @@ export function segmentCentres(bar: Bar): number[] {
   return out
 }
 
+/** The segment whose middle is nearest to `at` mm from the tip. */
+export function nearestSegment(bar: Bar, at: number): Segment {
+  const centres = segmentCentres(bar)
+  let near = 0
+  for (let i = 1; i < centres.length; i++) {
+    const d = (centres[i] as number) - at
+    const best = (centres[near] as number) - at
+    if ((d < 0 ? -d : d) < (best < 0 ? -best : best)) near = i
+  }
+  return bar.segments[near] as Segment
+}
+
 export function hottest(bar: Bar): number {
   let t = -Infinity
   for (const s of bar.segments) if (s.temp > t) t = s.temp

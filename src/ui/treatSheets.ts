@@ -13,6 +13,7 @@ import { inspect, magnetTest } from '../sim/inspect'
 import { temperInOven } from '../sim/temper'
 import type { Sheet } from './dom'
 import { button, createSheet, el } from './dom'
+import { FIT_KEY, HANDLE_KEY, KEEN_KEY } from './grindBench'
 
 export interface TreatHost {
   /** The bar on the bench right now. */
@@ -149,6 +150,9 @@ export function createInspectSheet(host: HTMLElement, forge: TreatHost): Sheet {
     row('inspect.edge', look.ground ? t('edge.value', { n: look.edge.toFixed(1), min: look.edgeMin.toFixed(1) }) : t('edge.unground'))
     if (look.lopsided) body.append(el('p', 'sheet-note', t('inspect.lopsided')))
     if (look.edgeSoft) body.append(el('p', 'sheet-note', t('inspect.edgeSoft')))
+    if (look.ground) row('inspect.sharp', capital(t(KEEN_KEY[look.keen])))
+    if (look.handle) row('inspect.handle', capital(t('inspect.handle.value', { name: t(HANDLE_KEY[look.handle]), fit: t(FIT_KEY[look.fit]) })))
+    if (look.etched) row('inspect.etch', t(look.hardened ? 'etch.dark' : 'etch.pale'))
     row('inspect.tempers', look.tempers === 0 ? t('tempers.none') : look.tempers === 1 ? t('tempers.once') : t('tempers.n', { n: look.tempers }))
     row('inspect.shape', t('inspect.shape.value', { n: forge.shapePercent() }))
     body.append(el('p', 'sheet-note sheet-small', t('inspect.grain.note')))

@@ -43,6 +43,15 @@ export const QUENCH_SOUND = {
   pingSeconds: 0.7,
 } as const
 
+/** One stroke on the sharpening stone: a short, dry scrape. */
+export const STONE_SOUND = {
+  /** Loudness of a full-pressure stroke, 0 to 1, and of the lightest. */
+  fullGain: 0.4,
+  lightGain: 0.15,
+  hz: 2600,
+  seconds: 0.18,
+} as const
+
 /** The belt grinder: a steady rush of noise that rises and brightens as steel is pressed to it. */
 export const BELT_SOUND = {
   /** The belt running free: loudness (0 to 1) and filter centre in Hz. */

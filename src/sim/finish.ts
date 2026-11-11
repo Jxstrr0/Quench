@@ -7,7 +7,7 @@ import { HANDLE, SHARPEN } from '../data/grind'
 import { steel } from '../data/steels'
 import { COOL } from '../data/treat'
 import type { Bar, Segment } from './bar'
-import { barLength, edgeThickness, hottest, isGround, segmentCentres } from './bar'
+import { barLength, edgeThickness, hottest, isGround, nearestSegment, segmentCentres } from './bar'
 import { beltBite } from './grind'
 import { edgeHardness } from './properties'
 
@@ -65,6 +65,11 @@ export function strokeStone(bar: Bar, stroke: Stroke): StrokeResult {
     result.keener = true
   }
   return result
+}
+
+/** How keen the edge is where the stone last touched it, 0 to 1. */
+export function sharpAt(bar: Bar, at: number): number {
+  return nearestSegment(bar, at).sharp
 }
 
 /** Dip the blade in acid. Hardened steel etches dark, soft steel pale. Only a cool blade can be etched. */

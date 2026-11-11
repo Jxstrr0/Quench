@@ -53,6 +53,11 @@ export const GRINDER = {
   tiltStep: 1,
   /** Which of `PRESSURES` a fresh bench starts on. */
   startPressure: 0,
+  /** On the stone, the angle the slider starts at, in degrees each side. */
+  startAngle: 20,
+  angleStep: 1,
+  /** Sliding the edge this far along the stone, in mm, is one stroke. */
+  strokeEvery: 20,
 } as const
 
 /**
@@ -116,6 +121,9 @@ export const HANDLE = {
   minTang: 70,
   /** A tang whose lumps average this much of its width and thickness (as shares, added) fits as badly as it can. */
   unevenRef: 0.25,
+  /** A fit (0 to 1) from this up sits well; from `fitFair` up it sits loosely; below that, badly. */
+  fitGood: 0.8,
+  fitFair: 0.5,
 } as const
 
 export function handle(id: HandleId): Handle {
