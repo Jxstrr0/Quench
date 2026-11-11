@@ -6,7 +6,7 @@
  * Units: millimetres, grams, degrees, HRC, unless a name says otherwise.
  */
 
-export type TrialId = 'fit' | 'rope' | 'brass' | 'chop' | 'shave' | 'board' | 'bend'
+export type TrialId = 'fit' | 'rope' | 'brass' | 'chop' | 'shave' | 'board' | 'bend' | 'flex' | 'mat'
 
 /** The stretch of the edge that does the work in a cut or a chop, as shares of the blade's length from the tip. */
 export const ZONE = {
@@ -104,6 +104,38 @@ export const BEND = {
   pass: 45,
 } as const
 
+/** Flex and spring back (swords): the blade is bowed over a peg and let go. A sword must come back true. */
+export const FLEX = {
+  /** How far it is bowed, in degrees. A blade that would snap in the vice short of this snaps here. */
+  angle: 35,
+  /** Steel softer than `springFrom` HRC does not spring all the way back; at `setBase` it stays where it was put. */
+  springFrom: 42,
+  setBase: 25,
+  /** The set left in a blade that stays where it was put: mm out of true for each 100 mm of blade. */
+  setPer100: 2,
+} as const
+
+/** The rolled mat cut (swords): one slanting cut through a soaked, rolled straw mat on a stand. */
+export const MAT = {
+  /** An edge sharpened at `angleBest` degrees each side or less cuts at full power; at `angleWorst` it has lost `angleLoss` of it. */
+  angleBest: 18,
+  angleWorst: 32,
+  angleLoss: 0.4,
+  /** A warp turns the edge in the mat: `warpWorst` mm loses `warpLoss` of the cut. */
+  warpWorst: 2,
+  warpLoss: 0.5,
+  /** Bevels heavier on one side steer the cut: wholly one-sided loses this share. */
+  leanLoss: 0.4,
+  /** Cutting power (0 to 1) needed to get through; from `clean` up the cut is clean; under `part` the mat only folds. */
+  need: 0.6,
+  clean: 0.8,
+  part: 0.35,
+  /** When a cut fails: a warp this share of `warpWorst`, bevels this lopsided, or an angle this far toward `angleWorst` is blamed. */
+  warped: 0.4,
+  lean: 0.4,
+  steep: 0.5,
+} as const
+
 /** The kitchen board (chef's knives): a carrot, an onion, an hour of prep. */
 export const BOARD = {
   /** Thickness is read this far above the edge. */
@@ -135,7 +167,7 @@ export const FIT = {
 
 /** The playbacks: how many seconds each test is shown for, and how long its result stays up afterwards. */
 export const PLAYBACK = {
-  seconds: { fit: 2.2, rope: 2, brass: 2.2, chop: 2.8, shave: 1.8, board: 1.8, bend: 2.6 },
+  seconds: { fit: 2.2, rope: 2, brass: 2.2, chop: 2.8, shave: 1.8, board: 1.8, bend: 2.6, flex: 2.6, mat: 2.2 },
   hold: 1.6,
 } as const
 

@@ -13,7 +13,7 @@ import type { Steel } from '../data/steels'
 import { steel } from '../data/steels'
 import { INSPECT } from '../data/treat'
 import type { TrialId } from '../data/trials'
-import { BEND, BOARD, BRASS, CHOP, FIT, ROPE, SHAVE, WHY, ZONE } from '../data/trials'
+import { BEND, BOARD, BRASS, CHOP, FIT, FLEX, MAT, ROPE, SHAVE, WHY, ZONE } from '../data/trials'
 import { STEEL_PHYSICS } from '../data/tuning'
 import type { Bar, Segment } from './bar'
 import { bevelLean, cloneBar, edgeThickness, isGround, segmentCentres, steelVolume } from './bar'
@@ -52,6 +52,9 @@ export type Outcome =
   | 'wedges'
   // bend
   | 'bent90'
+  // flex and spring back
+  | 'springsTrue'
+  | 'takesSet'
 
 /** Why a test went the way it did. Every failure has one. */
 export type TrialCause =
@@ -101,7 +104,8 @@ export interface TrialResult {
   /**
    * The number that goes with the outcome, or null: the angle reached in the
    * bend (degrees), the deepest chip in the chop (mm), the keenness left for
-   * the shave (0 to 1), the thickness behind the edge on the board (mm).
+   * the shave (0 to 1), the thickness behind the edge on the board (mm), the
+   * set left by the flex (mm) or the angle it snapped at (degrees).
    */
   value: number | null
   /** Where along the blade it went wrong, in mm from the tip, or null. */
@@ -110,7 +114,7 @@ export interface TrialResult {
 
 /** A blade that broke: where, in which test, and what the break shows. */
 export interface Break {
-  how: 'quench' | 'chop' | 'bend'
+  how: 'quench' | 'chop' | 'bend' | 'flex'
   segment: number
   /** mm from the tip. */
   at: number
@@ -407,7 +411,17 @@ function fitAndFinish(r: Rig, p: Pattern): TrialResult {
 }
 
 function bendInVice(r: Rig): TrialResult {
-  // The blade lets go at the weakest point of the stretch that bends: the least tough for how hard it is.
+  const { angle, weak } = bendReach(r)
+  if (angle >= BEND.angle) return { id: 'bend', passed: true, score: 1, outcome: 'bent90', cause: null, value: BEND.angle, at: null }
+  const s = seg(r, weak)
+  const cause: TrialCause = angle >= BEND.pass ? 'hardThroughout' : whyBrittle(s, r.bar, r.st)
+  r.broke = { how: 'bend', segment: weak, at: r.centres[weak] as number, grain: s.grain, cause }
+  return { id: 'bend', passed: angle >= BEND.pass, score: angle / BEND.angle, outcome: 'snapped', cause, value: angle, at: r.centres[weak] as number }
+}
+
+/** How far the stretch that bends will go before it lets go, in degrees up to the vice's 90, and where it is weakest. */
+function bendReach(r: Rig): { angle: number; weak: number } {
+  // The blade lets go at the weakest point: the least tough for how hard it is.
   let weak = r.zone[0] ?? 0
   let least = Infinity
   for (const i of r.zone) {
@@ -418,12 +432,51 @@ function bendInVice(r: Rig): TrialResult {
       weak = i
     }
   }
-  const angle = BEND.angle * clamp01(least / BEND.full)
-  if (angle >= BEND.angle) return { id: 'bend', passed: true, score: 1, outcome: 'bent90', cause: null, value: BEND.angle, at: null }
-  const s = seg(r, weak)
-  const cause: TrialCause = angle >= BEND.pass ? 'hardThroughout' : whyBrittle(s, r.bar, r.st)
-  r.broke = { how: 'bend', segment: weak, at: r.centres[weak] as number, grain: s.grain, cause }
-  return { id: 'bend', passed: angle >= BEND.pass, score: angle / BEND.angle, outcome: 'snapped', cause, value: angle, at: r.centres[weak] as number }
+  return { angle: BEND.angle * clamp01(least / BEND.full), weak }
+}
+
+function flexAndSpring(r: Rig): TrialResult {
+  const { angle, weak } = bendReach(r)
+  if (angle < FLEX.angle) {
+    const s = seg(r, weak)
+    const cause = whyBrittle(s, r.bar, r.st)
+    r.broke = { how: 'flex', segment: weak, at: r.centres[weak] as number, grain: s.grain, cause }
+    return { id: 'flex', passed: false, score: angle / BEND.angle, outcome: 'snapped', cause, value: angle, at: r.centres[weak] as number }
+  }
+  // It did not break. Whether it comes back depends on the softest stretch of the bow.
+  let soft = r.zone[0] ?? 0
+  for (const i of r.zone) if (hardness(seg(r, i), r.st) < hardness(seg(r, soft), r.st)) soft = i
+  const s = seg(r, soft)
+  const hrc = hardness(s, r.st)
+  if (hrc >= FLEX.springFrom) return { id: 'flex', passed: true, score: 1, outcome: 'springsTrue', cause: null, value: null, at: null }
+  const stays = clamp01((FLEX.springFrom - hrc) / (FLEX.springFrom - FLEX.setBase))
+  const set = stays * FLEX.setPer100 * (r.guard / 100)
+  // The blade goes on to the next test with the bend in it.
+  r.bar.warp += set
+  return { id: 'flex', passed: false, score: 1 - stays, outcome: 'takesSet', cause: whySoft(s, r.st), value: set, at: r.centres[soft] as number }
+}
+
+function matCut(r: Rig): TrialResult {
+  const sharp = overZone(r, (s) => (s.sharp > 0 ? s.sharp : 0))
+  const angle = r.bar.edgeAngle
+  const steep = clamp01((angle - MAT.angleBest) / (MAT.angleWorst - MAT.angleBest))
+  const bent = clamp01((r.bar.warp < 0 ? -r.bar.warp : r.bar.warp) / MAT.warpWorst)
+  const lean = bevelLean(r.bar)
+  const power = sharp * (1 - MAT.angleLoss * steep) * (1 - MAT.warpLoss * bent) * (1 - MAT.leanLoss * lean)
+
+  const outcome: Outcome = power >= MAT.clean ? 'clean' : power >= MAT.need ? 'cut' : power >= MAT.part ? 'partCut' : 'bounced'
+  let cause: TrialCause | null = null
+  if (power < MAT.need) {
+    let ground = false
+    for (const i of r.zone) if (isGround(seg(r, i))) ground = true
+    if (!ground) cause = 'notGround'
+    else if (sharp < INSPECT.workingFrom) cause = overZone(r, (s) => keenestFor(edgeThickness(s))) < INSPECT.workingFrom ? 'edgeTooThick' : 'notSharpened'
+    else if (bent >= MAT.warped) cause = 'warped'
+    else if (lean >= MAT.lean) cause = 'lopsided'
+    else if (steep >= MAT.steep) cause = 'steepAngle'
+    else cause = 'notSharpened'
+  }
+  return { id: 'mat', passed: power >= MAT.need, score: clamp01(power / MAT.clean), outcome, cause, value: null, at: null }
 }
 
 /**
@@ -457,7 +510,11 @@ export function runTrials(bar: Bar, p: Pattern, bladeShare: number, ids: readonl
                 ? shaveAfter(r, keen)
                 : id === 'board'
                   ? kitchenBoard(r)
-                  : bendInVice(r)
+                  : id === 'flex'
+                    ? flexAndSpring(r)
+                    : id === 'mat'
+                      ? matCut(r)
+                      : bendInVice(r)
     report.results.push(result)
     if (result.passed) report.passed++
   }
