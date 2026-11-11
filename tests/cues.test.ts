@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { beltVoice, cuesDue, fireVoice, hammerVoice, strokeVoice, trialCues } from '../src/audio/cues'
-import { TRIAL_SOUNDS } from '../src/data/audio'
+import { beltVoice, cuesDue, fireVoice, hammerVoice, placeCue, sparkRate, strokeVoice, trialCues } from '../src/audio/cues'
+import { FORGE_SOUNDS, SPARK_SOUND, TRIAL_SOUNDS } from '../src/data/audio'
 
 describe('the sound of a blow', () => {
   it('hot, thick steel gives a dull thud with no ring', () => {
@@ -138,5 +138,28 @@ describe('the sounds of the trial stand', () => {
     for (let i = 0; i < 50; i++) heard.push(...cuesDue(cues, i / 50, (i + 1) / 50))
     expect(heard).toEqual(['chop', 'chop', 'split'])
     expect(cuesDue(cues, 0.2, 0.2)).toEqual([])
+  })
+})
+
+describe('small sounds round the forge', () => {
+  it('the bar sounds as it arrives in the coals or on the anvil, and not while it stays put', () => {
+    expect(placeCue('anvil', 'fire')).toBe('coals')
+    expect(placeCue('air', 'anvil')).toBe('setDown')
+    expect(placeCue('fire', 'fire')).toBeNull()
+    expect(placeCue('anvil', 'air')).toBeNull()
+    // The tank has its own hiss.
+    expect(placeCue('air', 'quench')).toBeNull()
+  })
+  it('steel only crackles when it is burning in the fire, faster the hotter it is', () => {
+    expect(sparkRate('fire', 1200, 1290)).toBe(0)
+    expect(sparkRate('anvil', 1400, 1290)).toBe(0)
+    expect(sparkRate('fire', 1290, 1290)).toBe(SPARK_SOUND.slowest)
+    expect(sparkRate('fire', 1350, 1290)).toBeGreaterThan(sparkRate('fire', 1300, 1290))
+    expect(sparkRate('fire', 3000, 1290)).toBe(SPARK_SOUND.fastest)
+  })
+  it('no sound is held back for long', () => {
+    for (const shapes of Object.values(FORGE_SOUNDS)) {
+      for (const shape of shapes) expect('delay' in shape ? shape.delay : 0).toBeLessThan(0.5)
+    }
   })
 })

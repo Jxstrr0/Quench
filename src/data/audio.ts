@@ -84,10 +84,10 @@ export const FIRE_SOUND = {
  * The sounds of the trial stand. Each is either a burst of filtered noise
  * (a swish, a scrape) or something struck (timber, a bell, steel letting go).
  */
-export type TrialSoundShape =
-  | { kind: 'noise'; hz: number; seconds: number; gain: number }
-  /** `metal` rings like steel; without it the note drops and dies like wood. */
-  | { kind: 'struck'; hz: number; seconds: number; gain: number; metal: boolean }
+export type SoundShape =
+  | { kind: 'noise'; hz: number; seconds: number; gain: number; delay?: number }
+  /** `metal` rings like steel; without it the note drops and dies like wood. `delay` holds it back, in seconds. */
+  | { kind: 'struck'; hz: number; seconds: number; gain: number; metal: boolean; delay?: number }
 
 export const TRIAL_SOUNDS = {
   /** The blade coming round through the air. */
@@ -121,7 +121,7 @@ export const TRIAL_SOUNDS = {
   /** The examiner's small bell for a pass, and the flat knock on the table for a fail. */
   pass: { kind: 'struck', hz: 1320, seconds: 1.1, gain: 0.3, metal: true },
   fail: { kind: 'struck', hz: 110, seconds: 0.3, gain: 0.7, metal: false },
-} as const satisfies Record<string, TrialSoundShape>
+} as const satisfies Record<string, SoundShape>
 
 export type TrialSound = keyof typeof TRIAL_SOUNDS
 
@@ -149,4 +149,47 @@ export const TRIAL_TIMES = {
   flexStart: 0.08,
   flexSnapBy: 0.5,
   flexRelease: 0.62,
+} as const
+
+/** Small sounds round the forge. Each is one or more shapes; `delay` staggers them. */
+export const FORGE_SOUNDS = {
+  /** The bar pushed into the coals. */
+  coals: [
+    { kind: 'noise', hz: 700, seconds: 0.25, gain: 0.5 },
+    { kind: 'noise', hz: 1500, seconds: 0.12, gain: 0.3, delay: 0.09 },
+  ],
+  /** The bar set down on the anvil. */
+  setDown: [{ kind: 'struck', hz: 1700, seconds: 0.12, gain: 0.12, metal: true }],
+  /** Coins on the bench: a customer has paid. */
+  coins: [
+    { kind: 'struck', hz: 4100, seconds: 0.25, gain: 0.16, metal: true },
+    { kind: 'struck', hz: 4700, seconds: 0.25, gain: 0.14, metal: true, delay: 0.09 },
+    { kind: 'struck', hz: 3800, seconds: 0.35, gain: 0.16, metal: true, delay: 0.2 },
+  ],
+} as const satisfies Record<string, readonly SoundShape[]>
+
+export type ForgeSound = keyof typeof FORGE_SOUNDS
+
+/** Steel hot enough to burn throws sparks: small, bright crackles, faster the hotter it gets. */
+export const SPARK_SOUND = {
+  /** Crackles a second as the steel reaches its burning heat, and at `over` degrees past it. */
+  slowest: 4,
+  fastest: 22,
+  over: 120,
+  /** Each crackle: pitch range in Hz, length in seconds, loudness. */
+  hzLow: 3500,
+  hzHigh: 8000,
+  seconds: 0.03,
+  gain: 0.35,
+} as const
+
+/**
+ * A low burst of noise carries less sound than a bright one at the same
+ * level, so bursts under `fullHz` are lifted to match, by `maxLift` at most.
+ */
+export const NOISE_SOUND = {
+  fullHz: 4000,
+  maxLift: 3,
+  /** A burst has died away to this share of its loudest by its end. */
+  tail: 0.1,
 } as const

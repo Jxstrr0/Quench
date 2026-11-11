@@ -9,7 +9,8 @@
  * Grinder button carries a cool blade to the belt (see `grindBench.ts`). The
  * controls sit at the bottom, under the thumbs.
  */
-import { fireVoice, hammerVoice, hissVoice } from '../audio/cues'
+import type { Where } from '../audio/cues'
+import { fireVoice, hammerVoice, hissVoice, placeCue, sparkRate } from '../audio/cues'
 import { createAudioEngine } from '../audio/engine'
 import type { StageId } from '../data/career'
 import { BRIEFS, FIRST_JOB, PROVINGS } from '../data/career'
@@ -411,6 +412,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
       const first = career.job?.kind === FIRST_JOB
       const d = deliver(career, report, target.id)
       if (d?.taken) {
+        audio.forge('coins')
         careerChanged()
         // Said once the next bar is on the anvil, so the bar's own note does not cover it.
         if (first) thanks = true
@@ -893,6 +895,8 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
   // --- The loop -------------------------------------------------------------
   let last = performance.now()
   let shownPlace = ''
+  /** Where the bar was last frame, for the sound of it arriving somewhere new. */
+  let lastWhere: Where = 'anvil'
   let shownHeat = ''
   const frame = (now: number) => {
     // A hidden tab can hand back a huge gap; never simulate more than a quarter second of it.
@@ -943,6 +947,10 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
     const placement = placementFor(tipDepth, blast, lane, mediumId, agitation, longFire())
     const inTank = placement.where === 'quench'
     const cooling = placement.where === 'air' && coolHeld
+    const cue = placeCue(lastWhere, placement.where)
+    if (cue) audio.forge(cue)
+    lastWhere = placement.where
+    audio.sparks(sparkRate(placement.where, hottest(bar), STEELS[bar.steel].burn), dt)
     const scale = inTank
       ? BENCH.tankTimeScale
       : placement.where === 'anvil'

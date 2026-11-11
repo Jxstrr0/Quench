@@ -2,8 +2,8 @@
  * Sound cues: a pure map from what happened to what to play. No Web Audio
  * here, so it can be tested. The engine turns a voice into sound.
  */
-import type { TrialSound } from '../data/audio'
-import { BELT_SOUND, FIRE_SOUND, HAMMER_SOUND, QUENCH_SOUND, STONE_SOUND, TRIAL_TIMES } from '../data/audio'
+import type { ForgeSound, TrialSound } from '../data/audio'
+import { BELT_SOUND, FIRE_SOUND, HAMMER_SOUND, QUENCH_SOUND, SPARK_SOUND, STONE_SOUND, TRIAL_TIMES } from '../data/audio'
 import type { TrialId } from '../data/trials'
 import type { Outcome } from '../sim/trials'
 import type { MediumId } from '../data/media'
@@ -151,4 +151,25 @@ export function trialCues(id: TrialId, outcome: Outcome, bow = 1): TrialCue[] {
 /** The cues that fall due as the playback moves from `from` up to (not reaching) `to`. */
 export function cuesDue(cues: readonly TrialCue[], from: number, to: number): TrialSound[] {
   return cues.filter((c) => c.at >= from && c.at < to).map((c) => c.sound)
+}
+
+/** Where the bar is, as the bench names it. */
+export type Where = 'fire' | 'anvil' | 'air' | 'quench'
+
+/** The sound of the bar arriving somewhere new, or null. The tank has its own hiss. */
+export function placeCue(from: Where, to: Where): ForgeSound | null {
+  if (from === to) return null
+  if (to === 'fire') return 'coals'
+  if (to === 'anvil') return 'setDown'
+  return null
+}
+
+/**
+ * Crackles a second from steel in the fire, or 0 when it is not burning.
+ * `burn` is the steel's burning heat. A smith hears sparks before seeing them.
+ */
+export function sparkRate(where: Where, temp: number, burn: number): number {
+  if (where !== 'fire' || temp < burn) return 0
+  const k = SPARK_SOUND
+  return k.slowest + (k.fastest - k.slowest) * clamp01((temp - burn) / k.over)
 }
