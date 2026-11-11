@@ -43,14 +43,5 @@ export function rounded(_key: string, value: unknown): unknown {
   return typeof value === 'number' && !Number.isInteger(value) ? Math.round(value * PLACES) / PLACES : value
 }
 
-/** The part of browser storage the game uses. Passed in so tests can stand in for it. */
-export type Store = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
-
-/** The browser's storage, or null where there is none or it is blocked. */
-export function browserStore(): Store | null {
-  try {
-    return typeof localStorage === 'undefined' ? null : localStorage
-  } catch {
-    return null
-  }
-}
+export type { Store } from './store'
+export { browserStore } from './store'

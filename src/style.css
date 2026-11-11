@@ -355,3 +355,19 @@ html, body {
 .update-bar-buttons { display: flex; gap: 8px; margin-left: auto; }
 .update-bar .btn { min-height: 44px; padding: 8px 16px; background: var(--ink); color: var(--paper); border-color: var(--ink); }
 .update-bar .btn-quiet { background: transparent; color: var(--ink); }
+
+/* The crash card: over everything, the loading screen included. */
+.crash { position: fixed; inset: 0; z-index: 1100; display: flex; align-items: center; justify-content: center; padding: calc(16px + var(--safe-t)) calc(16px + var(--safe-r)) calc(16px + var(--safe-b)) calc(16px + var(--safe-l)); background: rgba(8, 9, 11, 0.88); }
+.crash-card .btn { margin-top: 8px; }
+.crash-card .code-box { margin-top: 10px; }
+.crash-link { display: flex; align-items: center; justify-content: center; text-decoration: none; }
+.crash-error { margin: 12px 0 0; font-family: ui-monospace, monospace; word-break: break-word; }
+
+/* The credits card. Its studio block is a studio piece: Longlight colours, the logo file and Space Grotesk. */
+.credits-studio { margin: 6px 0 4px; padding: 18px 14px 16px; border-radius: 8px; background: #141413; color: #faf9f5; font-family: 'Space Grotesk', system-ui, sans-serif; font-weight: 500; text-align: center; }
+.credits-logo { display: block; width: min(220px, 70%); height: auto; margin: 0 auto 10px; }
+.credits-game { margin: 0 0 4px; font-size: 0.95rem; color: #b48ce8; }
+.credits-copy { margin: 0 0 8px; font-size: 0.8rem; }
+.credits-site { display: inline-block; padding: 10px 14px; font-weight: 700; color: #d97757; }
+.credits-list { margin: 0 0 10px; padding-left: 1.3em; font-size: 0.95rem; line-height: 1.4; }
+.credits-list li { padding: 2px 0; }
