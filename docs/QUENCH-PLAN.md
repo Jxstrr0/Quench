@@ -587,6 +587,9 @@ Kelbo has asked for Quench to be added to the studio site, so this plan allows
 | Q19 | Daily commission: how many tries a day (PR 12)? | **One bar a day.** One bar, one score. A broken blade still gets a (low) score. |
 | Q20 | What can a player share from the daily? | **A line of text and the blade's card.** There is no server: scores are compared by sharing. |
 | Q21 | Is the daily tied to the Career? | **Its own mode.** No money, no bench hours, and the same tools for everyone (no pyrometer or tester), so scores are fair. |
+| Q22 | The studio-site listing (PR 13)? | **Add it hidden.** The card, with the cover and the card clip, goes on the studio site with `"hidden": true`. Nobody sees it until Kelbo says so. |
+| Q23 | When is it 1.0.0.0? | **Now, as it stands.** Every stage of the plan is built. Tuning carries on afterwards as 1.0.x. |
+| Q24 | The cover: the hot bar on the anvil, or painted key art? | **The hot bar on the anvil**, recorded from the game (`npm run cover`). No Higgsfield key art, no credits spent. |
 
 Working rules agreed the same day:
 
@@ -596,6 +599,9 @@ Working rules agreed the same day:
 - Versions: PR 0 is `0.1.0.0`. A PR with nothing new on screen bumps the patch
   number; a PR Kelbo can see bumps the minor number to match the PR number
   from PR 2 on (PR 2 is `0.2.0.0`, PR 6 is `0.6.0.0`).
+- From `1.0.0.0` on: a PR Kelbo can see bumps the patch number (`1.0.1.0`),
+  a PR with nothing new on screen bumps the build number (`1.0.0.1`), and a
+  new feature the size of a plan stage bumps the minor number (`1.1.0.0`).
 
 ---
 
