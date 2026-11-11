@@ -1,11 +1,12 @@
 /**
  * The Free forge screen: heat a bar, read its colour, hammer it to shape,
- * harden it in the quench and temper it.
+ * harden it in the quench, temper it, and grind it on the belt.
  *
  * Drag on the scene to slide the bar along the rail between the fire and the
  * anvil, and sideways into the quench tank. Hold Bellows for more heat. On
  * the anvil, tap the bar to strike it; the blow buttons pick the kind of blow
  * and the rhythm sets its force. In the tank, slide the bar to stir. The
+ * Grinder button carries a cool blade to the belt (see `grindBench.ts`). The
  * controls sit at the bottom, under the thumbs.
  */
 import { hammerVoice, hissVoice } from '../audio/cues'
@@ -29,12 +30,14 @@ import { barLength, createBar, hottest } from '../sim/bar'
 import { heatWord } from '../sim/glow'
 import type { CrackCause } from '../sim/bar'
 import type { Fault } from '../sim/hammer'
+import { canHold } from '../sim/grind'
 import { barFault, blowForce, strike } from '../sim/hammer'
 import type { Placement } from '../sim/heat'
 import { advance } from '../sim/heat'
 import { magnetTest } from '../sim/inspect'
 import { shapeScore } from '../sim/shape'
 import { button, createSheet, el } from './dom'
+import { createGrindBench } from './grindBench'
 import { MAGNET_KEY, createInspectSheet, createTemperSheet } from './treatSheets'
 
 const BLOW_TYPES: BlowType[] = ['flat', 'edge', 'peen', 'point']
@@ -151,11 +154,11 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   const inspectBtn = button('btn', 'btn.inspect')
   tools.append(magnet, tankBtn, temperBtn, inspectBtn)
   const row = el('div', 'controls-row')
-  const lights = button('btn')
+  const grinderBtn = button('btn', 'btn.grinder')
   const assists = button('btn', 'btn.assists')
   const steelBtn = button('btn')
   const newBar = button('btn', 'btn.newBar')
-  row.append(lights, assists, steelBtn, newBar)
+  row.append(grinderBtn, assists, steelBtn, newBar)
   // The rhythm meter: a mark sweeps right after each blow; land the next one in the bright band.
   const meter = el('div', 'meter')
   meter.setAttribute('role', 'img')
@@ -190,7 +193,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   // --- Sheets: assists, the tempering oven, the inspection ---------------------
   const sheet = createSheet(app, 'assists.title')
   sheet.card.append(el('p', 'sheet-note', t('assists.note')))
-  const toggle = (key: Exclude<keyof Settings, 'dimLights'>, label: StringKey, note: StringKey) => {
+  const toggle = (key: keyof Settings, label: StringKey, note: StringKey) => {
     const line = el('label', 'toggle')
     const input = el('input')
     input.type = 'checkbox'
@@ -208,6 +211,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   toggle('heatWords', 'assists.words', 'assists.words.note')
   toggle('brightnessOnly', 'assists.bright', 'assists.bright.note')
   toggle('heatNumber', 'assists.number', 'assists.number.note')
+  toggle('dimLights', 'assists.dim', 'assists.dim.note')
   toggle('sound', 'settings.sound', 'settings.sound.note')
   toggle('haptics', 'settings.haptics', 'settings.haptics.note')
   sheet.finish()
@@ -225,9 +229,8 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
     view.setDim(settings.dimLights)
     view.setBrightnessOnly(settings.brightnessOnly)
     audio.setEnabled(settings.sound)
-    lights.textContent = settings.dimLights ? t('btn.lights.up') : t('btn.lights.dim')
-    lights.setAttribute('aria-pressed', String(settings.dimLights))
-    readout.hidden = !(settings.heatWords || settings.heatNumber)
+    // At the grinder the edge's heat is always given in words.
+    readout.hidden = !(bench.active || settings.heatWords || settings.heatNumber)
   }
   const applySteel = () => {
     steelBtn.textContent = `${t('steel.label')}: ${STEELS[steelId].name}`
@@ -287,6 +290,53 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   }
   const temperSheet = createTemperSheet(app, treat)
   const inspectSheet = createInspectSheet(app, treat)
+
+  // --- The grinder bench ------------------------------------------------------
+  /** Seconds of steel on the belt so far: the bench's hint goes once the player has the idea. */
+  let groundFor = 0
+  const leaveBench = () => {
+    bench.exit()
+    tools.hidden = false
+    row.hidden = false
+    // Every part of the shared slot is hidden, so the loop picks the right one afresh.
+    for (const part of [tankSet, anvilSet, bellows, cool]) part.hidden = true
+    hint.classList.add('gone')
+    shownHeat = ''
+    applySettings()
+    treat.changed()
+    layout()
+  }
+  const bench = createGrindBench({
+    view,
+    audio,
+    settings,
+    bar: () => bar,
+    say: (text, ms) => say(text, ms),
+    openInspect: () => inspectSheet.open(),
+    openAssists: () => sheet.open(),
+    leave: leaveBench,
+  })
+  controls.append(...bench.parts)
+  const enterBench = () => {
+    if (bench.active || lane > BENCH.laneRail) return
+    if (fault) return say(t('note.finished'), 2500)
+    if (!canHold(bar)) return say(t('note.tooHotToGrind'), 2500)
+    lane = 0
+    laneTarget = -1
+    tipDepth = BENCH.railMin
+    dragId = -1
+    hold(false)
+    holdCool(false)
+    for (const part of [tankSet, anvilSet, bellows, cool, tools, row]) part.hidden = true
+    bench.enter()
+    if (groundFor < BENCH.hintGrindSeconds) {
+      hint.textContent = t('hint.belt')
+      hint.classList.remove('gone')
+    }
+    applySettings()
+    layout()
+  }
+  grinderBtn.addEventListener('click', enterBench)
   const doStrike = (at: number) => {
     const now = performance.now()
     const since = lastBlowAt < 0 ? null : (now - lastBlowAt) / 1000
@@ -308,11 +358,6 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
     if (strikes >= 3) hint.classList.add('gone')
   }
 
-  lights.addEventListener('click', () => {
-    settings.dimLights = !settings.dimLights
-    saveSettings(settings)
-    applySettings()
-  })
   assists.addEventListener('click', sheet.open)
   temperBtn.addEventListener('click', temperSheet.open)
   inspectBtn.addEventListener('click', inspectSheet.open)
@@ -385,6 +430,12 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   let lastY = 0
   canvas?.addEventListener('pointerdown', (e) => {
     audio.unlock()
+    if (bench.active) {
+      dragId = e.pointerId
+      canvas.setPointerCapture(e.pointerId)
+      bench.press(e.clientX, e.clientY)
+      return
+    }
     // On the anvil, a touch on glowing steel is a hammer blow, not a drag.
     if (lane <= BENCH.laneRail && tipDepth <= BENCH.anvilFrom && !fault && hottest(bar) >= BENCH.strikeMinTemp) {
       const p = view.pointOnBar(e.clientX, e.clientY)
@@ -401,6 +452,10 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   })
   canvas?.addEventListener('pointermove', (e) => {
     if (e.pointerId !== dragId) return
+    if (bench.active) {
+      bench.move(e.clientX, e.clientY)
+      return
+    }
     // Toward the fire is up the screen in portrait, left in landscape.
     const pixels = view.railIsVertical ? lastY - e.clientY : lastX - e.clientX
     const across = view.towardTank(e.clientX - lastX, e.clientY - lastY)
@@ -423,12 +478,20 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
     canvas?.addEventListener(type, (e) => {
       if (e.pointerId !== dragId) return
       dragId = -1
+      bench.release()
       // Let go part-way across and the bar settles onto the rail or into the tank.
       if (lane > 0 && lane < 1) laneTarget = lane >= 0.5 ? 1 : 0
     })
   }
   // Keyboard: arrows slide the bar, B is the bellows, Q crosses to the tank and back, M is the magnet.
   window.addEventListener('keydown', (e) => {
+    if (bench.active) {
+      if (e.key === 'Escape') {
+        sheet.close()
+        inspectSheet.close()
+      } else bench.key(e.key)
+      return
+    }
     const step = e.shiftKey ? 40 : 12
     if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') tipDepth = Math.min(BENCH.railMax, tipDepth + step)
     else if (e.key === 'ArrowDown' || e.key === 'ArrowRight') tipDepth = Math.max(BENCH.railMin, tipDepth - step)
@@ -469,6 +532,19 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
     last = now
     blast += bellowsHeld ? dt / BENCH.bellowsRise : -dt / BENCH.bellowsFall
     blast = Math.min(1, Math.max(0, blast))
+
+    if (bench.active) {
+      const at = bench.frame(dt)
+      if (at.grinding) groundFor += dt
+      if (groundFor >= BENCH.hintGrindSeconds) hint.classList.add('gone')
+      const text = note && now < noteUntil ? `${at.place} · ${note}` : at.place
+      if (text !== shownPlace) place.textContent = shownPlace = text
+      if (at.edge !== shape.textContent) shape.textContent = at.edge
+      if (at.heat !== shownHeat) readout.textContent = shownHeat = at.heat
+      view.render(bar, tipDepth, blast, lane)
+      requestAnimationFrame(frame)
+      return
+    }
 
     // A let-go bar settles; stirring dies away unless the bar keeps moving.
     if (laneTarget >= 0 && dragId < 0) {

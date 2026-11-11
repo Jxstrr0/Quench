@@ -2,7 +2,7 @@
  * Sound cues: a pure map from what happened to what to play. No Web Audio
  * here, so it can be tested. The engine turns a voice into sound.
  */
-import { HAMMER_SOUND, QUENCH_SOUND } from '../data/audio'
+import { BELT_SOUND, HAMMER_SOUND, QUENCH_SOUND } from '../data/audio'
 import type { MediumId } from '../data/media'
 
 export interface HammerVoice {
@@ -51,4 +51,18 @@ export function hissVoice(temp: number, medium: MediumId): HissVoice {
     hz: wet ? k.waterHz : k.oilHz,
     seconds: k.shortest + (k.longest - k.shortest) * heat,
   }
+}
+
+export interface BeltVoice {
+  /** Overall loudness, 0 to 1. */
+  gain: number
+  /** How bright the rush is: the filter's centre, in Hz. */
+  hz: number
+}
+
+/** The sound of the belt, from how hard steel is pressed to it. 0 is the belt running free. */
+export function beltVoice(pressure: number): BeltVoice {
+  const k = BELT_SOUND
+  const p = clamp01(pressure)
+  return { gain: k.idleGain + (k.fullGain - k.idleGain) * p, hz: k.idleHz + (k.fullHz - k.idleHz) * p }
 }

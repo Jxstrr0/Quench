@@ -3,7 +3,7 @@
  * sound after a touch or click, so `unlock()` is called from the first one.
  */
 import { QUENCH_SOUND } from '../data/audio'
-import type { HammerVoice, HissVoice } from './cues'
+import type { BeltVoice, HammerVoice, HissVoice } from './cues'
 
 /** The ring is three partials, a little out of tune with each other, like struck steel. */
 const PARTIALS: [ratio: number, level: number][] = [
@@ -20,6 +20,8 @@ export interface AudioEngine {
   hiss(voice: HissVoice): void
   /** The small, clear sound of a blade cracking. */
   ping(): void
+  /** The belt grinder's steady rush. Call as often as it changes; pass null to switch the belt off. */
+  belt(voice: BeltVoice | null): void
 }
 
 export function createAudioEngine(): AudioEngine {
@@ -28,6 +30,17 @@ export function createAudioEngine(): AudioEngine {
   let noise: AudioBuffer | null = null
   let longNoise: AudioBuffer | null = null
   let enabled = true
+  let beltSrc: AudioBufferSourceNode | null = null
+  let beltFilter: BiquadFilterNode | null = null
+  let beltGain: GainNode | null = null
+  const stopBelt = (): void => {
+    if (!ctx || !beltSrc || !beltGain) return
+    beltGain.gain.setTargetAtTime(0, ctx.currentTime, 0.04)
+    beltSrc.stop(ctx.currentTime + 0.3)
+    beltSrc = null
+    beltFilter = null
+    beltGain = null
+  }
 
   const start = (): boolean => {
     if (ctx) return true
@@ -57,6 +70,29 @@ export function createAudioEngine(): AudioEngine {
     },
     setEnabled(on) {
       enabled = on
+      if (!on) stopBelt()
+    },
+    belt(voice) {
+      if (!voice || !enabled || !ctx || !master || !longNoise || ctx.state !== 'running') {
+        stopBelt()
+        return
+      }
+      const now = ctx.currentTime
+      if (!beltSrc || !beltFilter || !beltGain) {
+        beltSrc = ctx.createBufferSource()
+        beltSrc.buffer = longNoise
+        beltSrc.loop = true
+        beltFilter = ctx.createBiquadFilter()
+        beltFilter.type = 'bandpass'
+        beltFilter.Q.value = 0.9
+        beltFilter.frequency.value = voice.hz
+        beltGain = ctx.createGain()
+        beltGain.gain.value = 0
+        beltSrc.connect(beltFilter).connect(beltGain).connect(master)
+        beltSrc.start(now)
+      }
+      beltGain.gain.setTargetAtTime(voice.gain, now, 0.05)
+      beltFilter.frequency.setTargetAtTime(voice.hz, now, 0.05)
     },
     hammer(voice) {
       if (!enabled || !ctx || !master || ctx.state !== 'running') return

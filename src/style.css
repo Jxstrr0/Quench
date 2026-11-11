@@ -140,6 +140,13 @@ html, body {
 .controls-tank { display: flex; flex-direction: column; justify-content: center; gap: 10px; height: 70px; }
 .meter-fill { position: absolute; top: 0; bottom: 0; left: 0; width: 0; background: var(--quench); }
 .tank-note { margin: 0; text-align: center; color: var(--muted); font-size: 0.9rem; line-height: 1.25; }
+/* At the grinder: the tilt slider with a step button at each end. */
+.controls-bench { display: flex; flex-direction: column; justify-content: center; gap: 4px; height: 70px; }
+.bench-label { margin: 0; text-align: center; font-size: 0.9rem; line-height: 1.2; }
+.bench-row { display: flex; align-items: center; gap: 8px; }
+.bench-row .btn { flex: none; width: 48px; min-height: 44px; padding: 0; font-size: 1.4rem; font-weight: 700; }
+.bench-row .dial-range { accent-color: var(--straw); }
+.btn-half { grid-column: span 2; }
 /* Blow buttons and the rhythm meter. */
 .btn-blow { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; padding: 4px 2px; }
 .blow-name { font-family: var(--font-head); font-weight: 600; font-size: 1.05rem; }
@@ -171,7 +178,8 @@ html, body {
 }
 #app.wide .controls-row { grid-template-columns: repeat(2, 1fr); }
 /* Two rows of blows here, so the shared slot is taller. */
-#app.wide .controls-anvil, #app.wide .controls-tank, #app.wide .btn-bellows { height: 126px; }
+#app.wide .controls-anvil, #app.wide .controls-tank, #app.wide .controls-bench, #app.wide .btn-bellows { height: 126px; }
+#app.wide .controls-row .btn-half { grid-column: span 1; }
 #app.wide .controls-row .btn { min-height: 42px; }
 #app.wide .hud-hint { bottom: calc(40px + var(--safe-b)); right: 250px; }
 /* Short screens: wider cards, with the two dials side by side, so less scrolling. */

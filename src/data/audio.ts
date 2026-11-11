@@ -42,3 +42,13 @@ export const QUENCH_SOUND = {
   pingHz: 3100,
   pingSeconds: 0.7,
 } as const
+
+/** The belt grinder: a steady rush of noise that rises and brightens as steel is pressed to it. */
+export const BELT_SOUND = {
+  /** The belt running free: loudness (0 to 1) and filter centre in Hz. */
+  idleGain: 0.04,
+  idleHz: 900,
+  /** Steel pressed on as hard as it goes. */
+  fullGain: 0.3,
+  fullHz: 3400,
+} as const

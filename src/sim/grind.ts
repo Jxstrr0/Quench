@@ -8,11 +8,12 @@
  * thin one has almost no steel to soak it up, so it gets hot in a moment, and
  * a hardened edge that gets hot loses its temper.
  */
-import { GRIND } from '../data/grind'
+import type { EdgeWord } from '../data/grind'
+import { EDGE_WORDS, GRIND } from '../data/grind'
 import { steel } from '../data/steels'
 import { SIM, STEEL_PHYSICS } from '../data/tuning'
 import type { Bar, Segment } from './bar'
-import { fitBevels, segmentCentres, steelVolume } from './bar'
+import { fitBevels, hottest, segmentCentres, steelVolume } from './bar'
 import { PI, detCos, detSin } from './det'
 import { edgeZone, stepHeat } from './heat'
 import { hardness } from './properties'
@@ -181,4 +182,44 @@ export function hottestEdge(bar: Bar): number {
   let t = -Infinity
   for (const s of bar.segments) if (s.temp + s.edgeHot > t) t = s.temp + s.edgeHot
   return t
+}
+
+/** The word for an edge at this temperature. */
+export function edgeWord(temp: number): EdgeWord {
+  let word: EdgeWord = 'cool'
+  for (const band of EDGE_WORDS) if (temp >= band.from) word = band.word
+  return word
+}
+
+/** Can the blade be held to the belt by hand? */
+export function canHold(bar: Bar): boolean {
+  return hottest(bar) <= GRIND.holdTemp
+}
+
+/**
+ * Dip the blade in the water bucket by the grinder. The edge's extra heat
+ * goes at once, and the blade behind it cools most of the way to the water.
+ * Returns false, and does nothing, if the blade is far too hot for a bucket.
+ */
+export function dip(bar: Bar): boolean {
+  if (hottest(bar) > GRIND.dipMax) return false
+  for (const s of bar.segments) {
+    s.edgeHot = 0
+    if (s.temp > GRIND.dipTemp) s.temp += (GRIND.dipTemp - s.temp) * GRIND.dipShare
+  }
+  return true
+}
+
+/** Thickness of the edge under the middle of the belt, mm. */
+export function edgeAt(bar: Bar, at: number): number {
+  const centres = segmentCentres(bar)
+  let near = 0
+  for (let i = 1; i < centres.length; i++) {
+    const d = (centres[i] as number) - at
+    const best = (centres[near] as number) - at
+    if ((d < 0 ? -d : d) < (best < 0 ? -best : best)) near = i
+  }
+  const s = bar.segments[near] as Segment
+  const edge = s.thickness - s.cutLeft - s.cutRight
+  return edge > 0 ? edge : 0
 }

@@ -4,6 +4,7 @@ The plan is `docs/QUENCH-PLAN.md`. Newest line first.
 
 | Version | PR | What changed |
 | --- | --- | --- |
+| 0.5.0.0 | PR 5b: The grinder on screen | A Grinder button (where "Dim lights" was; that is now a switch in Assists) carries a cool blade to a belt grinder. Hold a finger on the scene and the belt grinds the blade where you touch; slide along it. A tilt slider, Flip (side A or B), Press (light, firm, hard) and Dip (a water bucket). The bevels show as bright steel and the blade turns over when flipped. The edge's heat is always given in words (cool, warm, hot, straw, blue), with the number if that assist is on, and an overheated edge shows blue. A blade too hot to hold cannot be ground until it is dipped. Sparks and a belt sound. The Inspect card gains an Edge line and says what to grind next. The sharpening stone, the etch and handles come in PR 5c. 8 new tests (167 in total). |
 | 0.4.1.0 | PR 5a: Grinding and finishing (sim only) | Nothing new on screen. The belt grinder: holding a flat to the belt at a tilt grinds a bevel, steep tilts thin the edge and flat tilts climb toward the spine, and hard steel grinds slower. Belt heat lands in the thin edge, so a hardened edge held hard to the belt loses its temper (the blade behind it does not). An edge ground too thin before hardening can crack in the quench, bevels on one side only warp the blade, and a bevelled blade cools faster. Grinding takes off the carbon-poor skin. Also the sharpening stone, the etch and three handles. 33 new tests (159 in total). PR 5b puts it on screen. |
 | 0.4.0.0 | PR 4b: Heat treatment on screen | A quench tank beside the rail: drag the bar sideways into it, slide it to stir, drag it out. Five media on the Tank button. A Magnet button. "Let it cool" in the air (hold) for normalizing. A tempering oven with two dials. An Inspect card: file test, toughness, grain, straightness and what to do next. The quench hisses, a crack pings and shows as a dark line with its cause, and a warp bends the blade. |
 | 0.3.1.0 | PR 4a: Heat treatment (sim only) | Nothing new on screen. Steel now changes inside: it turns to austenite past critical, and how it cools decides what it becomes (hard martensite, soft pearlite, or a mix). Five quench media (brine, water, fast oil, slow oil, plates), stirring, grain that grows with overheating and shrinks with each normalizing cycle, the magnet point, quench cracks from a seeded roll with a named cause, warps from uneven heat, and tempering with its one bad band. Hardness and toughness are read from the steel, never stored. 43 new tests (119 in total), with four fixed-seed "known blades". PR 4b puts it on screen. |
@@ -17,7 +18,7 @@ The plan is `docs/QUENCH-PLAN.md`. Newest line first.
 
 Pages is on and the custom domain is set: https://quench.longlight.games/. Each merge to `main` publishes there.
 
-## Questions for Kelbo after playing 0.4.0.0 (and later)
+## Questions for Kelbo after playing 0.5.0.0
 
 Kelbo said to keep rolling and tune later, so these are saved up, not blocking.
 
@@ -26,7 +27,8 @@ Kelbo said to keep rolling and tune later, so these are saved up, not blocking.
 - **The tank.** Is dragging sideways into it clear? Does sliding to stir feel like stirring?
 - **Water against oil.** Water cracks a sound 1084 blade about 4 times in 10, and warps it. Fast oil never cracks it. Right balance?
 - **Normalizing** is three heats with "Let it cool" held. Too much waiting, even sped up 20 times?
-- **Grinding** (sim only so far): leaning hard on a thin hardened edge for about two seconds ruins it; light pressure never does. An edge left about 1 mm thick is safe in oil; a knife-thin one cracks about 1 time in 4. Too harsh, too kind?
+- **The grinder.** Is holding a finger on the scene to grind clear? You see the side that is being ground, which a real grinder hides: fine, or odd? Is three pressures and a tilt slider too much to manage with thumbs?
+- **Grinding numbers**: leaning hard on a thin hardened edge for about two seconds ruins it; light pressure never does. An edge left about 1 mm thick is safe in oil; a knife-thin one cracks about 1 time in 4. Too harsh, too kind?
 - The Inspect card shows grain and a hardness number in Free forge. In the Career those would be tools you buy (as with the heat number). Agreed?
 - The room looks dark in screenshots even with the lights up. Is it on your phone?
 - Still open from 0.2.0.0: heating speed (1.5 times real speed), reading colour with the assists off, bar size.

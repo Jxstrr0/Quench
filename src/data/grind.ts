@@ -34,7 +34,42 @@ export const GRIND = {
   skin: 0.25,
   /** The belt will not grind a blade narrower than this. */
   minWidth: 6,
+  /** A blade hotter than this is too hot to hold to the belt by hand. */
+  holdTemp: 150,
+  /** The water bucket by the grinder. A blade hotter than `dipMax` belongs in the quench tank, not the bucket. */
+  dipTemp: 15,
+  dipMax: 400,
+  /** One dip takes the blade this share of the way down to the water's temperature. */
+  dipShare: 0.8,
 } as const
+
+/** The three pressures the player can pick at the belt, 0 to 1, lightest first. */
+export const PRESSURES: readonly number[] = [0.35, 0.7, 1]
+
+/** The grinder as the player meets it. */
+export const GRINDER = {
+  /** The tilt the slider starts at, and its step, in degrees. */
+  startTilt: 5,
+  tiltStep: 1,
+  /** Which of `PRESSURES` a fresh bench starts on. */
+  startPressure: 0,
+} as const
+
+/**
+ * Words for how hot the edge is at the belt. A hardened edge that reaches
+ * straw has begun to lose hardness; at blue it is spoiled. `from` is the
+ * lowest temperature that earns the name.
+ */
+export type EdgeWord = 'cool' | 'warm' | 'hot' | 'straw' | 'blue' | 'grey'
+
+export const EDGE_WORDS: readonly { word: EdgeWord; from: number }[] = [
+  { word: 'cool', from: -Infinity },
+  { word: 'warm', from: 50 },
+  { word: 'hot', from: 120 },
+  { word: 'straw', from: 200 },
+  { word: 'blue', from: 270 },
+  { word: 'grey', from: 340 },
+]
 
 /** The sharpening stone. */
 export const SHARPEN = {

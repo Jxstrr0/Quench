@@ -1,6 +1,6 @@
 // Grinding and finishing: the belt, the heat it puts in the edge, the stone, the etch and the handle.
 import { describe, expect, it } from 'vitest'
-import { GRIND, HANDLE, SHARPEN } from '../src/data/grind'
+import { EDGE_WORDS, GRIND, HANDLE, PRESSURES, SHARPEN } from '../src/data/grind'
 import type { MediumId } from '../src/data/media'
 import { PATTERNS } from '../src/data/patterns'
 import { steel } from '../src/data/steels'
@@ -9,7 +9,7 @@ import type { Bar, Segment } from '../src/sim/bar'
 import { bevelLean, cloneBar, createBar, edgeThickness, isGround, segmentVolume, steelVolume } from '../src/sim/bar'
 import { etch, fitHandle, handleFit, keenestFor, strokeStone } from '../src/sim/finish'
 import type { Side } from '../src/sim/grind'
-import { beltBite, grindFor, hottestEdge, stepGrind } from '../src/sim/grind'
+import { beltBite, canHold, dip, edgeAt, edgeWord, grindFor, hottestEdge, stepGrind } from '../src/sim/grind'
 import { strike } from '../src/sim/hammer'
 import { advance, coolToRoom, stepHeat } from '../src/sim/heat'
 import { inspect } from '../src/sim/inspect'
@@ -507,6 +507,77 @@ describe('what the blade needs next', () => {
     const bar = blade()
     grindTo(bar, 2, 1, ['left'])
     expect(inspect(bar, BLADE).lopsided).toBe(true)
+  })
+})
+
+describe('at the bench', () => {
+  it('names the heat of the edge, coolest first', () => {
+    expect(edgeWord(20)).toBe('cool')
+    expect(edgeWord(80)).toBe('warm')
+    expect(edgeWord(150)).toBe('hot')
+    expect(edgeWord(230)).toBe('straw')
+    expect(edgeWord(300)).toBe('blue')
+    expect(edgeWord(900)).toBe('grey')
+    for (let i = 1; i < EDGE_WORDS.length; i++) {
+      expect((EDGE_WORDS[i] as { from: number }).from).toBeGreaterThan((EDGE_WORDS[i - 1] as { from: number }).from)
+    }
+  })
+  it('a dip takes the heat out of the edge and most of it out of the blade', () => {
+    const bar = finished()
+    grindFor(bar, { at: AT, side: 'left', tilt: 5, pressure: 1 }, 1.5)
+    const hotEdge = hottestEdge(bar)
+    const hotBody = belly(bar).temp
+    expect(hotEdge).toBeGreaterThan(hotBody + 50)
+    expect(dip(bar)).toBe(true)
+    expect(hottestEdge(bar)).toBeLessThan(hotBody)
+    expect(belly(bar).temp).toBeLessThan(hotBody)
+    expect(belly(bar).temp).toBeGreaterThanOrEqual(GRIND.dipTemp)
+    for (const s of bar.segments) expect(s.edgeHot).toBe(0)
+  })
+  it('a dip changes nothing about the steel itself', () => {
+    const bar = finished()
+    const before = cloneBar(bar)
+    dip(bar)
+    advance(bar, { where: 'air' }, 5)
+    advance(before, { where: 'air' }, 5)
+    expect(hardness(belly(bar), ST)).toBeCloseTo(hardness(belly(before), ST), 6)
+    expect(bar.crack).toBeNull()
+    expect(bar.quenches).toBe(before.quenches)
+  })
+  it('the bucket is not a quench tank: a glowing blade cannot be dipped', () => {
+    const bar = blade()
+    for (const s of bar.segments) s.temp = 800
+    expect(dip(bar)).toBe(false)
+    expect(belly(bar).temp).toBe(800)
+  })
+  it('a blade too hot to hold cannot go to the belt until it cools or is dipped', () => {
+    const bar = blade()
+    expect(canHold(bar)).toBe(true)
+    for (const s of bar.segments) s.temp = GRIND.holdTemp + 60
+    expect(canHold(bar)).toBe(false)
+    dip(bar)
+    expect(canHold(bar)).toBe(true)
+  })
+  it('reads the edge under the belt', () => {
+    const bar = blade()
+    expect(edgeAt(bar, AT)).toBeCloseTo(belly(bar).thickness, 6)
+    grindFor(bar, { at: AT, side: 'left', tilt: 8, pressure: 1 }, 3)
+    expect(edgeAt(bar, AT)).toBeCloseTo(edgeThickness(belly(bar)), 6)
+    expect(edgeAt(bar, AT)).toBeLessThan(belly(bar).thickness)
+    // Off either end it reads the nearest part of the bar.
+    expect(edgeAt(bar, -50)).toBeCloseTo(edgeThickness(bar.segments[0] as Segment), 6)
+    expect(edgeAt(bar, 9999)).toBeCloseTo(edgeThickness(bar.segments[bar.segments.length - 1] as Segment), 6)
+  })
+  it('the lightest pressure never spoils a thin hardened edge; the hardest does', () => {
+    const light = finished()
+    const hard = cloneBar(light)
+    const was = edgeHardness(belly(light), ST)
+    grindFor(light, { at: AT, side: 'left', tilt: 5, pressure: PRESSURES[0] as number }, 2)
+    grindFor(hard, { at: AT, side: 'left', tilt: 5, pressure: PRESSURES[PRESSURES.length - 1] as number }, 2)
+    advance(light, { where: 'air' }, 10)
+    advance(hard, { where: 'air' }, 10)
+    expect(was - edgeHardness(belly(light), ST)).toBeLessThan(1)
+    expect(was - edgeHardness(belly(hard), ST)).toBeGreaterThan(3)
   })
 })
 
