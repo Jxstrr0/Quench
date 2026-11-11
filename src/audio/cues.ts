@@ -3,7 +3,7 @@
  * here, so it can be tested. The engine turns a voice into sound.
  */
 import type { ForgeSound, TrialSound } from '../data/audio'
-import { BELT_SOUND, FIRE_SOUND, HAMMER_SOUND, QUENCH_SOUND, SPARK_SOUND, STONE_SOUND, TRIAL_TIMES } from '../data/audio'
+import { BELT_SOUND, FIRE_SOUND, HAMMER_SOUND, QUENCH_SOUND, SEA_SOUND, SPARK_SOUND, STONE_SOUND, TRIAL_TIMES } from '../data/audio'
 import type { TrialId } from '../data/trials'
 import type { Outcome } from '../sim/trials'
 import type { MediumId } from '../data/media'
@@ -172,4 +172,10 @@ export function sparkRate(where: Where, temp: number, burn: number): number {
   if (where !== 'fire' || temp < burn) return 0
   const k = SPARK_SOUND
   return k.slowest + (k.fastest - k.slowest) * clamp01((temp - burn) / k.over)
+}
+
+/** The sea outside. `atWindow` is true at the trial stand, which stands by the harbour window. */
+export function seaVoice(atWindow: boolean): FireVoice {
+  const k = SEA_SOUND
+  return { gain: atWindow ? k.windowGain : k.forgeGain, hz: k.hz, flutter: k.swell }
 }

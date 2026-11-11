@@ -10,7 +10,7 @@
  * controls sit at the bottom, under the thumbs.
  */
 import type { Where } from '../audio/cues'
-import { fireVoice, hammerVoice, hissVoice, placeCue, sparkRate } from '../audio/cues'
+import { fireVoice, hammerVoice, hissVoice, placeCue, seaVoice, sparkRate } from '../audio/cues'
 import { createAudioEngine } from '../audio/engine'
 import type { StageId } from '../data/career'
 import { BRIEFS, FIRST_JOB, PROVINGS } from '../data/career'
@@ -911,6 +911,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
     blast += bellowsHeld ? dt / BENCH.bellowsRise : -dt / BENCH.bellowsFall
     blast = Math.min(1, Math.max(0, blast))
     audio.fire(fireVoice(blast, longFire(), bench.active || playback.active))
+    audio.sea(seaVoice(playback.active))
 
     // The trial stand takes over the view while the tests play.
     const show = playback.frame(dt)

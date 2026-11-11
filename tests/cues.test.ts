@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { beltVoice, cuesDue, fireVoice, hammerVoice, placeCue, sparkRate, strokeVoice, trialCues } from '../src/audio/cues'
+import { beltVoice, cuesDue, fireVoice, hammerVoice, placeCue, seaVoice, sparkRate, strokeVoice, trialCues } from '../src/audio/cues'
 import { FORGE_SOUNDS, SPARK_SOUND, TRIAL_SOUNDS } from '../src/data/audio'
 
 describe('the sound of a blow', () => {
@@ -161,5 +161,13 @@ describe('small sounds round the forge', () => {
     for (const shapes of Object.values(FORGE_SOUNDS)) {
       for (const shape of shapes) expect('delay' in shape ? shape.delay : 0).toBeLessThan(0.5)
     }
+  })
+})
+
+describe('the sea outside', () => {
+  it('is plainer by the window than at the forge, and always under the fire', () => {
+    expect(seaVoice(true).gain).toBeGreaterThan(seaVoice(false).gain)
+    expect(seaVoice(false).gain).toBeLessThan(fireVoice(0, false, false).gain)
+    expect(seaVoice(true).flutter).toBeLessThanOrEqual(1)
   })
 })
