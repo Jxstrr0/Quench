@@ -1,8 +1,7 @@
 /**
  * The steel table. Grades are real generic standards, not brands.
- * Temperatures in degrees Celsius. PR 1 uses only carbon and the scaling
- * numbers and PR 3 the forging ones; the rest is here so later PRs read
- * one row per steel.
+ * Temperatures in degrees Celsius. One row per steel: heat, forging and
+ * heat-treatment numbers all live here.
  */
 
 export type SteelId = '1084' | '5160'
@@ -32,6 +31,14 @@ export interface Steel {
   grainGrowth: number
   /** How easily it cracks in a fast quench, relative to 1084. */
   crackSensitivity: number
+  /** Martensite starts to form below this as the steel cools. */
+  ms: number
+  /** Hardness of fresh, untempered martensite at full carbon, HRC. */
+  hardMax: number
+  /** Hardness of the soft, slow-cooled steel (pearlite), HRC. */
+  softHardness: number
+  /** How tough it is at the same hardness, relative to 1084. */
+  toughness: number
 }
 
 export const STEELS: Record<SteelId, Steel> = {
@@ -49,6 +56,10 @@ export const STEELS: Record<SteelId, Steel> = {
     criticalCoolRate: 110,
     grainGrowth: 1,
     crackSensitivity: 1,
+    ms: 215,
+    hardMax: 66,
+    softHardness: 24,
+    toughness: 1,
   },
   '5160': {
     id: '5160',
@@ -64,6 +75,10 @@ export const STEELS: Record<SteelId, Steel> = {
     criticalCoolRate: 28,
     grainGrowth: 0.8,
     crackSensitivity: 0.7,
+    ms: 255,
+    hardMax: 62,
+    softHardness: 22,
+    toughness: 1.2,
   },
 }
 

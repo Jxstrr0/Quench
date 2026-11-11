@@ -7,6 +7,7 @@
  */
 import type { SteelId } from '../data/steels'
 import { steel } from '../data/steels'
+import { STOCK_STATE } from '../data/treat'
 import { SHOP, SIM } from '../data/tuning'
 
 export interface Segment {
@@ -24,6 +25,34 @@ export interface Segment {
   damage: number
   /** Burn damage from too much heat. At 1 the steel has crumbled here. */
   burnt: number
+  /** Grain size: 1 is as fine as it gets, 8 is ruined. */
+  grain: number
+  /**
+   * What the steel is made of, as shares that add up to 1. Austenite is the
+   * hot phase; any left once the steel is cold is "retained". Martensite is
+   * the hard one. Pearlite is the soft, slow-cooled one. Bainite sits between.
+   */
+  austenite: number
+  martensite: number
+  pearlite: number
+  bainite: number
+  /** Seconds this cooling has spent where pearlite forms, and where bainite forms. */
+  noseTime: number
+  bainiteTime: number
+  /** The lowest temperature reached since it was last austenite; martensite forms as this falls. */
+  coldest: number
+  /** How far the martensite has been tempered (Hollomon-Jaffe parameter). 0 is untempered. */
+  temper: number
+  /** Stress locked in by the quench. */
+  stress: number
+}
+
+/** Why a blade cracked in the quench. */
+export type CrackCause = 'tooFast' | 'coarseGrain' | 'coldWork' | 'corner'
+
+export interface QuenchCrack {
+  segment: number
+  cause: CrackCause
 }
 
 export interface Bar {
@@ -37,6 +66,19 @@ export interface Bar {
   scaleLost: number
   /** How many hammer blows it has taken. */
   blows: number
+  /** Seed for this bar's luck in the quench. The same bar and seed always give the same result. */
+  seed: number
+  /** How many times it has been quenched from heat, and tempered in the oven. */
+  quenches: number
+  tempers: number
+  /** True while it is in a quench medium. */
+  inQuench: boolean
+  /** Degrees between the hottest and coolest hardening parts when it last went into the quench. */
+  quenchSpread: number
+  /** Bow to one side, in mm. The sign is the side. */
+  warp: number
+  /** Set once, if the quench cracks it. */
+  crack: QuenchCrack | null
 }
 
 export interface StockSize {
@@ -45,10 +87,11 @@ export interface StockSize {
   thickness: number
 }
 
-export function createBar(steelId: SteelId, size: StockSize, count: number = SIM.segments): Bar {
+export function createBar(steelId: SteelId, size: StockSize, count: number = SIM.segments, seed = 1): Bar {
   if (!Number.isInteger(count) || count < 2) throw new RangeError('createBar: need at least 2 segments')
   if (!(size.length > 0 && size.width > 0 && size.thickness > 0)) throw new RangeError('createBar: bad stock size')
-  const carbon = steel(steelId).carbon
+  const st = steel(steelId)
+  const carbon = st.carbon
   const segments: Segment[] = []
   for (let i = 0; i < count; i++) {
     segments.push({
@@ -60,9 +103,33 @@ export function createBar(steelId: SteelId, size: StockSize, count: number = SIM
       carbonCore: carbon,
       damage: 0,
       burnt: 0,
+      grain: STOCK_STATE.grain,
+      austenite: 0,
+      martensite: 0,
+      pearlite: 1,
+      bainite: 0,
+      noseTime: 0,
+      bainiteTime: 0,
+      coldest: st.ms,
+      temper: 0,
+      stress: 0,
     })
   }
-  return { steel: steelId, segments, clock: 0, carry: 0, scaleLost: 0, blows: 0 }
+  return {
+    steel: steelId,
+    segments,
+    clock: 0,
+    carry: 0,
+    scaleLost: 0,
+    blows: 0,
+    seed: seed >>> 0,
+    quenches: 0,
+    tempers: 0,
+    inQuench: false,
+    quenchSpread: 0,
+    warp: 0,
+    crack: null,
+  }
 }
 
 export function cloneBar(bar: Bar): Bar {

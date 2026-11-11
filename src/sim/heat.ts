@@ -8,10 +8,14 @@
  * Built from + - * / only, so every phone gets the same bar.
  */
 import { HAMMER } from '../data/hammer'
+import type { Medium, MediumId } from '../data/media'
+import { medium } from '../data/media'
 import { steel } from '../data/steels'
+import { COOL, WARP } from '../data/treat'
 import { FORGE, KELVIN, SCALE, SHOP, SIGMA, SIM, STEEL_PHYSICS } from '../data/tuning'
 import type { Bar, Segment } from './bar'
-import { segmentCentres } from './bar'
+import { hottest, segmentCentres } from './bar'
+import { beginQuench, stepPhase } from './phase'
 
 /** Where the bar is right now. */
 export type Placement =
@@ -24,6 +28,12 @@ export type Placement =
   | { where: 'fire'; depth: number; blast: number }
   /** Lying flat on the anvil. */
   | { where: 'anvil' }
+  /**
+   * In a quench medium, tip first. `agitation` is how hard it is being
+   * stirred, 0 to 1. `depth` is how much of the bar is under, in mm from the
+   * tip; leave it out for the whole bar.
+   */
+  | { where: 'quench'; medium: MediumId; agitation: number; depth?: number }
 
 const MM = 0.001
 const MM2 = 1e-6
@@ -76,6 +86,14 @@ function fireWatts(s: Segment, area: number, fireTemp: number): number {
   return area * (FORGE.convection * (fireTemp - s.temp) + radiant)
 }
 
+/** Watts flowing into a segment from the quench medium, by which cooling stage its surface is in. */
+function quenchWatts(s: Segment, area: number, m: Medium, agitation: number): number {
+  const stage =
+    s.temp >= m.vapourAbove ? m.vapour * (1 + (m.agitationGain - 1) * clamp01(agitation)) : s.temp > m.boilBelow ? m.boil : m.convect
+  const wetted = m.flatsOnly ? 2 * s.length * s.width * MM2 : area
+  return wetted * stage * (m.temp - s.temp)
+}
+
 /**
  * Watts flowing into each segment from its neighbours. Heat only moves between
  * segments here, so the list always adds up to zero.
@@ -120,7 +138,17 @@ export function stepHeat(bar: Bar, placement: Placement): void {
   const total = (centres[centres.length - 1] as number) + (segs[segs.length - 1] as Segment).length / 2
   const conduction = conductionWatts(bar)
   const next = new Array<number>(segs.length)
+  const before = new Array<number>(segs.length)
   const burnTemp = steel(bar.steel).burn
+  const bath = placement.where === 'quench' ? medium(placement.medium) : null
+  let warpFreedom = 1
+  if (placement.where === 'quench' && bath) {
+    if (!bar.inQuench) beginQuench(bar)
+    bar.inQuench = true
+    warpFreedom = bath.warp * (1 - WARP.agitationEase * clamp01(placement.agitation))
+  } else {
+    bar.inQuench = false
+  }
 
   for (let i = 0; i < segs.length; i++) {
     const s = segs[i] as Segment
@@ -129,8 +157,13 @@ export function stepHeat(bar: Bar, placement: Placement): void {
     const area = surfaceArea(s, isEnd)
     let watts = conduction[i] as number
 
+    let floor = -Infinity
     if (placement.where === 'fire' && placement.depth - x > 0) {
       watts += fireWatts(s, area, fireTempAt(placement.depth - x, placement.blast))
+    } else if (placement.where === 'quench' && bath && (placement.depth === undefined || placement.depth - x > 0)) {
+      watts += quenchWatts(s, area, bath, placement.agitation)
+      // A fierce quench on a thin section must not cool it past the bath in one step.
+      if (s.temp > bath.temp) floor = bath.temp
     } else if (placement.where === 'anvil') {
       // One flat face is on the anvil; the rest is in air.
       const face = s.length * s.width * MM2
@@ -146,15 +179,18 @@ export function stepHeat(bar: Bar, placement: Placement): void {
       watts += 2 * s.length * s.width * MM2 * share * SHOP.tongsContact * (SHOP.tongsTemp - s.temp)
     }
 
-    next[i] = s.temp + (watts * dt) / heatCapacity(s)
+    const temp = s.temp + (watts * dt) / heatCapacity(s)
+    next[i] = temp > floor ? temp : floor
   }
 
   for (let i = 0; i < segs.length; i++) {
     const s = segs[i] as Segment
+    before[i] = s.temp
     s.temp = next[i] as number
     if (s.temp > burnTemp) s.burnt += HAMMER.burnRate * (1 + (s.temp - burnTemp) / HAMMER.burnStep) * dt
     bar.scaleLost += scaleStep(s, dt)
   }
+  stepPhase(bar, before, warpFreedom)
   bar.clock += dt
 }
 
@@ -175,4 +211,14 @@ export function advance(bar: Bar, placement: Placement, seconds: number): number
   }
   if (bar.carry < 0) bar.carry = 0
   return steps
+}
+
+/**
+ * Leave the bar in still air until it is cool enough to hold. Returns the sim
+ * seconds that took. Used between stages, where the player would only wait.
+ */
+export function coolToRoom(bar: Bar): number {
+  const start = bar.clock
+  while (hottest(bar) > COOL.handWarm && bar.clock - start < COOL.maxSeconds) stepHeat(bar, { where: 'air' })
+  return bar.clock - start
 }
