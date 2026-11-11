@@ -1,7 +1,9 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { beltVoice, cuesDue, fireVoice, hammerVoice, examinerLine, placeCue, seaVoice, sparkRate, strokeVoice, trialCues, verdictLine } from '../src/audio/cues'
-import { EXAMINER_LINES, FORGE_SOUNDS, SPARK_SOUND, TRIAL_SOUNDS } from '../src/data/audio'
+import { beltVoice, cuesDue, fireVoice, hammerVoice, hissVoice, examinerLine, placeCue, seaVoice, sparkRate, strokeVoice, trialCues, verdictLine } from '../src/audio/cues'
+import type { SoundFiles } from '../src/data/audio'
+import { EXAMINER_LINES, FORGE_SOUNDS, SOUND_SETS, SPARK_SOUND, TRIAL_SOUNDS } from '../src/data/audio'
+import { DEFAULT_SETTINGS, parseSettings } from '../src/persist/settings'
 import { t } from '../src/data/strings'
 
 describe('the sound of a blow', () => {
@@ -204,5 +206,37 @@ describe('the examiner', () => {
   })
   it('every recording in the game is named in the credits', () => {
     expect(readFileSync('CREDITS.md', 'utf8')).toContain('public/assets/audio/voice/')
+  })
+})
+
+describe('the sound sets', () => {
+  it('has a packed file for every sound a set names', () => {
+    for (const set of Object.values(SOUND_SETS)) {
+      for (const file of Object.values(set as SoundFiles) as string[]) {
+        expect(existsSync(`public/assets/audio/sfx/${file}.mp3`), file).toBe(true)
+      }
+    }
+  })
+
+  it('uses code-made sound by default, and keeps a saved choice', () => {
+    expect(DEFAULT_SETTINGS.sounds).toBe('made')
+    expect(Object.keys(SOUND_SETS.made)).toEqual([])
+    expect(parseSettings('{"sounds":"recorded"}').sounds).toBe('recorded')
+    expect(parseSettings('{"sounds":"toString"}').sounds).toBe('made')
+    expect(parseSettings('{"sounds":true}').sounds).toBe('made')
+  })
+
+  it('gives a recorded hiss to a quench in liquid only', () => {
+    expect(hissVoice(800, 'water').file).toBe('hissWet')
+    expect(hissVoice(800, 'brine').file).toBe('hissWet')
+    expect(hissVoice(800, 'fastOil').file).toBe('hissOil')
+    expect(hissVoice(800, 'plates').file).toBeUndefined()
+    expect(strokeVoice(1).file).toBeUndefined()
+  })
+
+  it('credits every recording it did not make', () => {
+    const credits = readFileSync('CREDITS.md', 'utf8')
+    for (const name of ['PagDev', 'jasinski', 'transitking', 'bart']) expect(credits, name).toContain(name)
+    expect(credits).toContain('public/assets/audio/sfx/')
   })
 })

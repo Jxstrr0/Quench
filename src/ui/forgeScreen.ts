@@ -9,6 +9,8 @@
  * Grinder button carries a cool blade to the belt (see `grindBench.ts`). The
  * controls sit at the bottom, under the thumbs.
  */
+import type { SoundSet } from '../data/audio'
+import { SOUND_SETS } from '../data/audio'
 import type { Where } from '../audio/cues'
 import { fireVoice, hammerVoice, hissVoice, placeCue, seaVoice, sparkRate, verdictLine } from '../audio/cues'
 import { createAudioEngine } from '../audio/engine'
@@ -256,7 +258,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
   // --- Sheets: assists, the tempering oven, the inspection ---------------------
   const sheet = createSheet(app, 'assists.title')
   sheet.card.append(el('p', 'sheet-note', t('assists.note')))
-  const toggle = (key: Exclude<keyof Settings, 'volume'>, label: StringKey, note: StringKey) => {
+  const toggle = (key: Exclude<keyof Settings, 'volume' | 'sounds'>, label: StringKey, note: StringKey) => {
     const line = el('label', 'toggle')
     const input = el('input')
     input.type = 'checkbox'
@@ -290,6 +292,23 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
   })
   volumeLine.append(el('span', 'toggle-label', t('settings.volume')), volume)
   sheet.card.append(volumeLine)
+  // Three sets of sounds to compare: code, recordings, generated.
+  const soundsLine = el('label', 'toggle volume')
+  const sounds = el('select')
+  for (const set of Object.keys(SOUND_SETS) as SoundSet[]) {
+    const choice = el('option')
+    choice.value = set
+    choice.textContent = t(`settings.sounds.${set}`)
+    sounds.append(choice)
+  }
+  sounds.value = settings.sounds
+  sounds.addEventListener('change', () => {
+    settings.sounds = sounds.value as SoundSet
+    saveSettings(settings)
+    applySettings()
+  })
+  soundsLine.append(el('span', 'toggle-label', t('settings.sounds')), sounds)
+  sheet.card.append(soundsLine, el('p', 'sheet-note sheet-small', t('settings.sounds.note')))
   toggle('voice', 'settings.voice', 'settings.voice.note')
   toggle('haptics', 'settings.haptics', 'settings.haptics.note')
   // Graphics: one button that steps through Auto, Lite, Full and Ultra.
@@ -324,6 +343,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
     view.setBrightnessOnly(settings.brightnessOnly)
     audio.setEnabled(settings.sound)
     audio.setVolume(settings.volume)
+    audio.setSounds(settings.sounds)
     audio.setVoice(settings.voice)
     // At the grinder the edge's heat is always given in words.
     readout.hidden = !(bench.active || settings.heatWords || showsNumber())

@@ -2,6 +2,9 @@
  * Per-device settings, in localStorage under the `quench.` prefix.
  * Storage can be missing or blocked (private windows), so every call is guarded.
  */
+import type { SoundSet } from '../data/audio'
+import { SOUND_SETS } from '../data/audio'
+
 export interface Settings {
   heatWords: boolean
   brightnessOnly: boolean
@@ -13,6 +16,8 @@ export interface Settings {
   voice: boolean
   /** How loud the game is, 0 to 1. */
   volume: number
+  /** Where the fire, quench, sea and grinder sounds come from. */
+  sounds: SoundSet
 }
 
 export const SETTINGS_KEY = 'quench.settings'
@@ -27,6 +32,7 @@ export const DEFAULT_SETTINGS: Settings = {
   haptics: true,
   voice: true,
   volume: 0.7,
+  sounds: 'made',
 }
 
 /** Read saved text back into settings. Anything missing or odd keeps its default. */
@@ -40,6 +46,8 @@ export function parseSettings(raw: string | null): Settings {
       const v = data[k]
       if (k === 'volume') {
         if (typeof v === 'number' && v >= 0 && v <= 1) out.volume = v
+      } else if (k === 'sounds') {
+        if (typeof v === 'string' && Object.hasOwn(SOUND_SETS, v)) out.sounds = v as SoundSet
       } else if (typeof v === 'boolean') out[k] = v
     }
     return out
