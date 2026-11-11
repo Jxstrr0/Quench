@@ -1,15 +1,20 @@
 /**
- * The Free forge screen: heat a bar, read its colour, hammer it to shape.
+ * The Free forge screen: heat a bar, read its colour, hammer it to shape,
+ * harden it in the quench and temper it.
+ *
  * Drag on the scene to slide the bar along the rail between the fire and the
- * anvil. Hold Bellows for more heat. On the anvil, tap the bar to strike it;
- * the blow buttons pick the kind of blow and the rhythm sets its force. The
+ * anvil, and sideways into the quench tank. Hold Bellows for more heat. On
+ * the anvil, tap the bar to strike it; the blow buttons pick the kind of blow
+ * and the rhythm sets its force. In the tank, slide the bar to stir. The
  * controls sit at the bottom, under the thumbs.
  */
-import { hammerVoice } from '../audio/cues'
+import { hammerVoice, hissVoice } from '../audio/cues'
 import { createAudioEngine } from '../audio/engine'
 import type { BlowType } from '../data/hammer'
 import { RHYTHM } from '../data/hammer'
 import type { HeatWord } from '../data/heatRamp'
+import type { MediumId } from '../data/media'
+import { MEDIUM_ORDER } from '../data/media'
 import { pattern } from '../data/patterns'
 import type { SteelId } from '../data/steels'
 import { STEELS } from '../data/steels'
@@ -22,11 +27,15 @@ import type { ForgeView } from '../render/forgeScene'
 import type { Bar } from '../sim/bar'
 import { barLength, createBar, hottest } from '../sim/bar'
 import { heatWord } from '../sim/glow'
+import type { CrackCause } from '../sim/bar'
 import type { Fault } from '../sim/hammer'
 import { barFault, blowForce, strike } from '../sim/hammer'
 import type { Placement } from '../sim/heat'
 import { advance } from '../sim/heat'
+import { magnetTest } from '../sim/inspect'
 import { shapeScore } from '../sim/shape'
+import { button, createSheet, el } from './dom'
+import { MAGNET_KEY, createInspectSheet, createTemperSheet } from './treatSheets'
 
 const BLOW_TYPES: BlowType[] = ['flat', 'edge', 'peen', 'point']
 const BLOW_KEY: Record<BlowType, [StringKey, StringKey]> = {
@@ -45,14 +54,24 @@ const WORD_KEY: Record<HeatWord, StringKey> = {
   white: 'heat.white',
 }
 
-function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''): HTMLElementTagNameMap[K] {
-  const node = document.createElement(tag)
-  if (cls) node.className = cls
-  if (text) node.textContent = text
-  return node
+const MEDIUM_KEY: Record<MediumId, [name: StringKey, place: StringKey]> = {
+  brine: ['medium.brine', 'place.brine'],
+  water: ['medium.water', 'place.water'],
+  fastOil: ['medium.fastOil', 'place.fastOil'],
+  slowOil: ['medium.slowOil', 'place.slowOil'],
+  plates: ['medium.plates', 'place.plates'],
 }
 
-function placementFor(tipDepth: number, blast: number): Placement {
+const CRACK_KEY: Record<CrackCause, StringKey> = {
+  tooFast: 'crack.tooFast',
+  coarseGrain: 'crack.coarseGrain',
+  coldWork: 'crack.coldWork',
+  corner: 'crack.corner',
+}
+
+function placementFor(tipDepth: number, blast: number, lane: number, medium: MediumId, agitation: number): Placement {
+  if (lane >= BENCH.laneTank) return { where: 'quench', medium, agitation }
+  if (lane > BENCH.laneRail) return { where: 'air' }
   if (tipDepth > 0) return { where: 'fire', depth: tipDepth, blast }
   if (tipDepth <= BENCH.anvilFrom) return { where: 'anvil' }
   return { where: 'air' }
@@ -76,7 +95,20 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   let tipDepth: number = BENCH.railMin
   let blast = 0
   let bellowsHeld = false
+  let coolHeld = false
   let dragged = false
+  let barsMade = 0
+  /** 0 on the rail, 1 in the quench tank. */
+  let lane = 0
+  /** Where a let-go bar is settling to, or -1 while it is held or at rest. */
+  let laneTarget = -1
+  let mediumId: MediumId = 'fastOil'
+  let agitation = 0
+  /** How far the bar has been slid along the tank since the last frame, mm. */
+  let stirMoved = 0
+  let wasInTank = false
+  let everInTank = false
+  let shownWarp = 0
 
   // --- Top: mode, place, heat readout ---------------------------------------
   const top = el('div', 'hud-top')
@@ -94,18 +126,34 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
 
   // --- Bottom: thumb controls -----------------------------------------------
   const controls = el('div', 'controls')
-  const bellows = el('button', 'btn btn-bellows')
-  bellows.type = 'button'
+  const bellows = button('btn btn-bellows')
   bellows.append(el('span', 'btn-main', t('btn.bellows')), el('span', 'btn-sub', t('btn.bellows.hint')))
+  // In the air the same slot holds "Let it cool": hold it and the waiting is sped up.
+  const cool = el('button', 'btn btn-bellows btn-cool')
+  cool.type = 'button'
+  cool.append(el('span', 'btn-main', t('btn.cool')), el('span', 'btn-sub', t('btn.cool.hint')))
+  cool.hidden = true
+  // In the tank it holds the stirring meter.
+  const tankSet = el('div', 'controls-tank')
+  const stir = el('div', 'meter')
+  stir.setAttribute('role', 'img')
+  stir.setAttribute('aria-label', t('stir.label'))
+  const stirFill = el('div', 'meter-fill')
+  stir.append(stirFill)
+  tankSet.append(stir, el('p', 'tank-note', t('tank.stir')))
+  tankSet.hidden = true
+
+  const tools = el('div', 'controls-row')
+  const magnet = button('btn', 'btn.magnet')
+  const tankBtn = button('btn')
+  const temperBtn = button('btn', 'btn.temper')
+  const inspectBtn = button('btn', 'btn.inspect')
+  tools.append(magnet, tankBtn, temperBtn, inspectBtn)
   const row = el('div', 'controls-row')
-  const lights = el('button', 'btn')
-  lights.type = 'button'
-  const assists = el('button', 'btn', t('btn.assists'))
-  assists.type = 'button'
-  const steelBtn = el('button', 'btn')
-  steelBtn.type = 'button'
-  const newBar = el('button', 'btn', t('btn.newBar'))
-  newBar.type = 'button'
+  const lights = button('btn')
+  const assists = button('btn', 'btn.assists')
+  const steelBtn = button('btn')
+  const newBar = button('btn', 'btn.newBar')
   row.append(lights, assists, steelBtn, newBar)
   // The rhythm meter: a mark sweeps right after each blow; land the next one in the bright band.
   const meter = el('div', 'meter')
@@ -121,8 +169,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   blows.setAttribute('role', 'group')
   blows.setAttribute('aria-label', t('blow.label'))
   const blowButtons = BLOW_TYPES.map((type) => {
-    const b = el('button', 'btn btn-blow')
-    b.type = 'button'
+    const b = button('btn btn-blow')
     b.append(el('span', 'blow-name', t(BLOW_KEY[type][0])), el('span', 'btn-sub', t(BLOW_KEY[type][1])))
     b.addEventListener('click', () => pickBlow(type))
     blows.append(b)
@@ -137,13 +184,11 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   const anvilSet = el('div', 'controls-anvil')
   anvilSet.append(meter, blows)
   anvilSet.hidden = true
-  controls.append(anvilSet, bellows, row)
+  controls.append(anvilSet, tankSet, bellows, cool, tools, row)
 
-  // --- Assists sheet --------------------------------------------------------
-  const sheet = el('div', 'sheet')
-  sheet.hidden = true
-  const card = el('div', 'sheet-card')
-  card.append(el('h2', 'sheet-title', t('assists.title')), el('p', 'sheet-note', t('assists.note')))
+  // --- Sheets: assists, the tempering oven, the inspection ---------------------
+  const sheet = createSheet(app, 'assists.title')
+  sheet.card.append(el('p', 'sheet-note', t('assists.note')))
   const toggle = (key: Exclude<keyof Settings, 'dimLights'>, label: StringKey, note: StringKey) => {
     const line = el('label', 'toggle')
     const input = el('input')
@@ -157,17 +202,14 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
     const words = el('span', 'toggle-text')
     words.append(el('span', 'toggle-label', t(label)), el('span', 'toggle-note', t(note)))
     line.append(input, words)
-    card.append(line)
+    sheet.card.append(line)
   }
   toggle('heatWords', 'assists.words', 'assists.words.note')
   toggle('brightnessOnly', 'assists.bright', 'assists.bright.note')
   toggle('heatNumber', 'assists.number', 'assists.number.note')
   toggle('sound', 'settings.sound', 'settings.sound.note')
   toggle('haptics', 'settings.haptics', 'settings.haptics.note')
-  const close = el('button', 'btn btn-wide', t('btn.close'))
-  close.type = 'button'
-  card.append(close)
-  sheet.append(card)
+  sheet.finish()
 
   const studio = el('p', 'studio', t('credit'))
   const link = el('a', '', t('credit.studio'))
@@ -175,7 +217,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   studio.append(link)
   const build = el('p', 'build', `v${__GAME_VERSION__} · ${__BUILD_SHA__} · ${__BUILD_DATE__}`)
 
-  app.append(top, hint, controls, studio, build, sheet)
+  app.append(top, hint, controls, studio, build)
 
   // --- Wiring ---------------------------------------------------------------
   const applySettings = () => {
@@ -189,6 +231,14 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   const applySteel = () => {
     steelBtn.textContent = `${t('steel.label')}: ${STEELS[steelId].name}`
   }
+  const applyMedium = () => {
+    tankBtn.textContent = `${t('tank.label')}: ${t(MEDIUM_KEY[mediumId][0])}`
+    view.setMedium(mediumId)
+  }
+  const shapePercent = () => {
+    const raw = shapeScore(bar, target).score
+    return baseScore < 1 ? Math.max(0, Math.round(((raw - baseScore) / (1 - baseScore)) * 100)) : 0
+  }
   const layout = () => {
     const wide = window.innerWidth > window.innerHeight
     app.classList.toggle('wide', wide)
@@ -197,17 +247,45 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
     hint.style.bottom = wide ? '' : `${box.height + 56}px`
   }
   const refreshShape = () => {
-    const raw = shapeScore(bar, target).score
-    const pct = baseScore < 1 ? Math.max(0, Math.round(((raw - baseScore) / (1 - baseScore)) * 100)) : 0
-    shape.textContent = t('shape.label', { name: t('pattern.campKnife'), n: pct })
+    shape.textContent = t('shape.label', { name: t('pattern.campKnife'), n: shapePercent() })
   }
   const showFault = () => {
     faultLine.hidden = fault === null
+    view.setCrack(bar, fault && fault.kind !== 'burnt' ? fault.at : null)
     if (!fault) return
     const share = fault.at / barLength(bar)
     const where = t(share < BENCH.tipShare ? 'where.tip' : share < BENCH.tangShare ? 'where.blade' : 'where.tang')
-    faultLine.textContent = t(fault.kind === 'cracked' ? 'fault.cracked' : 'fault.burnt', { where })
+    faultLine.textContent =
+      fault.kind === 'quenchCrack'
+        ? t('fault.quenchCrack', { where, why: t(CRACK_KEY[fault.cause ?? 'tooFast']) })
+        : t(fault.kind === 'cracked' ? 'fault.cracked' : 'fault.burnt', { where })
   }
+  /** Say something beside the place name for a moment. */
+  const say = (text: string, ms: number) => {
+    note = text
+    noteUntil = performance.now() + ms
+  }
+  /** Redraw the bar after something other than a blow changed it. */
+  const redraw = () => {
+    view.setBar(bar)
+    shownWarp = bar.warp
+    fault = barFault(bar)
+    showFault()
+    refreshShape()
+  }
+  const treat = {
+    bar: () => bar,
+    shapePercent,
+    changed: () => {
+      // The blade comes back cold, lying on the anvil.
+      lane = 0
+      laneTarget = -1
+      tipDepth = BENCH.railMin
+      redraw()
+    },
+  }
+  const temperSheet = createTemperSheet(app, treat)
+  const inspectSheet = createInspectSheet(app, treat)
   const doStrike = (at: number) => {
     const now = performance.now()
     const since = lastBlowAt < 0 ? null : (now - lastBlowAt) / 1000
@@ -221,8 +299,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
     view.showStrike(blowType, where, force)
     audio.hammer(hammerVoice(hit.temp, hit.thickness, force))
     if (settings.haptics && 'vibrate' in navigator) navigator.vibrate(Math.round(10 + 25 * force))
-    note = hit.burning ? t('note.burning') : hit.cold ? t('note.cold') : ''
-    noteUntil = now + 1200
+    say(hit.burning ? t('note.burning') : hit.cold ? t('note.cold') : '', 1200)
     meter.classList.toggle('full', force >= RHYTHM.fullForce)
     fault = barFault(bar)
     showFault()
@@ -235,10 +312,16 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
     saveSettings(settings)
     applySettings()
   })
-  assists.addEventListener('click', () => (sheet.hidden = false))
-  close.addEventListener('click', () => (sheet.hidden = true))
-  sheet.addEventListener('click', (e) => {
-    if (e.target === sheet) sheet.hidden = true
+  assists.addEventListener('click', sheet.open)
+  temperBtn.addEventListener('click', temperSheet.open)
+  inspectBtn.addEventListener('click', inspectSheet.open)
+  const useMagnet = () => say(t(MAGNET_KEY[magnetTest(bar, BENCH.tangShare)]), 2500)
+  magnet.addEventListener('click', useMagnet)
+  tankBtn.addEventListener('click', () => {
+    // The tank cannot be changed with the blade in it.
+    if (lane > BENCH.laneRail) return
+    mediumId = MEDIUM_ORDER[(MEDIUM_ORDER.indexOf(mediumId) + 1) % MEDIUM_ORDER.length] as MediumId
+    applyMedium()
   })
   steelBtn.addEventListener('click', () => {
     const ids = Object.keys(STEELS) as SteelId[]
@@ -247,14 +330,16 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
     freshBar()
   })
   const freshBar = () => {
-    bar = createBar(steelId, target.stock)
+    // Each bar has its own luck in the quench.
+    barsMade++
+    bar = createBar(steelId, target.stock, undefined, barsMade)
     tipDepth = BENCH.railMin
+    lane = 0
+    laneTarget = -1
+    agitation = 0
     lastBlowAt = -1
-    fault = null
     baseScore = shapeScore(bar, target).score
-    view.setBar(bar)
-    showFault()
-    refreshShape()
+    redraw()
   }
   newBar.addEventListener('click', freshBar)
 
@@ -275,7 +360,24 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   bellows.addEventListener('keyup', () => hold(false))
   bellows.addEventListener('contextmenu', (e) => e.preventDefault())
 
-  // Drag anywhere on the scene to slide the bar along the rail.
+  const holdCool = (on: boolean) => {
+    coolHeld = on
+    cool.classList.toggle('held', on)
+  }
+  cool.addEventListener('pointerdown', (e) => {
+    cool.setPointerCapture(e.pointerId)
+    holdCool(true)
+  })
+  for (const type of ['pointerup', 'pointercancel', 'lostpointercapture'] as const) {
+    cool.addEventListener(type, () => holdCool(false))
+  }
+  cool.addEventListener('keydown', (e) => {
+    if (e.key === ' ' || e.key === 'Enter') holdCool(true)
+  })
+  cool.addEventListener('keyup', () => holdCool(false))
+  cool.addEventListener('contextmenu', (e) => e.preventDefault())
+
+  // Drag anywhere on the scene to slide the bar along the rail, and sideways to the tank.
   const canvas = app.querySelector('canvas')
   let dragId = -1
   let lastX = 0
@@ -283,7 +385,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   canvas?.addEventListener('pointerdown', (e) => {
     audio.unlock()
     // On the anvil, a touch on glowing steel is a hammer blow, not a drag.
-    if (tipDepth <= BENCH.anvilFrom && !fault && hottest(bar) >= BENCH.strikeMinTemp) {
+    if (lane <= BENCH.laneRail && tipDepth <= BENCH.anvilFrom && !fault && hottest(bar) >= BENCH.strikeMinTemp) {
       const p = view.pointOnBar(e.clientX, e.clientY)
       if (p && p.at > -BENCH.strikeAlong && p.at < barLength(bar) + BENCH.strikeAlong && Math.abs(p.across) < BENCH.strikeAcross) {
         doStrike(p.at)
@@ -291,6 +393,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
       }
     }
     dragId = e.pointerId
+    laneTarget = -1
     lastX = e.clientX
     lastY = e.clientY
     canvas.setPointerCapture(e.pointerId)
@@ -299,9 +402,17 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
     if (e.pointerId !== dragId) return
     // Toward the fire is up the screen in portrait, left in landscape.
     const pixels = view.railIsVertical ? lastY - e.clientY : lastX - e.clientX
+    const across = view.towardTank(e.clientX - lastX, e.clientY - lastY)
     lastX = e.clientX
     lastY = e.clientY
+    const before = tipDepth
     tipDepth = Math.min(BENCH.railMax, Math.max(BENCH.railMin, tipDepth + pixels * view.mmPerPixel))
+    // The bar crosses to the tank only once its tip is clear of the fire.
+    if (lane > 0 || tipDepth <= BENCH.tankFrom) {
+      lane = Math.min(1, Math.max(0, lane + (across * view.mmPerPixel) / BENCH.tankOffset))
+    }
+    if (lane > BENCH.laneRail) tipDepth = Math.min(BENCH.tankTipMax, Math.max(BENCH.tankTipMin, tipDepth))
+    if (lane >= BENCH.laneTank) stirMoved += Math.abs(tipDepth - before)
     if (!dragged && pixels !== 0) {
       dragged = true
       hint.classList.add('gone')
@@ -309,16 +420,30 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   })
   for (const type of ['pointerup', 'pointercancel'] as const) {
     canvas?.addEventListener(type, (e) => {
-      if (e.pointerId === dragId) dragId = -1
+      if (e.pointerId !== dragId) return
+      dragId = -1
+      // Let go part-way across and the bar settles onto the rail or into the tank.
+      if (lane > 0 && lane < 1) laneTarget = lane >= 0.5 ? 1 : 0
     })
   }
-  // Keyboard: arrows slide the bar, B is the bellows.
+  // Keyboard: arrows slide the bar, B is the bellows, Q crosses to the tank and back, M is the magnet.
   window.addEventListener('keydown', (e) => {
     const step = e.shiftKey ? 40 : 12
     if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') tipDepth = Math.min(BENCH.railMax, tipDepth + step)
     else if (e.key === 'ArrowDown' || e.key === 'ArrowRight') tipDepth = Math.max(BENCH.railMin, tipDepth - step)
     else if (e.key === 'b' || e.key === 'B') hold(true)
-    else if (e.key === 'Escape') sheet.hidden = true
+    else if (e.key === 'q' || e.key === 'Q') {
+      if (lane > 0.5) laneTarget = 0
+      else if (tipDepth <= BENCH.tankFrom) {
+        tipDepth = Math.min(BENCH.tankTipMax, Math.max(BENCH.tankTipMin, tipDepth))
+        laneTarget = 1
+      }
+    } else if (e.key === 'm' || e.key === 'M') useMagnet()
+    else if (e.key === 'Escape') {
+      sheet.close()
+      temperSheet.close()
+      inspectSheet.close()
+    }
     else if (e.key >= '1' && e.key <= '4') pickBlow(BLOW_TYPES[Number(e.key) - 1] as BlowType)
   })
   window.addEventListener('keyup', (e) => {
@@ -328,6 +453,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   window.addEventListener('resize', layout)
   applySettings()
   applySteel()
+  applyMedium()
   view.setTarget(target)
   freshBar()
   layout()
@@ -343,32 +469,84 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
     blast += bellowsHeld ? dt / BENCH.bellowsRise : -dt / BENCH.bellowsFall
     blast = Math.min(1, Math.max(0, blast))
 
-    const placement = placementFor(tipDepth, blast)
+    // A let-go bar settles; stirring dies away unless the bar keeps moving.
+    if (laneTarget >= 0 && dragId < 0) {
+      const step = dt / BENCH.laneSettle
+      lane = laneTarget > lane ? Math.min(laneTarget, lane + step) : Math.max(laneTarget, lane - step)
+      if (lane === laneTarget) laneTarget = -1
+    }
+    const stirring = dt > 0 ? Math.min(1, stirMoved / dt / BENCH.stirSpeed) : 0
+    stirMoved = 0
+    agitation = Math.max(stirring, agitation - dt / BENCH.stirFade)
+
+    const placement = placementFor(tipDepth, blast, lane, mediumId, agitation)
+    const inTank = placement.where === 'quench'
+    const cooling = placement.where === 'air' && coolHeld
+    const scale = inTank
+      ? BENCH.tankTimeScale
+      : placement.where === 'anvil'
+        ? BENCH.anvilTimeScale
+        : cooling
+          ? BENCH.coolTimeScale
+          : BENCH.timeScale
+    if (inTank && !wasInTank) {
+      everInTank = true
+      audio.hiss(hissVoice(hottest(bar), mediumId))
+      if (settings.haptics && 'vibrate' in navigator && hottest(bar) > BENCH.strikeMinTemp) navigator.vibrate(30)
+    }
+    wasInTank = inTank
     const volumeBefore = bar.scaleLost
-    advance(bar, placement, dt * (placement.where === 'anvil' ? BENCH.anvilTimeScale : BENCH.timeScale))
+    advance(bar, placement, dt * scale)
     if (!fault) {
       fault = barFault(bar)
-      if (fault) showFault()
+      if (fault) {
+        showFault()
+        if (fault.kind === 'quenchCrack') {
+          audio.ping()
+          if (settings.haptics && 'vibrate' in navigator) navigator.vibrate([20, 40, 60])
+        }
+      }
     }
-    // Scale thins the bar slowly; rebuild the mesh only once the loss is worth showing.
-    if (bar.scaleLost - volumeBefore > 0 && Math.floor(bar.scaleLost / 40) !== Math.floor(volumeBefore / 40)) view.setBar(bar)
+    // Scale thins the bar slowly and a warp grows over a few seconds; rebuild the mesh only once there is something to show.
+    if (
+      (bar.scaleLost - volumeBefore > 0 && Math.floor(bar.scaleLost / 40) !== Math.floor(volumeBefore / 40)) ||
+      Math.abs(bar.warp - shownWarp) > 0.05
+    ) {
+      view.setBar(bar)
+      shownWarp = bar.warp
+    }
 
-    let placeText = t(placement.where === 'fire' ? 'place.fire' : placement.where === 'anvil' ? 'place.anvil' : 'place.air')
-    if (note && now < noteUntil) placeText += ` · ${note}`
+    let placeText = inTank
+      ? t(MEDIUM_KEY[mediumId][1])
+      : cooling
+        ? t('place.cooling')
+        : t(placement.where === 'fire' ? 'place.fire' : placement.where === 'anvil' ? 'place.anvil' : 'place.air')
+    if (inTank && agitation > 0.3 && mediumId !== 'plates') placeText += ` · ${t('note.stirring')}`
+    else if (note && now < noteUntil) placeText += ` · ${note}`
 
+    // One slot, four uses: bellows at the fire, blows at the anvil, the stirring meter in the tank, cooling in the air.
+    const slot = inTank ? tankSet : placement.where === 'anvil' ? anvilSet : placement.where === 'fire' ? bellows : cool
+    if (slot.hidden) {
+      for (const part of [tankSet, anvilSet, bellows, cool]) part.hidden = part !== slot
+      hold(false)
+      holdCool(false)
+    }
+    stirFill.style.width = `${Math.round(agitation * 100)}%`
+    tankBtn.disabled = lane > BENCH.laneRail
     // The rhythm mark sweeps across after each blow.
     const onAnvil = placement.where === 'anvil'
-    if (anvilSet.hidden === onAnvil) {
-      anvilSet.hidden = !onAnvil
-      bellows.hidden = onAnvil
-      hold(false)
-    }
     const since = lastBlowAt < 0 ? RHYTHM.lostAfter : (now - lastBlowAt) / 1000
     mark.style.left = `${Math.min(1, since / RHYTHM.lostAfter) * 100}%`
     if (onAnvil && strikes === 0 && dragged && hottest(bar) > 600 && hint.textContent !== t('hint.strike')) {
       hint.textContent = t('hint.strike')
       hint.classList.remove('gone')
     }
+    // Once the bar has taken some shape, point at the tank the first time it comes out of the fire hot.
+    if (!everInTank && strikes >= 12 && !onAnvil && hottest(bar) > 720 && hint.textContent !== t('hint.tank')) {
+      hint.textContent = t('hint.tank')
+      hint.classList.remove('gone')
+    }
+    if (everInTank && hint.textContent === t('hint.tank')) hint.classList.add('gone')
     if (placeText !== shownPlace) place.textContent = shownPlace = placeText
 
     if (settings.heatWords || settings.heatNumber) {
@@ -380,7 +558,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
       if (text !== shownHeat) readout.textContent = shownHeat = text
     }
 
-    view.render(bar, tipDepth, blast)
+    view.render(bar, tipDepth, blast, lane)
     requestAnimationFrame(frame)
   }
   requestAnimationFrame(frame)

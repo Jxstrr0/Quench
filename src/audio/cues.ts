@@ -2,7 +2,8 @@
  * Sound cues: a pure map from what happened to what to play. No Web Audio
  * here, so it can be tested. The engine turns a voice into sound.
  */
-import { HAMMER_SOUND } from '../data/audio'
+import { HAMMER_SOUND, QUENCH_SOUND } from '../data/audio'
+import type { MediumId } from '../data/media'
 
 export interface HammerVoice {
   /** Overall loudness, 0 to 1. */
@@ -29,5 +30,25 @@ export function hammerVoice(temp: number, thickness: number, force: number): Ham
     ring,
     ringHz: k.ringBase + k.ringThinRise * thin + k.ringColdRise * (1 - heat),
     ringSeconds: k.ringShortest + k.ringExtra * ring,
+  }
+}
+
+export interface HissVoice {
+  /** Overall loudness, 0 to 1. 0 means no sound at all. */
+  gain: number
+  /** How bright the hiss is: the filter's centre, in Hz. */
+  hz: number
+  seconds: number
+}
+
+/** The sound of the bar going into the quench, from how hot it is and what it goes into. */
+export function hissVoice(temp: number, medium: MediumId): HissVoice {
+  const k = QUENCH_SOUND
+  const heat = clamp01((temp - k.quietTemp) / (k.fullTemp - k.quietTemp))
+  const wet = medium === 'water' || medium === 'brine'
+  return {
+    gain: heat * (medium === 'plates' ? k.platesGain : 1),
+    hz: wet ? k.waterHz : k.oilHz,
+    seconds: k.shortest + (k.longest - k.shortest) * heat,
   }
 }

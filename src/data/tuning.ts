@@ -110,4 +110,27 @@ export const BENCH = {
   tangShare: 0.65,
   /** The stock a fresh bar is cut from. */
   stock: { length: 240, width: 32, thickness: 6 },
+  /**
+   * The quench tank is a trough beside the rail. The bar's `lane` runs from 0
+   * (on the rail) to 1 (in the tank). This is how far apart they are, in mm.
+   */
+  tankOffset: 230,
+  /** The bar is on the rail up to this lane, in the tank from this lane, and in the air between. */
+  laneRail: 0.25,
+  laneTank: 0.85,
+  /** The bar can only cross to the tank once its tip is this far out of the fire. */
+  tankFrom: -20,
+  /** In the tank the tip stays between these rail positions, so the bar stays in the trough. */
+  tankTipMin: -100,
+  tankTipMax: -25,
+  /** Seconds for a let-go bar to settle onto the rail or into the tank. */
+  laneSettle: 0.15,
+  /** Sim seconds per real second in the tank: the quench runs in real time. */
+  tankTimeScale: 1,
+  /** Sim seconds per real second while "Let it cool" is held. */
+  coolTimeScale: 20,
+  /** Moving the bar along the tank this fast, in mm per second, is full agitation... */
+  stirSpeed: 160,
+  /** ...and the stirring dies away over this many seconds once it stops. */
+  stirFade: 0.5,
 } as const

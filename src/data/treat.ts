@@ -153,3 +153,24 @@ export const COOL = {
   /** Give up after this many sim seconds (it never takes this long). */
   maxSeconds: 3600,
 } as const
+
+/** How the inspection puts the steel into words. */
+export const INSPECT = {
+  /** A file skates over steel at least this hard, HRC, and bites freely below `fileBites`. */
+  fileSkates: 58,
+  fileBites: 48,
+  /** The blade is called uneven when its hardest and softest spots are this far apart. */
+  unevenSpread: 6,
+  /** Grain under this is fine; under `grainMedium` it is medium; over it, coarse. */
+  grainFine: 1.4,
+  grainMedium: 2.5,
+  /** Toughness under this is brittle; from `toughFrom` up it is tough. */
+  brittleBelow: 0.25,
+  toughFrom: 0.45,
+  /** The blade counts as hardened when at least this share of it is martensite. */
+  hardenedFrom: 0.5,
+  /** The magnet "lets go" when at least this share of the blade is past the magnet point. */
+  magnetAll: 0.9,
+  /** A blade tempered this many times is done. */
+  tempersWanted: 2,
+} as const

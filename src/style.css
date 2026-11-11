@@ -133,6 +133,13 @@ html, body {
   touch-action: none;
 }
 .btn-bellows.held { background: var(--heat-1); border-color: var(--heat-4); }
+.btn-cool { border-color: var(--quench); }
+.btn-cool.held { background: #173245; border-color: #7fb6d6; }
+.btn:disabled { opacity: 0.45; }
+/* In the tank: the stirring meter and one line of help. */
+.controls-tank { display: flex; flex-direction: column; justify-content: center; gap: 10px; height: 70px; }
+.meter-fill { position: absolute; top: 0; bottom: 0; left: 0; width: 0; background: var(--quench); }
+.tank-note { margin: 0; text-align: center; color: var(--muted); font-size: 0.9rem; line-height: 1.25; }
 /* Blow buttons and the rhythm meter. */
 .btn-blow { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; padding: 4px 2px; }
 .blow-name { font-family: var(--font-head); font-weight: 600; font-size: 1.05rem; }
@@ -164,13 +171,15 @@ html, body {
 }
 #app.wide .controls-row { grid-template-columns: repeat(2, 1fr); }
 /* Two rows of blows here, so the shared slot is taller. */
-#app.wide .controls-anvil, #app.wide .btn-bellows { height: 126px; }
+#app.wide .controls-anvil, #app.wide .controls-tank, #app.wide .btn-bellows { height: 126px; }
+#app.wide .controls-row .btn { min-height: 42px; }
 #app.wide .hud-hint { bottom: calc(40px + var(--safe-b)); right: 250px; }
 
 /* Sheets: reports and settings are printed on paper cards. */
 .sheet {
   position: absolute;
   inset: 0;
+  z-index: 10;
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -191,6 +200,17 @@ html, body {
 .sheet-title { margin: 0 0 6px; font-family: var(--font-head); font-weight: 600; font-size: 1.4rem; }
 .sheet-note { margin: 0 0 10px; font-size: 0.95rem; line-height: 1.4; }
 .sheet-card .btn { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.sheet-row { display: flex; justify-content: space-between; gap: 12px; margin: 0; padding: 9px 0; border-top: 1px solid rgba(28, 26, 23, 0.18); line-height: 1.3; }
+.sheet-row-label { font-weight: 700; flex: none; }
+.sheet-row-value { text-align: right; }
+.sheet-small { margin-top: 2px; font-size: 0.82rem; opacity: 0.75; }
+.sheet-next { margin-top: 10px; padding: 8px 10px; border-left: 4px solid var(--heat-3); background: rgba(28, 26, 23, 0.06); }
+.sheet-result { min-height: 1.4em; margin-top: 12px; font-weight: 700; }
+.dial { padding: 8px 0; border-top: 1px solid rgba(28, 26, 23, 0.18); }
+.dial-label { margin: 0 0 6px; font-weight: 700; }
+.dial-row { display: flex; align-items: center; gap: 10px; }
+.sheet-card .dial-step { flex: none; width: 48px; font-size: 1.4rem; font-weight: 700; }
+.dial-range { flex: 1; min-width: 0; height: 44px; margin: 0; accent-color: var(--heat-2); touch-action: pan-y; }
 .toggle { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 6px 0; border-top: 1px solid rgba(28, 26, 23, 0.18); }
 .toggle input { width: 26px; height: 26px; flex: none; accent-color: var(--heat-2); }
 .toggle-text { display: flex; flex-direction: column; }
