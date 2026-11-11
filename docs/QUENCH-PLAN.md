@@ -573,11 +573,12 @@ Kelbo has asked for Quench to be added to the studio site, so this plan allows
 | Q5 | Should the heat number be hidden by default? | Hidden in Career (a pyrometer is a tool you buy). Always available in Free forge and as an accessibility assist. |
 | Q6 | Can a commission blade be redone? | Redo allowed; steel, fuel and hours are spent and the due date stands. **But hours and cost must stay a light touch.** Kelbo: they are the base for a career, but if they bite hard they kill the skill ceiling. Tune so a skilled player is never held back by money or the clock. |
 | Q7 | When is Quench listed on the studio site? | **Hidden until Kelbo says so.** Do not make the listing public at PR 6 without asking. |
-| Q8 | An examiner voice through ElevenLabs? | Decide at PR 10, after hearing the game without it. |
+| Q8 | An examiner voice through ElevenLabs? | Yes to drafting it: script sheet and credit quote first (`docs/voice/QUOTE.md`). Nothing is generated until Kelbo says yes to the quote. |
 | Q9 | Who sets up the `quench` DNS record and Pages domain? | Kelbo, any time after PR 0. |
 | Q10 | How does a sword longer than the fire get heated? | Start with the short fire and slide the blade through. A long fire (the trench forge) is a tool bought in the Career. |
 | Q11 | How does teaching work (PR 8)? | The guided first blade is the first career job, a real commission from a neighbour. The coach goes step by step: one instruction at a time, the next shows when the last is done, and the player stays free to do anything. The glossary is both underlined words in reports and cards, and a Help button listing every word. |
 | Q12 | Bake a lightmap for the room, or keep it lit live only (PR 9)? | Do the bake. Model the last small props first, then bake, then go on to sound. |
+| Q13 | Recorded sounds, or keep everything made in code (PR 10)? | Add CC0 recordings over the made-in-code sounds. ElevenLabs sound effects may be quoted and used where no CC0 recording fits, under the same quote-first rule. |
 
 Working rules agreed the same day:
 
