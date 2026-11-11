@@ -13,7 +13,7 @@ import type { Medium, MediumId } from '../data/media'
 import { medium } from '../data/media'
 import { steel } from '../data/steels'
 import { COOL, WARP } from '../data/treat'
-import { FORGE, KELVIN, SCALE, SHOP, SIGMA, SIM, STEEL_PHYSICS } from '../data/tuning'
+import { FORGE, KELVIN, SCALE, SHOP, SIGMA, SIM, STEEL_PHYSICS, TRENCH } from '../data/tuning'
 import type { Bar, Segment } from './bar'
 import { edgeZoneArea, fitBevels, hottest, isGround, segmentCentres, steelVolume } from './bar'
 import { recordFire, recordOut, recordQuench } from './history'
@@ -27,7 +27,7 @@ export type Placement =
    * In the forge, tip first. `depth` is how far the tip is past the mouth, mm
    * (anything still outside the mouth is in air). `blast` is the bellows, 0 to 1.
    */
-  | { where: 'fire'; depth: number; blast: number }
+  | { where: 'fire'; depth: number; blast: number; long?: boolean }
   /** Lying flat on the anvil. */
   | { where: 'anvil' }
   /**
@@ -56,13 +56,14 @@ function pow4(x: number): number {
   return x2 * x2
 }
 
-/** Fire temperature at `d` mm inside the mouth, for a bellows setting of 0 to 1. */
-export function fireTempAt(d: number, blast: number): number {
+/** Fire temperature at `d` mm inside the mouth, for a bellows setting of 0 to 1. `long` is the trench forge. */
+export function fireTempAt(d: number, blast: number, long = false): number {
+  const fire = long ? TRENCH : FORGE
   const core = FORGE.coreTempIdle + (FORGE.coreTempBlast - FORGE.coreTempIdle) * clamp01(blast)
-  if (d <= FORGE.coreStart) return FORGE.mouthTemp + (core - FORGE.mouthTemp) * smooth(d / FORGE.coreStart)
-  if (d <= FORGE.coreEnd) return core
+  if (d <= fire.coreStart) return FORGE.mouthTemp + (core - FORGE.mouthTemp) * smooth(d / fire.coreStart)
+  if (d <= fire.coreEnd) return core
   const back = FORGE.mouthTemp + (core - FORGE.mouthTemp) * FORGE.backFraction
-  return core + (back - core) * smooth((d - FORGE.coreEnd) / (FORGE.depth - FORGE.coreEnd))
+  return core + (back - core) * smooth((d - fire.coreEnd) / (fire.depth - fire.coreEnd))
 }
 
 /** Joules needed to warm this segment by one degree. */
@@ -174,8 +175,8 @@ export function stepHeat(bar: Bar, placement: Placement): void {
 
     let floor = -Infinity
     // The fire is open at the back: steel pushed out through it is in the air again.
-    if (placement.where === 'fire' && placement.depth - x > 0 && placement.depth - x <= FORGE.depth) {
-      watts += fireWatts(s, area, fireTempAt(placement.depth - x, placement.blast))
+    if (placement.where === 'fire' && placement.depth - x > 0 && placement.depth - x <= (placement.long ? TRENCH : FORGE).depth) {
+      watts += fireWatts(s, area, fireTempAt(placement.depth - x, placement.blast, placement.long))
     } else if (placement.where === 'quench' && bath && (placement.depth === undefined || placement.depth - x > 0)) {
       watts += quenchWatts(s, area, bath, placement.agitation)
       // A fierce quench on a thin section must not cool it past the bath in one step.

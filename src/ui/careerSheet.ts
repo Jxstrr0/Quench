@@ -10,7 +10,7 @@ import type { StringKey } from '../data/strings'
 import { t } from '../data/strings'
 import type { CareerSave } from '../persist/career'
 import type { Brief, CareerState } from '../sim/career'
-import { accept, buyTool, drop, nextRating, oddJob, provingBar, provingDay, wantedPattern } from '../sim/career'
+import { accept, buyTool, drop, nextRating, oddJob, provingBar, provingDay, toolOffered, wantedPattern } from '../sim/career'
 import { briefNeeds, briefTerms, briefTitle, briefWhat, money, ratingName, testList } from './careerWords'
 import type { Sheet } from './dom'
 import { button, createSheet, el } from './dom'
@@ -38,6 +38,7 @@ const TOOL_KEY: Record<ToolId, [StringKey, StringKey]> = {
   pyrometer: ['tool.pyrometer', 'tool.pyrometer.what'],
   hardnessTester: ['tool.hardnessTester', 'tool.hardnessTester.what'],
   loupe: ['tool.loupe', 'tool.loupe.what'],
+  trenchForge: ['tool.trenchForge', 'tool.trenchForge.what'],
 }
 
 /** A button that asks for a second tap before it acts. */
@@ -205,7 +206,7 @@ export function createCareerSheet(host: HTMLElement, forge: CareerHost): Sheet {
 
     body.append(el('h3', 'sheet-sub', t('career.proving')), provingCard(state))
     body.append(el('h3', 'sheet-sub', t('career.tools')))
-    for (const id of Object.keys(TOOLS) as ToolId[]) body.append(toolCard(state, id))
+    for (const id of Object.keys(TOOLS) as ToolId[]) if (toolOffered(state, id)) body.append(toolCard(state, id))
 
     const odd = button('btn btn-wide btn-quiet')
     odd.textContent = t('career.oddJob', { money: money(MONEY.oddJob) })
