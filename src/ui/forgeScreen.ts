@@ -44,7 +44,7 @@ import { barFault, blowForce, strike } from '../sim/hammer'
 import type { Placement } from '../sim/heat'
 import { advance } from '../sim/heat'
 import { magnetTest } from '../sim/inspect'
-import { railReach, shapeScore } from '../sim/shape'
+import { railReach, shapeScore, wantsLongFire } from '../sim/shape'
 import type { TrialReport, TrialResult } from '../sim/trials'
 import { createBackupSheet } from './backupSheet'
 import { createCareerSheet } from './careerSheet'
@@ -90,10 +90,10 @@ const CRACK_KEY: Record<CrackCause, StringKey> = {
   thinEdge: 'crack.thinEdge',
 }
 
-function placementFor(tipDepth: number, blast: number, lane: number, medium: MediumId, agitation: number): Placement {
+function placementFor(tipDepth: number, blast: number, lane: number, medium: MediumId, agitation: number, long: boolean): Placement {
   if (lane >= BENCH.laneTank) return { where: 'quench', medium, agitation }
   if (lane > BENCH.laneRail) return { where: 'air' }
-  if (tipDepth > 0) return { where: 'fire', depth: tipDepth, blast }
+  if (tipDepth > 0) return { where: 'fire', depth: tipDepth, blast, long }
   if (tipDepth <= BENCH.anvilFrom) return { where: 'anvil' }
   return { where: 'air' }
 }
@@ -277,12 +277,22 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   const applySteel = () => {
     steelBtn.textContent = `${t('steel.label')}: ${STEELS[steelId].name}`
   }
+  /**
+   * The trench forge is lit for a blade too long for the short fire: always in
+   * Free forge, in a career once it has been bought.
+   */
+  const longFire = () => wantsLongFire(target) && (!career || career.tools.includes('trenchForge'))
+  const applyFire = () => {
+    view.setFire(longFire())
+    tipDepth = Math.min(tipDepth, railReach(target, longFire()))
+  }
   /** Forge to this pattern from now on: its outline, its steel, and how far its bar can go into the fire. */
   const setPattern = (id: PatternId) => {
     target = pattern(id)
     steelId = target.steel
     view.setTarget(target)
     applySteel()
+    applyFire()
   }
   const applyMedium = () => {
     tankBtn.textContent = `${t('tank.label')}: ${t(MEDIUM_KEY[mediumId][0])}`
@@ -519,6 +529,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   const careerChanged = () => {
     showCareer()
     applySettings()
+    applyFire()
     saveCareer()
   }
   /** Spend a stage's bench hours, once for each bar. */
@@ -568,6 +579,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
     saveActive(0)
     showCareer()
     applySettings()
+    applyFire()
     freshBar()
   }
   /**
@@ -713,7 +725,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
     lastX = e.clientX
     lastY = e.clientY
     const before = tipDepth
-    tipDepth = Math.min(railReach(target), Math.max(BENCH.railMin, tipDepth + pixels * view.mmPerPixel))
+    tipDepth = Math.min(railReach(target, longFire()), Math.max(BENCH.railMin, tipDepth + pixels * view.mmPerPixel))
     // The bar crosses to the tank only once its tip is clear of the fire.
     if (lane > 0 || tipDepth <= BENCH.tankFrom) {
       lane = Math.min(1, Math.max(0, lane + (across * view.mmPerPixel) / BENCH.tankOffset))
@@ -744,7 +756,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
       return
     }
     const step = e.shiftKey ? 40 : 12
-    if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') tipDepth = Math.min(railReach(target), tipDepth + step)
+    if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') tipDepth = Math.min(railReach(target, longFire()), tipDepth + step)
     else if (e.key === 'ArrowDown' || e.key === 'ArrowRight') tipDepth = Math.max(BENCH.railMin, tipDepth - step)
     else if (e.key === 'b' || e.key === 'B') hold(true)
     else if (e.key === 'q' || e.key === 'Q') {
@@ -823,7 +835,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
     stirMoved = 0
     agitation = Math.max(stirring, agitation - dt / BENCH.stirFade)
 
-    const placement = placementFor(tipDepth, blast, lane, mediumId, agitation)
+    const placement = placementFor(tipDepth, blast, lane, mediumId, agitation, longFire())
     const inTank = placement.where === 'quench'
     const cooling = placement.where === 'air' && coolHeld
     const scale = inTank

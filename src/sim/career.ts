@@ -257,9 +257,15 @@ export function deliver(state: CareerState, report: TrialReport, made: PatternId
   return { taken: true, unmet: miss, late, pay, tip, rep }
 }
 
-/** Buy a tool. False when it is already owned or the money is not there. */
+/** True when this tool is on offer at the smith's rating. */
+export function toolOffered(state: CareerState, id: ToolId): boolean {
+  const from = TOOLS[id].from
+  return !from || RATINGS.indexOf(state.rating) >= RATINGS.indexOf(from)
+}
+
+/** Buy a tool. False when it is already owned, not yet on offer, or the money is not there. */
 export function buyTool(state: CareerState, id: ToolId): boolean {
-  if (state.tools.includes(id) || state.money < TOOLS[id].price) return false
+  if (state.tools.includes(id) || !toolOffered(state, id) || state.money < TOOLS[id].price) return false
   state.money -= TOOLS[id].price
   state.tools.push(id)
   return true

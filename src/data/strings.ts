@@ -218,6 +218,8 @@ const STRINGS = {
   'tool.hardnessTester.what': 'Puts a hardness number on the blade card, where a file only says soft or hard.',
   'tool.loupe': 'Loupe',
   'tool.loupe.what': 'Shows the grain on the blade card without breaking the blade.',
+  'tool.trenchForge': 'Trench forge',
+  'tool.trenchForge.what': 'A long fire. It heats a whole sword blade at once, so you no longer slide it through the short fire.',
   'tool.buy': 'Buy it ({money})',
   'tool.owned': 'On your bench.',
   'tool.short': 'Costs {money}: more than you have.',

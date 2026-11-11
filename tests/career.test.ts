@@ -21,6 +21,7 @@ import {
   spendHours,
   startBlade,
   swapBlade,
+  toolOffered,
   unmet,
   wantedPattern,
 } from '../src/sim/career'
@@ -478,5 +479,23 @@ describe('sword commissions', () => {
     expect(sitProving(c, report(['fit', 'rope', 'chop']), 'shortSword')).toBeNull()
     expect(c.money).toBe(MONEY.start)
     expect(sitProving(c, report(['fit', 'rope', 'chop']), 'campKnife')?.passed).toBe(true)
+  })
+})
+
+describe('the trench forge as a tool', () => {
+  it('is offered from Journeyman, and not before', () => {
+    const c = newCareer(4)
+    c.money = TOOLS.trenchForge.price * 2
+    expect(toolOffered(c, 'trenchForge')).toBe(false)
+    expect(toolOffered(c, 'pyrometer')).toBe(true)
+    expect(buyTool(c, 'trenchForge')).toBe(false)
+    c.rating = 'journeyman'
+    expect(toolOffered(c, 'trenchForge')).toBe(true)
+    expect(buyTool(c, 'trenchForge')).toBe(true)
+    expect(c.tools).toContain('trenchForge')
+    expect(c.money).toBe(TOOLS.trenchForge.price)
+  })
+  it('costs less than one sword commission pays', () => {
+    expect(TOOLS.trenchForge.price).toBeLessThan(BRIEFS.clubSword.pay[0])
   })
 })

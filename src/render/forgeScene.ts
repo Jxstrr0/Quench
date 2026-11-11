@@ -43,7 +43,7 @@ import type { MediumId } from '../data/media'
 import type { Pattern } from '../data/patterns'
 import { GRIND, SHARPEN } from '../data/grind'
 import { HANDLE_LOOK } from '../data/look'
-import { BENCH, FORGE } from '../data/tuning'
+import { BENCH, FORGE, TRENCH } from '../data/tuning'
 import type { Bar, Segment } from '../sim/bar'
 import { barLength, nearestSegment, segmentCentres } from '../sim/bar'
 import { patternLength } from '../sim/shape'
@@ -92,6 +92,8 @@ export interface ForgeView {
   towardTank(dx: number, dy: number): number
   /** Draw this pattern as a faint outline over the bar, or pass null for none. */
   setTarget(pattern: Pattern | null): void
+  /** Show the long trench forge in place of the short fire, or put the short fire back. */
+  setFire(long: boolean): void
   /** Where a screen point falls on the bar's plane: mm from the tip, and mm across from the bar's middle line. */
   pointOnBar(clientX: number, clientY: number): { at: number; across: number } | null
   /** Show the hammer landing `at` mm from the tip. */
@@ -124,40 +126,46 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
   floor.position.y = -0.12
   scene.add(floor)
 
-  const depth = FORGE.depth * MM
-  const forge = new Group()
-  const wall = 0.03
-  const trough = 0.2
-  const bed = box(depth + wall, 0.08, trough + wall * 2, 0x24282d)
-  bed.position.set(-(depth + wall) / 2, -0.07, 0)
-  // The back wall has a port in it: a long blade is pushed through the fire and out.
-  const port = 0.07
-  const backWide = (trough + wall * 2 - port) / 2
-  const back = box(wall, 0.11, backWide, 0x2a2f35)
-  back.position.set(-depth - wall / 2, 0.025, (port + backWide) / 2)
-  const backB = back.clone()
-  backB.position.z = -back.position.z
-  const sideA = box(depth, 0.11, wall, 0x2a2f35)
-  sideA.position.set(-depth / 2, 0.025, trough / 2 + wall / 2)
-  const sideB = sideA.clone()
-  sideB.position.z = -sideA.position.z
-  forge.add(bed, back, backB, sideA, sideB)
-
-  // The coals: an unlit glowing bed, brightest over the fire's core.
+  // The forge: the short fire, and the long trench forge that takes its place for long blades.
   const coalMat = new MeshBasicMaterial({ color: 0xe2571e })
-  const coals = new Mesh(new PlaneGeometry(depth, trough), coalMat)
-  coals.rotation.x = -Math.PI / 2
-  coals.position.set(-depth / 2, -0.028, 0)
   const coreMat = new MeshBasicMaterial({ color: 0xf59a23 })
-  const coreLen = (FORGE.coreEnd - FORGE.coreStart) * MM
-  const core = new Mesh(new PlaneGeometry(coreLen, trough * 0.7), coreMat)
-  core.rotation.x = -Math.PI / 2
-  core.position.set(-(FORGE.coreStart + FORGE.coreEnd) * 0.5 * MM, -0.027, 0)
-  forge.add(coals, core)
+  const buildForge = (fire: { coreStart: number; coreEnd: number; depth: number }): Group => {
+    const depth = fire.depth * MM
+    const forge = new Group()
+    const wall = 0.03
+    const trough = 0.2
+    const bed = box(depth + wall, 0.08, trough + wall * 2, 0x24282d)
+    bed.position.set(-(depth + wall) / 2, -0.07, 0)
+    // The back wall has a port in it: a long blade is pushed through the fire and out.
+    const port = 0.07
+    const backWide = (trough + wall * 2 - port) / 2
+    const back = box(wall, 0.11, backWide, 0x2a2f35)
+    back.position.set(-depth - wall / 2, 0.025, (port + backWide) / 2)
+    const backB = back.clone()
+    backB.position.z = -back.position.z
+    const sideA = box(depth, 0.11, wall, 0x2a2f35)
+    sideA.position.set(-depth / 2, 0.025, trough / 2 + wall / 2)
+    const sideB = sideA.clone()
+    sideB.position.z = -sideA.position.z
+    forge.add(bed, back, backB, sideA, sideB)
+
+    // The coals: an unlit glowing bed, brightest over the fire's core.
+    const coals = new Mesh(new PlaneGeometry(depth, trough), coalMat)
+    coals.rotation.x = -Math.PI / 2
+    coals.position.set(-depth / 2, -0.028, 0)
+    const coreLen = (fire.coreEnd - fire.coreStart) * MM
+    const core = new Mesh(new PlaneGeometry(coreLen, trough * 0.7), coreMat)
+    core.rotation.x = -Math.PI / 2
+    core.position.set(-(fire.coreStart + fire.coreEnd) * 0.5 * MM, -0.027, 0)
+    forge.add(coals, core)
+    return forge
+  }
+  const forge = buildForge(FORGE)
+  const trench = buildForge(TRENCH)
+  trench.visible = false
   const fireLight = new PointLight(0xf59a23, 0.4, 1.6, 2)
-  fireLight.position.set(-depth * 0.5, 0.12, 0)
-  forge.add(fireLight)
-  scene.add(forge)
+  fireLight.position.set(-FORGE.depth * MM * 0.5, 0.12, 0)
+  scene.add(forge, trench, fireLight)
 
   const anvilLen = BENCH.anvilLength * MM
   const anvil = box(anvilLen, 0.1, 0.11, 0x3a4047, 0.55, 0.7)
@@ -347,7 +355,7 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
 
   // --- Camera fit ---------------------------------------------------------
   // The rail and everything on it: from the back of the fire to the far end of the anvil.
-  const railFrom = -depth - 0.05
+  let railFrom = -FORGE.depth * MM - 0.05
   const railTo = BENCH.anvilGap * MM + anvilLen + 0.03
   /** The wide view grows to keep a long bar in sight: out past the back of the fire, or past the end of the anvil. */
   let wideFrom = railFrom
@@ -493,6 +501,13 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
       tongs.position.set(length - 0.025 + 0.18, 0, (last.width / 2 - spine) * MM)
       jawA.position.y = half
       jawB.position.y = -half
+    },
+    setFire(long) {
+      forge.visible = !long
+      trench.visible = long
+      const depth = (long ? TRENCH : FORGE).depth * MM
+      railFrom = -depth - 0.05
+      fireLight.position.x = -depth * 0.5
     },
     setTarget(pattern) {
       hasTarget = pattern !== null

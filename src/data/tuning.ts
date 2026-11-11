@@ -70,6 +70,18 @@ export const FORGE = {
   radiantView: 0.85,
 } as const
 
+/**
+ * The trench forge: a long fire for long blades, bought in the Career. Same
+ * heat as the short fire, on a longer bed. In mm from the mouth.
+ */
+export const TRENCH = {
+  coreStart: 50,
+  coreEnd: 510,
+  depth: 560,
+  /** The tip stops this far short of the back wall. */
+  backGap: 35,
+} as const
+
 /** Scale (oxide) and carbon loss at heat. */
 export const SCALE = {
   /** No scale forms below this. */

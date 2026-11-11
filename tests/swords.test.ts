@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { PATTERNS } from '../src/data/patterns'
 import { steel } from '../src/data/steels'
-import { BENCH } from '../src/data/tuning'
+import { BENCH, TRENCH } from '../src/data/tuning'
 import type { Bar, Segment } from '../src/sim/bar'
 import { createBar, edgeThickness, segmentCentres } from '../src/sim/bar'
 import { fitHandle, strokeStone } from '../src/sim/finish'
 import { stepGrind } from '../src/sim/grind'
-import { advance, coolToRoom, stepHeat } from '../src/sim/heat'
-import { patternAt, patternLength, patternVolume, railReach } from '../src/sim/shape'
+import { advance, coolToRoom, fireTempAt, stepHeat } from '../src/sim/heat'
+import { patternAt, patternLength, patternVolume, railReach, wantsLongFire } from '../src/sim/shape'
 import { temperInOven } from '../src/sim/temper'
 import type { TrialReport } from '../src/sim/trials'
 import { runTrials } from '../src/sim/trials'
@@ -174,5 +174,42 @@ describe('heating a sword in a fire shorter than its blade', () => {
     expect(hottest).toBeLessThan(ST.burn)
     // But not evenly: that is what makes a sword hard to heat.
     expect(hottest - coolest).toBeGreaterThan(100)
+  })
+})
+
+describe('the trench forge', () => {
+  const P = PATTERNS.shortSword
+  const ST = steel(P.steel)
+  const blade = (bar: Bar): [number, number] => {
+    const c = segmentCentres(bar)
+    const temps = bar.segments.filter((_, i) => (c[i] as number) >= 450 * 0.1 && (c[i] as number) <= 450 * 0.95).map((x) => x.temp)
+    return [Math.min(...temps), Math.max(...temps)]
+  }
+  it('holds the whole blade, short of its back wall', () => {
+    expect(wantsLongFire(P)).toBe(true)
+    expect(wantsLongFire(PATTERNS.campKnife)).toBe(false)
+    expect(railReach(P, true)).toBe(TRENCH.depth - TRENCH.backGap)
+    expect(railReach(P, true)).toBeGreaterThan(patternLength(P) * P.bladeShare + TRENCH.coreStart)
+  })
+  it('burns as hot as the short fire, over a longer core', () => {
+    expect(fireTempAt(300, 0.5, true)).toBe(fireTempAt(120, 0.5))
+    expect(fireTempAt(300, 0.5, true)).toBeGreaterThan(fireTempAt(300, 0.5))
+    expect(fireTempAt(0, 0.5, true)).toBe(fireTempAt(0, 0.5))
+  })
+  it('brings a sword blade to hardening heat held still, and evenly', () => {
+    const bar = createBar(P.steel, P.stock)
+    const place = { where: 'fire' as const, depth: railReach(P, true), blast: 0.3, long: true }
+    for (let n = 0; n < 20 * 600 && blade(bar)[0] < ST.austenitize + 10; n++) stepHeat(bar, place)
+    const [coolest, hottest] = blade(bar)
+    expect(coolest).toBeGreaterThan(ST.austenitize)
+    expect(hottest).toBeLessThan(ST.burn)
+    expect(hottest - coolest).toBeLessThan(100)
+  })
+  it('leaves the short fire as it was', () => {
+    const a = createBar(P.steel, P.stock)
+    const b = createBar(P.steel, P.stock)
+    advance(a, { where: 'fire', depth: 250, blast: 0.5 }, 30)
+    advance(b, { where: 'fire', depth: 250, blast: 0.5, long: false }, 30)
+    expect(a.segments.map((s) => s.temp)).toEqual(b.segments.map((s) => s.temp))
   })
 })

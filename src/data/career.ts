@@ -186,10 +186,12 @@ export const SWORDS = {
   from: 'journeyman' as Rating,
 } as const
 
-export type ToolId = 'pyrometer' | 'hardnessTester' | 'loupe'
+export type ToolId = 'pyrometer' | 'hardnessTester' | 'loupe' | 'trenchForge'
 
 export interface Tool {
   price: number
+  /** The tool is offered once this rating is held. Left out: from the start. */
+  from?: Rating
 }
 
 /** Tools give information and control. They never do the work. */
@@ -200,4 +202,6 @@ export const TOOLS: Record<ToolId, Tool> = {
   hardnessTester: { price: 1500 },
   /** Shows the grain on the Inspect card without breaking anything. */
   loupe: { price: 350 },
+  /** A long fire that heats a whole sword blade at once. Swords can be made without it. */
+  trenchForge: { price: 2400, from: SWORDS.from },
 }

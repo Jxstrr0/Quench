@@ -4,6 +4,7 @@ The plan is `docs/QUENCH-PLAN.md`. Newest line first.
 
 | Version | PR | What changed |
 | --- | --- | --- |
+| 0.7.7.0 | PR 7j: The trench forge | A new tool on the Career card from Journeyman: the **trench forge** (kr 2,400), a long fire that holds a whole sword blade, so it heats evenly without sliding it through. Swords can still be made in the short fire without it. It is lit only for blades too long for the short fire; a knife keeps the short fire. Free forge always has it for the sword. 6 new tests (293 in total). |
 | 0.7.6.0 | PR 7i: Sword commissions | From Journeyman the board can offer a **short sword**: one for the collector Corwin Leith (must spring back true, fine finish only) and one for the Aldersay Cutting Club (must spring back true and cut the mat). They pay kr 2,800 to 4,000, take two days at the bench, and the bar costs a little more than a knife's. Taking a commission changes an untouched bar for the right stock; a blade already under way is left alone and New bar starts the right one. A customer who asked for a sword will not take a knife. The save now remembers which pattern is on the bench. 11 new tests (287 in total). |
 | 0.7.5.0 | PR 7h: The sword tests on the stand | The two sword tests now play at the trial stand. **Flex and spring back**: the blade stands on its tip against a peg and is bowed over, then springs back true, comes back bent, or snaps in the hand. **Rolled mat cut**: a slanting cut through a straw mat on a stand; the top slides off, folds over, or the mat only rocks. The view grows to fit a long blade in every test. |
 | 0.7.4.0 | PR 7g: The short sword in Free forge | A small **Change pattern** button beside the "% to shape" line swaps between the camp knife and the short sword in Free forge (it starts a new bar, in the pattern's steel). The sword's bar is 320 mm and draws out to 600 mm. The forge has a port in its back wall: a blade longer than the fire is pushed through and out, and steel outside the fire cools in the air, so a sword has to be slid back and forth to heat it (Kelbo's choice, 11 November 2026; a long trench forge comes as a bought tool). The view widens to keep a long bar in sight and the quench trough is longer for a sword. The trial card runs the sword's three tests; their playbacks are still a blade on the table (next PR). Blade length is now read from the pattern everywhere. 3 new tests (276 in total). |
@@ -34,7 +35,7 @@ The plan is `docs/QUENCH-PLAN.md`. Newest line first.
 
 Pages is on and the custom domain is set: https://quench.longlight.games/. Each merge to `main` publishes there.
 
-## Questions for Kelbo after playing 0.7.6.0
+## Questions for Kelbo after playing 0.7.7.0
 
 Kelbo said to keep rolling and tune later, so these are saved up, not blocking.
 
@@ -55,6 +56,7 @@ Kelbo said to keep rolling and tune later, so these are saved up, not blocking.
 - **Career numbers**: start with kr 600; a knife costs about kr 150 to make and pays kr 700 to 1,700; one knife is one day; the Proving every 14 days, entered without waiting (the calendar jumps to it); Journeyman after 4 deliveries. All easy to change.
 - **Tools.** In the Career the blade card no longer shows the hardness number or the grain until you buy the hardness tester (kr 1,500) or the loupe (kr 350); the pyrometer (kr 900) shows the heat number. The heat number assist still works in the Career for anyone who needs it. Prices right? Is hiding the grain too hard on a new smith?
 - **Sword money.** A sword pays about three times a knife and takes two days. Right? Should a sword be worth more to your name than a knife?
+- **Trench forge.** It costs kr 2,400, a bit less than one sword pays. Too cheap, too dear? In Free forge the sword always gets the long fire: would you rather Free forge kept the short fire so you can practise sliding?
 - **The sword in the fire.** About a minute and a half of sliding with some bellows brings the middle of the blade to hardening heat, and unevenly (the hottest part runs 200° over). Too slow, too fiddly, or the right step up? Is the scene too small on your phone when the sword is pushed right through?
 - **The save code.** Does Copy work on your phone, and does the code survive being pasted into Notes or a message and back? Does the backup file land somewhere you can find?
 - **The Proving.** A blade that passes is kept by the Guild, so it cannot also go to a customer; one that fails comes back to you and the fee is spent. Right?
