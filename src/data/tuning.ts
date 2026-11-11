@@ -170,3 +170,6 @@ export const TONGS = { length: 360 } as const
 
 /** The bend test's vice, in mm: how high its jaws stand off the table, how wide each jaw is, and the gap from the blade's middle to each jaw. The vice model is built to the same sizes. */
 export const VICE = { top: 130, jaw: 50, gap: 4 } as const
+
+/** The sword tests' props, in mm: how high the flex peg's block stands, how high the mat's stand is, and how wide its feet reach. The models are built to the same sizes. */
+export const SWORD_PROPS = { pegTop: 60, matFoot: 120, matStandWidth: 160 } as const

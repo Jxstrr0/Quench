@@ -1,7 +1,7 @@
 // The room's models: their shared sizes match the game's, and every file is inside its budget.
 import { readFileSync, readdirSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { BENCH, FORGE, TANK, TONGS, TRENCH, VICE, WORKBENCH } from '../src/data/tuning'
+import { BENCH, FORGE, SWORD_PROPS, TANK, TONGS, TRENCH, VICE, WORKBENCH } from '../src/data/tuning'
 
 const DIR = 'public/assets/models'
 const dims = JSON.parse(readFileSync('art/models/dims.json', 'utf8')) as Record<string, number>
@@ -30,6 +30,7 @@ describe('the room models', () => {
     expect([dims.benchLength, dims.benchWidth, dims.benchTop]).toEqual([WORKBENCH.length, WORKBENCH.wide, WORKBENCH.top])
     expect(dims.tongsLength).toBe(TONGS.length)
     expect([dims.viceTop, dims.viceJaw, dims.viceGap]).toEqual([VICE.top, VICE.jaw, VICE.gap])
+    expect([dims.pegTop, dims.matFoot, dims.matStandWidth]).toEqual([SWORD_PROPS.pegTop, SWORD_PROPS.matFoot, SWORD_PROPS.matStandWidth])
   })
   it('each have a budget, and keep to it', () => {
     expect(files.length).toBeGreaterThan(0)
