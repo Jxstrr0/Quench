@@ -43,7 +43,7 @@ import type { MediumId } from '../data/media'
 import type { Pattern } from '../data/patterns'
 import { GRIND, SHARPEN } from '../data/grind'
 import { HANDLE_LOOK } from '../data/look'
-import { BENCH, FORGE, TRENCH } from '../data/tuning'
+import { BENCH, FORGE, TANK, TRENCH } from '../data/tuning'
 import type { Bar, Segment } from '../sim/bar'
 import { barLength, nearestSegment, segmentCentres } from '../sim/bar'
 import { patternLength } from '../sim/shape'
@@ -183,11 +183,11 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
 
   // --- The quench tank: a trough beside the rail ----------------------------
   const tankZ = -BENCH.tankOffset * MM
-  const tankFrom = -0.01
-  const tankTo = 0.47
+  const tankFrom = TANK.from * MM
+  const tankTo = TANK.to * MM
   const tankLen = tankTo - tankFrom
-  const tankWide = 0.1
-  const rim = 0.03
+  const tankWide = TANK.wide * MM
+  const rim = TANK.rim * MM
   const tank = new Group()
   const tankFloor = box(tankLen + 0.02, 0.02, tankWide + 0.02, 0x1f2327, 0.8, 0.4)
   tankFloor.position.set((tankFrom + tankTo) / 2, -0.07, tankZ)
@@ -211,7 +211,11 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
   plateTop.position.set((tankFrom + tankTo) / 2, 0.02, tankZ - tankWide * 0.24)
   plateLow.visible = false
   plateTop.visible = false
-  tank.add(tankFloor, tankSideA, tankSideB, tankEndA, tankEndB, liquid, plateLow, plateTop)
+  const tankBox = new Group()
+  tankBox.add(tankFloor, tankSideA, tankSideB, tankEndA, tankEndB)
+  tank.add(tankBox, liquid, plateLow, plateTop)
+  // The modelled tank's origin is on the forge mouth's line, on the tank's centre line.
+  swapIn('tank', tankBox, (model) => model.position.set(0, 0, tankZ))
   scene.add(tank)
   const LIQUIDS: Record<MediumId, number> = { brine: 0x6f9aa6, water: 0x3d7ea6, fastOil: 0x5a431c, slowOil: 0x2c2210, plates: 0xa9afb6 }
   let plates = false

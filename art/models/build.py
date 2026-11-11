@@ -244,7 +244,53 @@ def trench():
     return hearth("trench", DIMS["trenchDepth"], DIMS["trenchCoreStart"], DIMS["trenchCoreEnd"])
 
 
-MODELS = {"anvil": anvil, "forge": forge, "trench": trench}
+def tank_steel():
+    """The quench tank: plate steel gone grey-blue with oil and scale."""
+    return material("tankSteel", (0.07, 0.08, 0.092), 0.55, 0.6)
+
+
+def tank():
+    """
+    The quench tank: a welded plate trough on two skids. Its origin is on the
+    forge mouth's line, on the tank's centre line, at the height of the anvil's
+    face. The game fills it with a live liquid surface and stretches the whole
+    tank along x for a long blade, so nothing here is a detail that would
+    look wrong stretched.
+    """
+    x0, x1 = DIMS["tankFrom"] * MM, DIMS["tankTo"] * MM
+    half = DIMS["tankWide"] * MM / 2
+    rim = DIMS["tankRim"] * MM
+    floor = -DIMS["floorDrop"] * MM
+    plate = 0.008
+    bottom = -0.06               # the inside floor
+    bm = bmesh.new()
+
+    # Floor plate, then the four walls.
+    box(bm, x0 - plate, x1 + plate, -half - plate, half + plate, bottom - plate, bottom)
+    for side in (1, -1):
+        y0, y1 = (half, half + plate) if side > 0 else (-half - plate, -half)
+        box(bm, x0 - plate, x1 + plate, y0, y1, bottom, rim - 0.006)
+    box(bm, x0 - plate, x0, -half, half, bottom, rim - 0.006)
+    box(bm, x1, x1 + plate, -half, half, bottom, rim - 0.006)
+    # A rolled lip round the top, standing a little proud of the walls.
+    lip = 0.005
+    for side in (1, -1):
+        y0, y1 = (half - 0.001, half + plate + lip) if side > 0 else (-half - plate - lip, -half + 0.001)
+        box(bm, x0 - plate - lip, x1 + plate + lip, y0, y1, rim - 0.006, rim, mat=1)
+    box(bm, x0 - plate - lip, x0 + 0.001, -half + 0.001, half - 0.001, rim - 0.006, rim, mat=1)
+    box(bm, x1 - 0.001, x1 + plate + lip, -half + 0.001, half - 0.001, rim - 0.006, rim, mat=1)
+    # Two skids lift it off the floor; a strap handle at each end.
+    for x in (x0 + 0.07, x1 - 0.07):
+        box(bm, x - 0.014, x + 0.014, -half - 0.03, half + 0.03, floor, bottom - plate, mat=2)
+    for x, out in ((x0 - plate, -1), (x1 + plate, 1)):
+        a, b = sorted((x, x + out * 0.016))
+        box(bm, a, b, -0.03, 0.03, -0.012, -0.004, mat=2)
+        for y in (-0.03, 0.024):
+            box(bm, a, b, y, y + 0.006, -0.028, -0.012, mat=2)
+    return finish("tank", bm, [tank_steel(), worn_steel(), steel()], bevel=0.002)
+
+
+MODELS = {"anvil": anvil, "forge": forge, "trench": trench, "tank": tank}
 
 
 def export(name):
