@@ -741,6 +741,16 @@ export const STRINGS = {
   'fmt.temp': '{n} °C',
   'credit': '© 2026 Kelbo / ',
   'credit.studio': 'Longlight Interactive',
+  'offline.title': 'Offline and install',
+  'offline.ready': 'Quench is saved on this device. It will open with no connection.',
+  'offline.notYet': 'Saving Quench on this device, so it can open with no connection. Leave the game open for a moment.',
+  'install.button': 'Install Quench',
+  'install.note': 'Puts Quench on your home screen, where it opens like an app.',
+  'install.ios': 'To put Quench on your home screen: tap Share in Safari, then Add to Home Screen. On an iPhone the installed game keeps its own saves, apart from Safari’s: copy a save code first (Career · Daily, then Save code and backup) and bring it back in the installed game.',
+  'install.done': 'Quench is installed on this device.',
+  'update.ready': 'A new version of Quench is ready.',
+  'update.reload': 'Reload',
+  'update.later': 'Later',
   'boot.fail': 'Quench could not start. Check your connection and reload.',
 } as const
 

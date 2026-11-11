@@ -34,7 +34,8 @@ function withoutHoles(body: string): string {
 /** The hard-coded text in one line of code, if any. */
 export function hardText(line: string): string[] {
   const found: string[] = []
-  if (/\b(?:alert|confirm|prompt)\(/.test(line)) found.push(line.trim())
+  // The browser's own dialogs, called bare or on the window. A method of that name on some other object is not one.
+  if (/(?:^|[^.\w]|\b(?:window|globalThis|self)\.)(?:alert|confirm|prompt)\(/.test(line)) found.push(line.trim())
   for (const sink of SINKS) {
     for (const m of line.matchAll(sink)) {
       const quote = m[1] as string
@@ -58,6 +59,8 @@ describe('text on screen', () => {
     expect(hardText('  name.textContent = `Blade ${n} of the day`')).toEqual(['Blade  of the day'])
     expect(hardText("  b.setAttribute('aria-label', 'Close')")).toEqual(['Close'])
     expect(hardText("  if (confirm('Sure?')) go()").length).toBe(1)
+    expect(hardText("  const name = window.prompt('Name?')").length).toBe(1)
+    expect(hardText("  alert('Saved')").length).toBe(1)
   })
   it('the scan lets through text that comes from the string table', () => {
     expect(hardText("  line.textContent = t('note.cold')")).toEqual([])
@@ -65,6 +68,8 @@ describe('text on screen', () => {
     expect(hardText("  const build = el('p', 'build', `v${a} · ${b}`)")).toEqual([])
     expect(hardText("  box.placeholder = 'QNC1:'")).toEqual([])
     expect(hardText("  const row = el('div', 'controls-row')")).toEqual([])
+    // The browser's offer to install has a method called prompt: it shows the browser's own sheet, with no words of ours.
+    expect(hardText('  void offer.prompt().then(done)')).toEqual([])
   })
   it('no screen code writes its own words: they all come from src/data/strings.ts', () => {
     const bad: string[] = []

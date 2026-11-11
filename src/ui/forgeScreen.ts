@@ -69,6 +69,7 @@ import { dayShort, hoursToNext, shareLines, todayUtc } from './dailyWords'
 import { shareBlade } from './shareCard'
 import { button, createSheet, el } from './dom'
 import { createGrindBench } from './grindBench'
+import { offlineParts } from './offline'
 import { MAGNET_KEY, createInspectSheet, createTemperSheet } from './treatSheets'
 import { createPickSheet } from './pickSheet'
 import { createTrialPlayback } from './trialPlayback'
@@ -352,7 +353,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
     graphics.choose(CHOICES[(CHOICES.indexOf(graphics.choice()) + 1) % CHOICES.length] as (typeof CHOICES)[number])
     showGraphics()
   })
-  sheet.card.append(gfx, gfxNote)
+  sheet.card.append(gfx, gfxNote, ...offlineParts())
   sheet.finish()
 
   const studio = el('p', 'studio', t('credit'))
