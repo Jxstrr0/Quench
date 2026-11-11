@@ -582,6 +582,8 @@ Kelbo has asked for Quench to be added to the studio site, so this plan allows
 | Q14 | Seax and hatchet (PR 11)? | **Leave both out.** The blade model has a straight back; a seax's dropped back and a hatchet's eye do not fit it. Six patterns ship: camp knife, cook's knife, cleaver, cutting knife, short sword, full sword. |
 | Q15 | How deep do pattern welding and san-mai go (PR 11)? | **Simple billets.** Pick a billet on the rack: plain, san-mai or layered. It must be struck at welding heat or it leaves a flaw that opens at the trial. A Fold button doubles the layers; the etch shows the pattern. No separate welding bench. |
 | Q16 | Pattern and steel in Free forge: tap through, or a list? | **A list card** for each, with a line about every choice. |
+| Q17 | How do billets come into the Career (PR 11)? | **Smith's choice.** On any commission the smith may start from a billet instead of a plain bar. It costs a little more and takes more bench time. Collectors pay extra for an etched layered or san-mai blade, and a couple of collector commissions ask for one outright. |
+| Q18 | From which Guild rating are billets offered? | **Journeyman**, the same point as the long fire. |
 
 Working rules agreed the same day:
 

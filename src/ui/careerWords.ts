@@ -36,6 +36,8 @@ const BRIEF_KEY: Record<BriefKind, StringKey> = {
   clubChopper: 'brief.clubChopper',
   collectorSword: 'brief.collectorSword',
   clubSword: 'brief.clubSword',
+  patternKnife: 'brief.patternKnife',
+  sanMaiKnife: 'brief.sanMaiKnife',
   masterSword: 'brief.masterSword',
   clubFullSword: 'brief.clubFullSword',
 }
@@ -59,8 +61,10 @@ export const testList = (ids: readonly (keyof typeof TRIAL_NAME)[]): string => i
 /** "Must pass: hanging rope cut, shave after the chop. Wants a fine finish." */
 export function briefNeeds(kind: BriefKind): string {
   const b = BRIEFS[kind]
-  const needs = t('brief.needs', { list: testList(b.needs) })
-  return b.fine ? `${needs} ${t('brief.fine')}` : needs
+  const parts = [t('brief.needs', { list: testList(b.needs) })]
+  if (b.fine) parts.push(t('brief.fine'))
+  if (b.billet) parts.push(t(`brief.billet.${b.billet}`, { n: b.layers ?? 0 }))
+  return parts.join(' ')
 }
 
 /** When a brief is due, from today. */
@@ -78,12 +82,17 @@ export function briefTerms(state: CareerState, brief: Brief): string {
 }
 
 /** Why a customer would not take a blade. */
-export function refusal(kind: BriefKind, unmet: Unmet, broke: boolean): string {
+export function refusal(kind: BriefKind, unmet: Unmet, broke: boolean, layers = 0): string {
   const name = customerName(kind)
-  if (unmet.pattern) return t('deliver.wrongPattern', { name, want: t(`pattern.${BRIEFS[kind].pattern}`).toLowerCase() })
+  const b = BRIEFS[kind]
+  if (unmet.pattern) return t('deliver.wrongPattern', { name, want: t(`pattern.${b.pattern}`).toLowerCase() })
   if (broke) return t('deliver.broken', { name })
+  if (unmet.billet === 'wrong') return t('deliver.billet.wrong', { name, billet: t(`billet.${b.billet ?? 'plain'}`).toLowerCase() })
+  if (unmet.billet === 'layers') return t('deliver.billet.layers', { name, n: b.layers ?? 0, have: layers })
   const parts: string[] = []
   if (unmet.trials.length > 0) parts.push(t('deliver.refused', { name, list: testList(unmet.trials) }))
   if (unmet.finish) parts.push(t(unmet.trials.length > 0 ? 'deliver.alsoFine' : 'deliver.refusedFine', { name }))
+  // The etch comes last of all: a blade that still needs work will be ground again, and that takes the etch off.
+  if (unmet.billet === 'etch') parts.push(t('deliver.billet.etch', { name }))
   return parts.join(' ')
 }

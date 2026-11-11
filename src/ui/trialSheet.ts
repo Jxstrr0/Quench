@@ -4,6 +4,7 @@
  * can be kept in the collection.
  */
 import type { BriefKind, Rating } from '../data/career'
+import { BILLET_WORK } from '../data/career'
 import type { Pattern } from '../data/patterns'
 import { t } from '../data/strings'
 import type { TrialId } from '../data/trials'
@@ -142,7 +143,7 @@ export function createTrialSheet(host: HTMLElement, forge: TrialHost): Sheet {
       const d = forge.deliver(report)
       if (!d) return
       if (!d.taken) {
-        said.textContent = refusal(kind, d.unmet, report.broke !== null)
+        said.textContent = refusal(kind, d.unmet, report.broke !== null, forge.bar().layers)
         said.hidden = false
         return
       }
@@ -150,6 +151,7 @@ export function createTrialSheet(host: HTMLElement, forge: TrialHost): Sheet {
       ended = true
       const lines = [t('deliver.paid', { name, money: money(d.pay) })]
       if (d.tip > 0) lines.push(t('deliver.tip', { money: money(d.tip) }))
+      if (d.extra > 0) lines.push(t(forge.bar().billet === 'layered' ? 'deliver.extra.layered' : 'deliver.extra.sanMai', { money: money(d.extra) }))
       if (d.late > 0) lines.push(t(d.late === 1 ? 'deliver.lateOne' : 'deliver.late', { n: d.late }))
       body.replaceChildren(note(lines.join(' ')), note(t('deliver.next', { money: money(forge.barCost()) }), 'sheet-note sheet-small'))
       sheet.card.scrollTop = 0
@@ -186,6 +188,7 @@ export function createTrialSheet(host: HTMLElement, forge: TrialHost): Sheet {
       body.replaceChildren(
         note(t('proving.passed', { day: r.day, rating: ratingName(r.rating) })),
         note(`“${t('examiner.provingPass')}”`),
+        ...(r.rating === BILLET_WORK.from ? [note(t('proving.billets'), 'sheet-note')] : []),
         note(t('proving.next', { money: money(forge.barCost()) }), 'sheet-note sheet-small'),
       )
       sheet.card.scrollTop = 0

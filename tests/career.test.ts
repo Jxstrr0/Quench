@@ -234,11 +234,11 @@ describe('commissions', () => {
   })
 
   it('says what a blade still lacks', () => {
-    expect(unmet('loftKnife', report(['rope', 'shave']), 'campKnife')).toEqual({ pattern: false, trials: [], finish: false })
-    expect(unmet('loftKnife', report(['rope'], ['shave']), 'campKnife')).toEqual({ pattern: false, trials: ['shave'], finish: false })
-    expect(unmet('loftKnife', report(['shave']), 'campKnife')).toEqual({ pattern: false, trials: ['rope'], finish: false })
-    expect(unmet('showKnife', report(['fit'], [], 'fair'), 'campKnife')).toEqual({ pattern: false, trials: [], finish: true })
-    expect(unmet('showKnife', report(['fit'], [], 'fine'), 'campKnife')).toEqual({ pattern: false, trials: [], finish: false })
+    expect(unmet('loftKnife', report(['rope', 'shave']), 'campKnife')).toEqual({ pattern: false, billet: null, trials: [], finish: false })
+    expect(unmet('loftKnife', report(['rope'], ['shave']), 'campKnife')).toEqual({ pattern: false, billet: null, trials: ['shave'], finish: false })
+    expect(unmet('loftKnife', report(['shave']), 'campKnife')).toEqual({ pattern: false, billet: null, trials: ['rope'], finish: false })
+    expect(unmet('showKnife', report(['fit'], [], 'fair'), 'campKnife')).toEqual({ pattern: false, billet: null, trials: [], finish: true })
+    expect(unmet('showKnife', report(['fit'], [], 'fine'), 'campKnife')).toEqual({ pattern: false, billet: null, trials: [], finish: false })
   })
 
   it('pays in full on time, and the group thinks more of the smith', () => {

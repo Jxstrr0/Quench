@@ -4,13 +4,13 @@
  * rating, the commission in hand and the board.
  */
 import type { ToolId } from '../data/career'
-import { MONEY, PROVINGS, REP, TOOLS } from '../data/career'
+import { BRIEFS, CUSTOMERS, MONEY, PROVINGS, REP, TOOLS } from '../data/career'
 import type { PatternId } from '../data/patterns'
 import type { StringKey } from '../data/strings'
 import { t } from '../data/strings'
 import type { CareerSave } from '../persist/career'
 import type { Brief, CareerState } from '../sim/career'
-import { accept, buyTool, drop, nextRating, oddJob, provingBar, provingDay, toolOffered, wantedPattern } from '../sim/career'
+import { accept, billetOffered, buyTool, drop, nextRating, oddJob, provingBar, provingDay, toolOffered, wantedPattern } from '../sim/career'
 import { briefNeeds, briefTerms, briefTitle, briefWhat, money, ratingName, testList } from './careerWords'
 import type { Sheet } from './dom'
 import { button, createSheet, el } from './dom'
@@ -104,6 +104,9 @@ export function createCareerSheet(host: HTMLElement, forge: CareerHost): Sheet {
       el('p', 'brief-needs', briefNeeds(brief.kind)),
       el('p', 'brief-terms', briefTerms(state, brief)),
     )
+    // A collector who has not asked for a billet still pays more for one, once the smith can make them.
+    const b = BRIEFS[brief.kind]
+    if (!b.billet && CUSTOMERS[b.customer].group === 'collectors' && billetOffered(state, 'layered')) card.append(note(t('brief.bonus'), 'sheet-note sheet-small'))
     if (action) card.append(action)
     return card
   }
