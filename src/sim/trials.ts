@@ -11,14 +11,14 @@ import { handle } from '../data/grind'
 import type { Pattern } from '../data/patterns'
 import type { Steel } from '../data/steels'
 import { steel } from '../data/steels'
-import { INSPECT } from '../data/treat'
+import { CLAY, INSPECT } from '../data/treat'
 import type { TrialId } from '../data/trials'
 import { BEND, BOARD, BRASS, CHOP, FIT, FLEX, MAT, ROPE, SHAVE, WHY, ZONE } from '../data/trials'
 import { STEEL_PHYSICS } from '../data/tuning'
 import type { Bar, Segment } from './bar'
-import { bevelLean, cloneBar, edgeThickness, isGround, segmentCentres, steelVolume } from './bar'
+import { bevelLean, cloneBar, edgeMartensite, edgeThickness, isGround, segmentCentres, steelVolume } from './bar'
 import { handleFit, keenestFor } from './finish'
-import { edgeHardness, edgeTemperOf, edgeToughness, hardness, toughness } from './properties'
+import { edgeDrawn, edgeHardness, edgeTemperOf, edgeToughness, hardness, toughness } from './properties'
 import { shapeScore } from './shape'
 import { equivalentTemp } from './temper'
 
@@ -75,6 +75,8 @@ export type TrialCause =
   | 'edgeOverheated'
   | 'lostCarbon'
   | 'temperedSoft'
+  /** Clay kept the back soft: right for a knife that must bend, wrong for a sword that must spring. */
+  | 'softBack'
   // brittle steel
   | 'untempered'
   | 'coarseGrain'
@@ -202,20 +204,20 @@ export function massAndBalance(bar: Bar, bladeShare: number): { mass: number; fo
 
 /** Why this steel is softer than it should be. */
 function whySoft(s: Segment, st: Steel): TrialCause {
-  if (s.martensite < INSPECT.hardenedFrom) return 'notHardened'
-  if (s.martensite < WHY.partHard) return 'partHardened'
-  if (hardness(s, st) - edgeHardness(s, st) >= INSPECT.edgeSoftBy) return 'edgeOverheated'
+  if (edgeMartensite(s) < INSPECT.hardenedFrom) return 'notHardened'
+  if (edgeMartensite(s) < WHY.partHard) return 'partHardened'
+  if (edgeDrawn(s, st) >= INSPECT.edgeSoftBy) return 'edgeOverheated'
   if (s.carbonCore - s.carbonSurface >= WHY.lostCarbon) return 'lostCarbon'
   return 'temperedSoft'
 }
 
 /** Why this steel is more brittle than it should be. */
 function whyBrittle(s: Segment, bar: Bar, st: Steel): TrialCause {
-  if (bar.tempers === 0 && s.martensite >= INSPECT.hardenedFrom) return 'untempered'
+  if (bar.tempers === 0 && edgeMartensite(s) >= INSPECT.hardenedFrom) return 'untempered'
   if (s.grain >= WHY.grain) return 'coarseGrain'
   if (s.damage >= WHY.damage) return 'coldWork'
   // The belt can take an edge into the brittle band on its own.
-  if (hardness(s, st) - edgeHardness(s, st) >= INSPECT.edgeSoftBy) return 'edgeOverheated'
+  if (edgeDrawn(s, st) >= INSPECT.edgeSoftBy) return 'edgeOverheated'
   const temp = equivalentTemp(edgeTemperOf(s))
   if (temp >= WHY.brittleFrom && temp <= WHY.brittleTo) return 'brittleBand'
   return s.grain >= INSPECT.grainFine ? 'coarseGrain' : 'temperedCool'
@@ -283,7 +285,7 @@ function chopTimber(r: Rig): TrialResult {
   let brittle = -1
   for (const i of r.blade) {
     const s = seg(r, i)
-    if (s.martensite < INSPECT.hardenedFrom) continue
+    if (edgeMartensite(s) < INSPECT.hardenedFrom) continue
     if (brittle < 0 || toughness(s, r.st) < toughness(seg(r, brittle), r.st)) brittle = i
   }
   if (brittle >= 0 && toughness(seg(r, brittle), r.st) < CHOP.snapTough) {
@@ -453,7 +455,8 @@ function flexAndSpring(r: Rig): TrialResult {
   const set = stays * FLEX.setPer100 * (r.guard / 100)
   // The blade goes on to the next test with the bend in it.
   r.bar.warp += set
-  return { id: 'flex', passed: false, score: 1 - stays, outcome: 'takesSet', cause: whySoft(s, r.st), value: set, at: r.centres[soft] as number }
+  const cause = s.soft >= CLAY.showFrom && edgeMartensite(s) >= WHY.partHard ? 'softBack' : whySoft(s, r.st)
+  return { id: 'flex', passed: false, score: 1 - stays, outcome: 'takesSet', cause, value: set, at: r.centres[soft] as number }
 }
 
 function matCut(r: Rig): TrialResult {

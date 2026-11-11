@@ -13,4 +13,6 @@ export const STEEL_LOOK = {
   /** After an etch: hardened steel goes dark, soft steel stays pale. */
   etchDark: 0x1f2226,
   etchPale: 0x9ea3a9,
+  /** Dry clay on the back of a blade. */
+  clay: 0xa08c78,
 } as const

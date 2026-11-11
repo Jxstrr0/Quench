@@ -11,10 +11,12 @@
  */
 import { BufferAttribute, BufferGeometry, Color, Mesh, MeshStandardMaterial } from 'three'
 import { STEEL_LOOK } from '../data/look'
+import { CLAY } from '../data/treat'
 import { steel } from '../data/steels'
 import type { Bar, Segment } from '../sim/bar'
+import { edgeMartensite } from '../sim/bar'
 import { glowAt } from '../sim/glow'
-import { edgeHardness, hardness } from '../sim/properties'
+import { edgeDrawn } from '../sim/properties'
 
 const MM = 0.001
 /** A warp of a millimetre or two would not show at this scale, so it is drawn this many times larger. */
@@ -26,6 +28,7 @@ const BLUED = new Color(STEEL_LOOK.blued)
 /** After an etch: hardened steel goes dark, soft steel stays pale. */
 const ETCH_DARK = new Color(STEEL_LOOK.etchDark)
 const ETCH_PALE = new Color(STEEL_LOOK.etchPale)
+const CLAY_COLOUR = new Color(STEEL_LOOK.clay)
 /** An edge this many HRC softer than the blade behind it shows fully blue. */
 const BLUE_AT = 6
 
@@ -127,6 +130,7 @@ export function createBarMesh(segmentCount: number): BarMesh {
   const colour = new Color()
   const edgeColour = new Color()
   const flatColour = new Color()
+  const backColour = new Color()
   const bevelColour = new Color()
 
   const put = (v: number, x: number, y: number, z: number) => {
@@ -192,20 +196,33 @@ export function createBarMesh(segmentCount: number): BarMesh {
         put(at(SPINE) + 1, px, -t, back)
 
         // Scaled steel on the flats, bright steel on the bevels, blue where the belt drew the edge's temper.
-        const soft = (hardness(a, st) - edgeHardness(a, st) + hardness(b, st) - edgeHardness(b, st)) / 2
+        const drawn = (edgeDrawn(a, st) + edgeDrawn(b, st)) / 2
         flatColour.copy(SCALED)
         bevelColour.copy(GROUND)
+        backColour.copy(SCALED)
+        const soft = (a.soft + b.soft) / 2
         if (bar.etched) {
-          // The etch shows the hardening line: dark martensite, pale everything else.
-          flatColour.copy(ETCH_PALE).lerp(ETCH_DARK, (a.martensite + b.martensite) / 2)
+          // The etch shows what hardened: dark martensite, pale everything else.
+          // Where clay kept the back soft, the edge side is dark and the back pale.
+          const hard = (edgeMartensite(a) + edgeMartensite(b)) / 2
+          flatColour.copy(ETCH_PALE).lerp(ETCH_DARK, hard)
           bevelColour.copy(flatColour)
+          backColour.copy(soft >= CLAY.showFrom ? ETCH_PALE : flatColour)
+          // The flat runs from the shoulder to the back: its shoulder end is as dark as the line allows.
+          if (soft >= CLAY.showFrom) flatColour.lerp(ETCH_PALE, soft)
+        } else if (a.clay > 0 || b.clay > 0) {
+          backColour.copy(CLAY_COLOUR)
+          flatColour.lerp(CLAY_COLOUR, (a.clay + b.clay) / 2)
         }
-        edgeColour.copy(bevelColour).lerp(BLUED, Math.min(1, Math.max(0, soft / BLUE_AT)))
+        edgeColour.copy(bevelColour).lerp(BLUED, Math.min(1, Math.max(0, drawn / BLUE_AT)))
         const ground = cutTop > 0 || cutBottom > 0
-        for (const strip of [TOP_FLAT, BOTTOM_FLAT, SPINE]) {
-          paint(colours, at(strip), flatColour)
-          paint(colours, at(strip) + 1, flatColour)
-        }
+        // Each flat's two rows are its shoulder and its back, top and bottom the other way round.
+        paint(colours, at(TOP_FLAT), flatColour)
+        paint(colours, at(TOP_FLAT) + 1, backColour)
+        paint(colours, at(BOTTOM_FLAT), backColour)
+        paint(colours, at(BOTTOM_FLAT) + 1, flatColour)
+        paint(colours, at(SPINE), backColour)
+        paint(colours, at(SPINE) + 1, backColour)
         paint(colours, at(TOP_BEVEL), edgeColour)
         paint(colours, at(TOP_BEVEL) + 1, bevelColour)
         paint(colours, at(BOTTOM_BEVEL), bevelColour)

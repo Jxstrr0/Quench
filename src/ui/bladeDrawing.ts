@@ -4,7 +4,9 @@
  * kept blade is shown from its saved parameters.
  */
 import { HANDLE_LOOK, STEEL_LOOK } from '../data/look'
+import { CLAY } from '../data/treat'
 import type { Bar, Segment } from '../sim/bar'
+import { edgeMartensite } from '../sim/bar'
 
 /** The handle stands this far proud of the tang all round, and runs this far past its end, in mm. */
 const GRIP_PROUD = 3
@@ -63,8 +65,32 @@ export function drawBlade(canvas: HTMLCanvasElement, bar: Bar, bladeShare: numbe
     ctx.save()
     ctx.clip(outline)
     for (let i = 0; i < count; i++) {
-      ctx.fillStyle = blend(STEEL_LOOK.etchPale, STEEL_LOOK.etchDark, (segs[i] as Segment).martensite)
+      ctx.fillStyle = blend(STEEL_LOOK.etchPale, STEEL_LOOK.etchDark, edgeMartensite(segs[i] as Segment))
       ctx.fillRect(x(i) - 0.5, 0, x(i + 1) - x(i) + 1, canvas.height)
+    }
+    // Where clay kept the back soft, the back is pale down to the hardening line.
+    const lineAt = (i: number): number => {
+      const a = segs[i > 0 ? i - 1 : 0] as Segment
+      const b = segs[i < count ? i : count - 1] as Segment
+      return spine + (wide[i] as number) * scale * ((a.soft + b.soft) / 2)
+    }
+    if (segs.some((s) => s.soft >= CLAY.showFrom)) {
+      const back = new Path2D()
+      back.moveTo(x(0), spine - 1)
+      back.lineTo(x(count), spine - 1)
+      for (let i = count; i >= 0; i--) back.lineTo(x(i), lineAt(i))
+      back.closePath()
+      ctx.fillStyle = css(STEEL_LOOK.etchPale)
+      ctx.fill(back)
+      // The line itself shows a little brighter than either side.
+      ctx.beginPath()
+      for (let i = 0; i <= count; i++) {
+        if (i === 0) ctx.moveTo(x(i), lineAt(i))
+        else ctx.lineTo(x(i), lineAt(i))
+      }
+      ctx.strokeStyle = css(STEEL_LOOK.ground)
+      ctx.lineWidth = Math.max(1, canvas.height / 160)
+      ctx.stroke()
     }
     ctx.restore()
   } else {

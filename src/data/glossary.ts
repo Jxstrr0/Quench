@@ -18,6 +18,8 @@ export type GlossId =
   | 'bevel'
   | 'tang'
   | 'etch'
+  | 'clay'
+  | 'line'
   | 'stone'
   | 'peen'
   | 'proving'
@@ -38,6 +40,8 @@ export const GLOSSARY: Record<GlossId, readonly string[]> = {
   bevel: ['bevels', 'bevel'],
   tang: ['tang'],
   etch: ['etched', 'etch'],
+  clay: ['clay'],
+  line: ['hardening line'],
   stone: ['stone'],
   peen: ['peen'],
   proving: ['Proving'],

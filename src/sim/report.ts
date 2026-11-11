@@ -8,7 +8,7 @@ import { HISTORY } from '../data/history'
 import type { MediumId } from '../data/media'
 import type { Steel } from '../data/steels'
 import { steel } from '../data/steels'
-import { GRAIN, INSPECT } from '../data/treat'
+import { CLAY, GRAIN, INSPECT } from '../data/treat'
 import { WHY } from '../data/trials'
 import type { Bar, CrackCause, HeatEvent, HistoryEvent, QuenchEvent } from './bar'
 import type { GrainWord } from './inspect'
@@ -29,7 +29,7 @@ export type MomentKind =
   /** A step that should have been here and was not. */
   | 'missing'
 
-export type MomentNote = 'burnt' | 'overheated' | 'coldBlows' | 'cracked' | 'tooCool' | 'tooSlow' | 'brittleBand' | 'edgeBlued'
+export type MomentNote = 'burnt' | 'overheated' | 'coldBlows' | 'cracked' | 'tooCool' | 'tooSlow' | 'brittleBand' | 'edgeBlued' | 'clayed'
 
 export type Missing = 'normalize' | 'harden' | 'temper'
 
@@ -72,6 +72,7 @@ export type Lesson =
   | 'evenShape'
   | 'shorterHeats'
   | 'softerBack'
+  | 'noClay'
   // the edge
   | 'grind'
   | 'grindThinner'
@@ -99,6 +100,7 @@ const FIX: Partial<Record<Lesson, FixStage>> = {
   harden: 'fire',
   quenchHotter: 'fire',
   quenchFaster: 'fire',
+  noClay: 'fire',
   temper: 'temper',
   temperHotter: 'temper',
   grind: 'grinder',
@@ -177,7 +179,8 @@ function grewGrain(e: HeatEvent, st: Steel): boolean {
 function quenchNote(e: QuenchEvent, st: Steel): MomentNote | null {
   if (e.crack) return 'cracked'
   if (e.soak < HISTORY.soaked || e.from < st.curie) return 'tooCool'
-  return e.hard < INSPECT.hardenedFrom ? 'tooSlow' : null
+  if (e.hard < INSPECT.hardenedFrom) return 'tooSlow'
+  return (e.clay ?? 0) >= CLAY.showFrom ? 'clayed' : null
 }
 
 /** Every event with its kind and anything worth a remark about it. */
@@ -317,6 +320,8 @@ function blame(bar: Bar, marks: Marked[], cause: TrialCause): Blame {
       return { index: most(marks, (m, i) => (i > quench && m.event.kind === 'grind' && m.event.hard ? m.event.edgePeak : 0)), missing: null, before: 0, lesson: 'easyOnBelt' }
     case 'lostCarbon':
       return { index: most(marks, (m) => (m.event.kind === 'heat' ? m.event.seconds : 0)), missing: null, before: 0, lesson: 'shorterHeats' }
+    case 'softBack':
+      return { index: quench, missing: null, before: 0, lesson: 'noClay' }
     case 'partHardened':
     case 'notHardened': {
       if (quench < 0) {

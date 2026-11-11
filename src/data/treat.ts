@@ -162,6 +162,23 @@ export const COOL = {
   maxSeconds: 3600,
 } as const
 
+/** Clay painted on the back of the blade before the hardening heat, to keep the back soft. */
+export const CLAY = {
+  /** How far down from the spine each coat reaches, as a share of the blade's width. The first is no clay. */
+  coats: [0, 0.35, 0.5, 0.65],
+  /**
+   * Clay only slows the cooling. A steel that must cool faster than
+   * `shallowAbove` degrees a second to harden stays soft under it; one that
+   * hardens at `deepBelow` or slower hardens straight through it.
+   */
+  deepBelow: 40,
+  shallowAbove: 110,
+  /** Below this hold (see `clayHold`) the bench warns that clay will do little for this steel. */
+  worksFrom: 0.3,
+  /** A hardening line shows in the etch once this share of the width stayed soft. */
+  showFrom: 0.08,
+} as const
+
 /** How the inspection puts the steel into words. */
 export const INSPECT = {
   /** A file skates over steel at least this hard, HRC, and bites freely below `fileBites`. */

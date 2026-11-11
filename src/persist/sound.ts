@@ -13,7 +13,13 @@ export const isCount = (x: unknown): x is number => isNumber(x) && Number.isInte
 export function soundBar(x: unknown): x is Bar {
   if (!isObject(x) || typeof x.steel !== 'string' || !(x.steel in STEELS)) return false
   if (!Array.isArray(x.segments) || x.segments.length < 2 || !Array.isArray(x.history)) return false
-  return x.segments.every((s) => isObject(s) && isNumber(s.length) && isNumber(s.width) && isNumber(s.thickness) && s.length > 0)
+  if (!x.segments.every((s) => isObject(s) && isNumber(s.length) && isNumber(s.width) && isNumber(s.thickness) && s.length > 0)) return false
+  // Blades saved before clay was in the game have none.
+  for (const s of x.segments as Record<string, unknown>[]) {
+    if (!isNumber(s.clay)) s.clay = 0
+    if (!isNumber(s.soft)) s.soft = 0
+  }
+  return true
 }
 
 export function soundTrials(x: unknown): x is TrialReport {

@@ -5,7 +5,7 @@
 import type { HandleId } from '../data/grind'
 import { HANDLE, SHARPEN } from '../data/grind'
 import { steel } from '../data/steels'
-import { COOL } from '../data/treat'
+import { CLAY, COOL } from '../data/treat'
 import type { Bar, Segment } from './bar'
 import { barLength, edgeThickness, hottest, isGround, nearestSegment, segmentCentres } from './bar'
 import { beltBite } from './grind'
@@ -77,6 +77,31 @@ export function etch(bar: Bar): boolean {
   if (hottest(bar) > COOL.handWarm) return false
   bar.etched = true
   return true
+}
+
+/**
+ * Paint clay on the back of the blade (the first `bladeShare` of the bar from
+ * the tip), `coat` deep: an index into `CLAY.coats`, 0 to wipe it off. Only a
+ * cool blade can be clayed. It does its work in the next quench from heat.
+ */
+export function coatClay(bar: Bar, bladeShare: number, coat: number): boolean {
+  const cover = CLAY.coats[coat]
+  if (cover === undefined || hottest(bar) > COOL.handWarm) return false
+  const total = barLength(bar)
+  const centres = segmentCentres(bar)
+  for (let i = 0; i < bar.segments.length; i++) {
+    (bar.segments[i] as Segment).clay = (centres[i] as number) / total <= bladeShare ? cover : 0
+  }
+  return true
+}
+
+/** Which coat of clay is on the blade: an index into `CLAY.coats`, 0 for none. */
+export function clayCoat(bar: Bar): number {
+  let most = 0
+  for (const s of bar.segments) if (s.clay > most) most = s.clay
+  let coat = 0
+  for (let i = 0; i < CLAY.coats.length; i++) if ((CLAY.coats[i] as number) <= most) coat = i
+  return coat
 }
 
 /** Fit a handle to the tang. Only a cool blade can take one. */

@@ -4,7 +4,8 @@ import { steel } from '../src/data/steels'
 import { BENCH, TRENCH } from '../src/data/tuning'
 import type { Bar, Segment } from '../src/sim/bar'
 import { createBar, edgeThickness, segmentCentres } from '../src/sim/bar'
-import { fitHandle, strokeStone } from '../src/sim/finish'
+import { coatClay, fitHandle, strokeStone } from '../src/sim/finish'
+import { explain } from '../src/sim/report'
 import { stepGrind } from '../src/sim/grind'
 import { advance, coolToRoom, fireTempAt, stepHeat } from '../src/sim/heat'
 import { patternAt, patternLength, patternVolume, railReach, wantsLongFire } from '../src/sim/shape'
@@ -119,6 +120,24 @@ describe('the sword tests', () => {
     expect(r.results[1]?.value).toBeCloseTo(9, 1)
     // The tests ran on a copy: the blade on the bench is as it was.
     expect(bar.warp).toBe(0)
+  })
+  it('leave a set in a sword whose back was kept soft with clay, and say so', () => {
+    // 5160 hardens through clay, so this one is made of 1084.
+    const bar = forged()
+    bar.steel = '1084'
+    grindTo(bar, 1)
+    coolToRoom(bar)
+    coatClay(bar, SHARE, 3)
+    harden(bar)
+    temperInOven(bar, 200, 60)
+    temperInOven(bar, 200, 60)
+    grindTo(bar, 0.3, 0.4)
+    coolToRoom(bar)
+    sharpen(bar)
+    fitHandle(bar, 'ash')
+    const r = runTrials(bar, P, SHARE)
+    expect(told(r).flex).toBe('takesSet: softBack')
+    expect(explain(bar, 'softBack').lesson).toBe('noClay')
   })
   it('fail a dull sword at the mat only', () => {
     const r = runTrials(sword({ sharpen: false }), P, SHARE)
