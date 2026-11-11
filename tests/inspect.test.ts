@@ -8,7 +8,7 @@ import { advance, coolToRoom, stepHeat } from '../src/sim/heat'
 import { inspect, magnetTest } from '../src/sim/inspect'
 import { temperInOven } from '../src/sim/temper'
 
-const BLADE = BENCH.tangShare
+const BLADE: number = BENCH.tangShare
 
 function soak(bar: Bar, temp: number, seconds: number, share = BLADE): void {
   const cut = Math.floor(bar.segments.length * share)
