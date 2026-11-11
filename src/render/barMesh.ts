@@ -208,8 +208,15 @@ export function createBarMesh(segmentCount: number): BarMesh {
           flatColour.copy(ETCH_PALE).lerp(ETCH_DARK, hard)
           bevelColour.copy(flatColour)
           backColour.copy(soft >= CLAY.showFrom ? ETCH_PALE : flatColour)
-          // The flat runs from the shoulder to the back: its shoulder end is as dark as the line allows.
-          if (soft >= CLAY.showFrom) flatColour.lerp(ETCH_PALE, soft)
+          if (soft >= CLAY.showFrom) {
+            // Colours fade from row to row: pale at the back, dark at the edge. The shoulder between
+            // them is shaded so that the half-way grey falls where the hardening line is.
+            const flat = (shoulderTop + shoulderBottom) / 2 - back
+            const line = soft * w
+            const past = w > flat ? (line - flat) / (w - flat) : 1
+            const dark = line <= flat ? Math.min(1, (0.5 * flat) / line) : past < 0.5 ? (0.5 - past) / (1 - past) : 0
+            flatColour.lerp(ETCH_PALE, 1 - dark)
+          }
         } else if (a.clay > 0 || b.clay > 0) {
           backColour.copy(CLAY_COLOUR)
           flatColour.lerp(CLAY_COLOUR, (a.clay + b.clay) / 2)
@@ -223,9 +230,11 @@ export function createBarMesh(segmentCount: number): BarMesh {
         paint(colours, at(BOTTOM_FLAT) + 1, flatColour)
         paint(colours, at(SPINE), backColour)
         paint(colours, at(SPINE) + 1, backColour)
+        // A bevel's two rows are its edge and its shoulder; the shoulder takes the flat's colour once etched.
+        const shoulderColour = bar.etched ? flatColour : bevelColour
         paint(colours, at(TOP_BEVEL), edgeColour)
-        paint(colours, at(TOP_BEVEL) + 1, bevelColour)
-        paint(colours, at(BOTTOM_BEVEL), bevelColour)
+        paint(colours, at(TOP_BEVEL) + 1, shoulderColour)
+        paint(colours, at(BOTTOM_BEVEL), shoulderColour)
         paint(colours, at(BOTTOM_BEVEL) + 1, edgeColour)
         paint(colours, at(EDGE), ground ? edgeColour : flatColour)
         paint(colours, at(EDGE) + 1, ground ? edgeColour : flatColour)
