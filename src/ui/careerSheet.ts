@@ -25,6 +25,10 @@ export interface CareerHost {
   leave(): void
   /** The card changed the career: save it and show it. */
   changed(): void
+  /** Open the save code and backup card. */
+  openBackup(): void
+  /** True when it is time to suggest a backup. */
+  backupDue(): boolean
 }
 
 const TOOL_KEY: Record<ToolId, [StringKey, StringKey]> = {
@@ -48,6 +52,16 @@ function twoTap(cls: string, label: string, sure: string, act: () => void): HTML
 
 export function createCareerSheet(host: HTMLElement, forge: CareerHost): Sheet {
   const body = el('div', 'sheet-body')
+
+  /** The way to the save code card, with a nudge when a backup is due. */
+  const backupParts = (): HTMLElement[] => {
+    const open = button('btn btn-wide btn-quiet', 'career.backup')
+    open.addEventListener('click', () => {
+      sheet.close()
+      forge.openBackup()
+    })
+    return forge.backupDue() ? [note(t('career.backupDue'), 'sheet-note sheet-small'), open] : [open]
+  }
 
   const slots = () => {
     body.replaceChildren(note(t('career.intro')))
@@ -74,6 +88,7 @@ export function createCareerSheet(host: HTMLElement, forge: CareerHost): Sheet {
         )
       }
     })
+    body.append(...backupParts())
     sheet.card.scrollTop = 0
   }
 
@@ -196,7 +211,7 @@ export function createCareerSheet(host: HTMLElement, forge: CareerHost): Sheet {
       forge.leave()
       sheet.close()
     })
-    body.append(odd, leave, note(t('career.leave.note'), 'sheet-note sheet-small'))
+    body.append(odd, ...backupParts(), leave, note(t('career.leave.note'), 'sheet-note sheet-small'))
     sheet.card.scrollTop = 0
   }
 
