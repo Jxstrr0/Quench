@@ -3,14 +3,17 @@
  * straight edge, put into a few plain words. The numbers come from
  * `properties.ts`; this only reads them.
  */
+import type { BilletId } from '../data/billets'
+import { WELD } from '../data/billets'
 import type { HandleId } from '../data/grind'
 import { steel } from '../data/steels'
 import { HANDLE } from '../data/grind'
 import { CLAY, COOL, INSPECT } from '../data/treat'
 import type { Bar, QuenchCrack } from './bar'
-import { bevelLean, edgeThickness, hottest, isGround } from './bar'
+import { bevelLean, coreMissed, edgeThickness, hottest, isGround, segmentCentres } from './bar'
 import { handleFit } from './finish'
 import { edgeDrawn, edgeHardness, isMagnetic, summarize } from './properties'
+import { seamCause, worstSeam } from './weld'
 
 export type MagnetWord = 'sticks' | 'letsGoPart' | 'letsGo'
 export type FileWord = 'skates' | 'bitesALittle' | 'bites'
@@ -20,6 +23,9 @@ export type KeenWord = 'blunt' | 'working' | 'keen'
 /** How a handle sits on the tang. */
 export type FitWord = 'well' | 'loose' | 'badly'
 /** What the blade needs next. */
+/** A billet's welds: all sound, layers still loose somewhere, a flaw that shows, or one that will open. */
+export type WeldWord = 'sound' | 'loose' | 'shows' | 'open'
+
 export type NextStep = 'harden' | 'temper' | 'temperAgain' | 'grind' | 'sharpen' | 'handle' | 'done' | 'cracked'
 
 /** The word for an edge this keen, 0 to 1. */
@@ -97,6 +103,14 @@ export interface Inspection {
   handle: HandleId | null
   /** How a handle sits, or would sit, on this tang. */
   fit: FitWord
+  /** What it was built from, and how many layers it has. */
+  billet: BilletId
+  layers: number
+  /** The state of its welds, and where the worst of them is, as a share of the bar's length from the tip. */
+  weld: WeldWord
+  weldAt: number
+  /** San-mai ground so lopsided that the edge is in a soft side somewhere along the blade. */
+  coreMissed: boolean
   next: NextStep
 }
 
@@ -120,6 +134,7 @@ export function inspect(bar: Bar, bladeShare: number): Inspection {
   let sharp = 0
   let ground = false
   let edgeSoft = false
+  let missed = false
   for (const s of bar.segments) {
     const mid = (x + s.length / 2) / total
     x += s.length
@@ -134,11 +149,16 @@ export function inspect(bar: Bar, bladeShare: number): Inspection {
     if (isGround(s) && e <= INSPECT.edgeWanted) edgeDone += s.length
     if (isGround(s)) ground = true
     if (edgeDrawn(s, st) >= INSPECT.edgeSoftBy) edgeSoft = true
+    if (coreMissed(s)) missed = true
   }
   edge /= blade
   edgeDone /= blade
   edgeHrc /= blade
   sharp /= blade
+
+  const seam = worstSeam(bar)
+  const bad = seam && seam.seam >= WELD.shows ? seam : null
+  const weld: WeldWord = !bad ? 'sound' : seamCause(bar.segments[bad.segment] as (typeof bar.segments)[number]) === 'notWelded' ? 'loose' : bad.seam >= WELD.opens ? 'open' : 'shows'
 
   const next: NextStep = bar.crack
     ? 'cracked'
@@ -184,6 +204,11 @@ export function inspect(bar: Bar, bladeShare: number): Inspection {
     clayed: bar.segments.some((s) => s.clay > 0),
     handle: bar.handle,
     fit: fitWord(handleFit(bar, bladeShare)),
+    billet: bar.billet,
+    layers: bar.layers,
+    weld,
+    weldAt: bad ? (segmentCentres(bar)[bad.segment] as number) / total : 0,
+    coreMissed: missed,
     next,
   }
 }

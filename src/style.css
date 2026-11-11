@@ -98,6 +98,14 @@ html, body {
 }
 .hud-coach[hidden] { display: none; }
 .coach-who { display: block; color: var(--muted); font-size: 0.8rem; letter-spacing: 0.02em; }
+/* A billet's welds, tip to tongs: bright where welded, dark where loose, orange where flawed. */
+.hud-weld { display: flex; align-items: center; gap: 8px; margin-top: 4px; max-width: 340px; }
+.hud-weld[hidden] { display: none; }
+.weld-strip {
+  flex: 1; height: 14px; border: 1px solid var(--chalk); border-radius: 3px;
+  background-color: var(--soot); background-repeat: no-repeat; background-size: 100% 60%, 100% 100%;
+}
+.weld-end { color: var(--muted); font-size: 0.78rem; }
 .hud-shape-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .hud-shape-row .hud-rack { min-height: 32px; padding: 3px 10px; font-size: 0.82rem; }
 .hud-fault {
@@ -184,6 +192,9 @@ html, body {
 .btn-blow .btn-sub { font-size: 0.72rem; }
 .btn-blow[aria-pressed='true'] { background: var(--iron); }
 .btn-blow[aria-pressed='true'] .btn-sub { color: var(--straw); }
+/* A layered billet has a fifth button in the row: Fold. */
+.blows.with-fold { grid-template-columns: repeat(5, 1fr); gap: 5px; }
+#app.wide .blows.with-fold { grid-template-columns: repeat(3, 1fr); }
 .meter {
   position: relative;
   height: 14px;

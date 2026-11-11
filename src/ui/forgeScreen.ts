@@ -14,11 +14,13 @@ import { SOUND_SETS } from '../data/audio'
 import type { Where } from '../audio/cues'
 import { fireVoice, hammerVoice, hissVoice, placeCue, seaVoice, sparkRate, verdictLine } from '../audio/cues'
 import { createAudioEngine } from '../audio/engine'
+import type { BilletId } from '../data/billets'
+import { BILLETS, BILLET_ORDER, WELD } from '../data/billets'
 import type { StageId } from '../data/career'
 import { BRIEFS, FIRST_JOB, PROVINGS } from '../data/career'
 import { COACH } from '../data/coach'
 import type { BlowType } from '../data/hammer'
-import { RHYTHM } from '../data/hammer'
+import { BLOWS, RHYTHM } from '../data/hammer'
 import type { HeatWord } from '../data/heatRamp'
 import type { MediumId } from '../data/media'
 import { MEDIUM_ORDER } from '../data/media'
@@ -53,6 +55,7 @@ import type { Placement } from '../sim/heat'
 import { advance } from '../sim/heat'
 import { magnetTest } from '../sim/inspect'
 import { railReach, shapeScore, wantsLongFire } from '../sim/shape'
+import { atWeldingHeat, billetStock, fold, isLoose, partnerSteel, sweating, weldHeat, weldedShare, whyNoFold, worstSeam } from '../sim/weld'
 import type { FixStage } from '../sim/report'
 import type { TrialReport, TrialResult } from '../sim/trials'
 import { createBackupSheet } from './backupSheet'
@@ -114,6 +117,8 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
   const audio = createAudioEngine()
   let target = pattern('campKnife')
   let steelId: SteelId = target.steel
+  /** What a new bar is built from, in Free forge. A career's bars are plain. */
+  let billetId: BilletId = 'plain'
   let bar: Bar = createBar(steelId, target.stock)
   let blowType: BlowType = 'flat'
   /** When the last blow landed, in ms, or -1 before the first. */
@@ -176,6 +181,12 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
   const shapeRow = el('div', 'hud-shape-row')
   const patternBtn = button('btn hud-rack', 'btn.pattern')
   shapeRow.append(shape, patternBtn)
+  // A billet's welds, drawn as a strip from tip to tongs: filled where welded, empty where loose, marked where flawed.
+  const weldRow = el('div', 'hud-weld')
+  const weldStrip = el('div', 'weld-strip')
+  weldStrip.setAttribute('role', 'img')
+  weldRow.append(el('span', 'weld-end', t('weld.tip')), weldStrip, el('span', 'weld-end', t('weld.tongs')))
+  weldRow.hidden = true
   // The coach: the neighbour's next instruction, while her knife is the job in hand.
   const coach = el('p', 'hud-coach')
   coach.setAttribute('role', 'status')
@@ -183,7 +194,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
   const coachWho = el('span', 'coach-who')
   const coachSays = el('span', 'coach-says')
   coach.append(coachWho, coachSays)
-  top.append(head, place, shapeRow, coach, readout, faultLine)
+  top.append(head, place, shapeRow, weldRow, coach, readout, faultLine)
 
   // The blades kept so far, and how many, on the button that opens them.
   let kept = loadCollection()
@@ -245,6 +256,12 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
     blows.append(b)
     return b
   })
+  // A layered billet has a fifth button here: fold it to double the layers.
+  const foldBtn = button('btn btn-blow')
+  const foldCount = el('span', 'btn-sub')
+  foldBtn.append(el('span', 'blow-name', t('btn.fold')), foldCount)
+  foldBtn.hidden = true
+  blows.append(foldBtn)
   const pickBlow = (type: BlowType) => {
     blowType = type
     blowButtons.forEach((b, i) => b.setAttribute('aria-pressed', String(BLOW_TYPES[i] === type)))
@@ -350,7 +367,15 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
     readout.hidden = !(bench.active || settings.heatWords || showsNumber())
   }
   const applySteel = () => {
-    steelBtn.textContent = `${t('steel.label')}: ${STEELS[steelId].name}`
+    const name = STEELS[steelId].name
+    steelBtn.textContent = `${t('steel.label')}: ${billetId === 'plain' ? name : t('steel.billet', { steel: name, billet: t(`billet.${billetId}`).toLowerCase() })}`
+  }
+  /** The Fold button shows for a bar that can be folded, with its layers on it. */
+  const showFold = () => {
+    const folds = BILLETS[bar.billet].folds
+    foldBtn.hidden = !folds
+    blows.classList.toggle('with-fold', folds)
+    foldCount.textContent = t('fold.layers', { n: bar.layers })
   }
   /**
    * The trench forge is lit for a blade too long for the short fire: always in
@@ -384,8 +409,37 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
     view.setInsets(wide ? 0 : box.height + 34, wide ? box.width + 16 : 0)
     hint.style.bottom = wide ? '' : `${box.height + 56}px`
   }
+  /** Draw the weld strip. It shows while a billet is at the forge with loose layers or a flaw that shows. */
+  const showWelds = () => {
+    const bad = worstSeam(bar)
+    const show = !bench.active && bad !== null && bad.seam >= WELD.shows
+    if (weldRow.hidden === show) {
+      weldRow.hidden = !show
+      layout()
+    }
+    if (!show) return
+    const total = barLength(bar)
+    // Two layers: how welded each stretch is, as brightness; and over its top half, a notch wherever a flaw shows.
+    const welds: string[] = []
+    const flaws: string[] = []
+    let x = 0
+    let flawed = false
+    for (const s of bar.segments) {
+      const span = `${((x / total) * 100).toFixed(1)}% ${(((x + s.length) / total) * 100).toFixed(1)}%`
+      x += s.length
+      const flaw = s.flaw >= WELD.shows
+      if (flaw) flawed = true
+      welds.push(`rgba(236, 234, 228, ${s.weld.toFixed(2)}) ${span}`)
+      flaws.push(`${flaw ? 'var(--heat-3)' : 'transparent'} ${span}`)
+    }
+    weldStrip.style.backgroundImage = `linear-gradient(90deg, ${flaws.join(', ')}), linear-gradient(90deg, ${welds.join(', ')})`
+    weldStrip.setAttribute('aria-label', t(flawed ? 'weld.strip.flaw' : 'weld.strip', { w: Math.floor(weldedShare(bar) * 100) }))
+  }
   const refreshShape = () => {
-    shape.textContent = t('shape.label', { name: t(`pattern.${target.id}`), n: shapePercent() })
+    showWelds()
+    const words = { name: t(`pattern.${target.id}`), n: shapePercent() }
+    // While a billet has loose layers, the line also says how much of it is welded.
+    shape.textContent = isLoose(bar) ? t('shape.welding', { ...words, w: Math.floor(weldedShare(bar) * 100) }) : t('shape.label', words)
   }
   const showFault = () => {
     faultLine.hidden = fault === null
@@ -410,6 +464,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
     fault = barFault(bar)
     showFault()
     refreshShape()
+    showFold()
   }
   const treat = {
     bar: () => bar,
@@ -567,7 +622,15 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
     view.showStrike(blowType, where, force)
     audio.hammer(hammerVoice(hit.temp, hit.thickness, force))
     if (settings.haptics && 'vibrate' in navigator) navigator.vibrate(Math.round(10 + 25 * force))
-    say(hit.burning ? t('note.burning') : hit.cold ? t('note.cold') : '', 1200)
+    // On a billet, each blow says what it did to the loose layers.
+    const seamLeft = worstSeam(bar)
+    const welded =
+      hit.weld === 'shut'
+        ? t(BLOWS[blowType].squeezes === 'width' ? 'note.shutEdge' : 'note.shutCold')
+        : hit.weld === 'took'
+          ? t(isLoose(bar) ? 'note.welded' : seamLeft && seamLeft.seam >= WELD.shows ? 'note.mending' : 'note.weldedAll')
+          : ''
+    say(hit.burning ? t('note.burning') : welded || (hit.cold ? t('note.cold') : ''), welded ? 2200 : 1200)
     meter.classList.toggle('full', force >= RHYTHM.fullForce)
     fault = barFault(bar)
     showFault()
@@ -606,7 +669,12 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
       freshBar()
     },
   )
-  const steelSheet = createPickSheet<SteelId>(
+  const billetLines = (id: BilletId): string[] => {
+    const steel = STEELS[steelId]
+    const what = t(`billet.${id}.note`, { n: BILLETS[id].layers, steel: steel.name, with: STEELS[partnerSteel(steelId)].name })
+    return id === 'plain' ? [what] : [what, t('billet.weldHeat', { steel: steel.name, n: Math.round(weldHeat(steel) / 10) * 10 })]
+  }
+  const steelSheet = createPickSheet<SteelId, BilletId>(
     app,
     'pick.steel',
     () => STEEL_ORDER.map((id) => ({ id, name: STEELS[id].name, lines: [STEELS[id].note] })),
@@ -617,7 +685,30 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
       freshBar()
       say(`${STEELS[steelId].name}. ${STEELS[steelId].note}`, 6000)
     },
+    {
+      heading: 'pick.billet',
+      list: () => BILLET_ORDER.map((id) => ({ id, name: t(`billet.${id}`), lines: billetLines(id) })),
+      current: () => billetId,
+      choose: (id) => {
+        billetId = id
+        applySteel()
+        freshBar()
+        say(t(id === 'plain' ? 'billet.plain.note' : 'note.billet'), 8000)
+      },
+    },
   )
+  foldBtn.addEventListener('click', () => {
+    const why = whyNoFold(bar)
+    if (why) {
+      say(t(`fold.${why}`, { n: bar.layers }), 4000)
+      return
+    }
+    fold(bar)
+    lastBlowAt = -1
+    charge('forge')
+    redraw()
+    say(t('note.folded', { n: bar.layers }), 7000)
+  })
   patternBtn.addEventListener('click', patternSheet.open)
   steelBtn.addEventListener('click', steelSheet.open)
   /** Lay the bar cold on the anvil end of the rail and show it. */
@@ -654,7 +745,9 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
     // Each bar has its own luck in the quench. In a career it comes from the career's own seed.
     barsMade++
     const seed = career ? (career.rng ^ Math.imul(career.bars, 0x9e3779b1)) >>> 0 : barsMade
-    bar = createBar(steelId, target.stock, undefined, seed)
+    // In a career every bar is plain stock, for now.
+    const billet = career ? 'plain' : billetId
+    bar = createBar(steelId, billetStock(target.stock, billet), undefined, seed, billet)
     placeBar()
   }
 
@@ -1054,6 +1147,8 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
         : t(placement.where === 'fire' ? 'place.fire' : placement.where === 'anvil' ? 'place.anvil' : 'place.air')
     if (inTank && agitation > 0.3 && mediumId !== 'plates') placeText += ` · ${t('note.stirring')}`
     else if (note && now < noteUntil) placeText += ` · ${note}`
+    // Loose layers at welding heat look wet. That, not their colour, is how a smith knows.
+    else if (!cooling && atWeldingHeat(bar)) placeText += ` · ${t(sweating(bar, WELD.carry) >= WELD.ready ? 'note.sweating' : 'note.sweatingSome')}`
 
     // One slot, four uses: bellows at the fire, blows at the anvil, the stirring meter in the tank, cooling in the air.
     const slot = inTank ? tankSet : placement.where === 'anvil' ? anvilSet : placement.where === 'fire' ? bellows : cool
@@ -1086,6 +1181,8 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
       const temp = hottest(bar)
       const parts: string[] = []
       if (settings.heatWords) parts.push(t(WORD_KEY[heatWord(temp)]))
+      // The word for the heat a billet's loose layers weld at.
+      if (settings.heatWords && atWeldingHeat(bar)) parts.push(t('heat.welding'))
       if (showsNumber()) parts.push(t('fmt.temp', { n: Math.round(temp / 5) * 5 }))
       const text = `${t('heat.label')}: ${parts.join(' · ')}`
       if (text !== shownHeat) readout.textContent = shownHeat = text
