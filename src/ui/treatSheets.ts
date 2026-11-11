@@ -81,8 +81,10 @@ export function createTemperSheet(host: HTMLElement, forge: TreatHost): Sheet {
   result.setAttribute('aria-live', 'polite')
   const sheet = createSheet(host, 'temper.title', () => (result.textContent = ''))
   sheet.card.append(el('p', 'sheet-note', t('temper.note')))
-  const temp = dial(sheet.card, 'temper.temp', OVEN.minTemp, OVEN.maxTemp, 5, 200)
-  const minutes = dial(sheet.card, 'temper.time', OVEN.minMinutes, OVEN.maxMinutes, 15, 60)
+  const dials = el('div', 'dials')
+  sheet.card.append(dials)
+  const temp = dial(dials, 'temper.temp', OVEN.minTemp, OVEN.maxTemp, 5, 200)
+  const minutes = dial(dials, 'temper.time', OVEN.minMinutes, OVEN.maxMinutes, 15, 60)
   const go = button('btn btn-wide', 'temper.go')
   go.addEventListener('click', () => {
     const bar = forge.bar()

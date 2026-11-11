@@ -174,6 +174,11 @@ html, body {
 #app.wide .controls-anvil, #app.wide .controls-tank, #app.wide .btn-bellows { height: 126px; }
 #app.wide .controls-row .btn { min-height: 42px; }
 #app.wide .hud-hint { bottom: calc(40px + var(--safe-b)); right: 250px; }
+/* Short screens: wider cards, with the two dials side by side, so less scrolling. */
+#app.wide .sheet { padding: 8px; align-items: center; }
+#app.wide .sheet-card { width: min(640px, 100%); padding: 14px 18px; }
+#app.wide .dials { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
+#app.wide .sheet-card .btn-wide { margin-top: 8px; }
 
 /* Sheets: reports and settings are printed on paper cards. */
 .sheet {

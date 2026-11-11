@@ -547,6 +547,8 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
       hint.classList.remove('gone')
     }
     if (everInTank && hint.textContent === t('hint.tank')) hint.classList.add('gone')
+    // The strike hint only makes sense while a hot bar lies on the anvil.
+    if (hint.textContent === t('hint.strike') && (!onAnvil || hottest(bar) < BENCH.strikeMinTemp)) hint.classList.add('gone')
     if (placeText !== shownPlace) place.textContent = shownPlace = placeText
 
     if (settings.heatWords || settings.heatNumber) {
