@@ -13,6 +13,7 @@ import { inspect, magnetTest } from '../sim/inspect'
 import { temperInOven } from '../sim/temper'
 import type { Sheet } from './dom'
 import { button, createSheet, el } from './dom'
+import { glossed } from './gloss'
 import { FIT_KEY, HANDLE_KEY, KEEN_KEY } from './grindBench'
 
 export interface TreatHost {
@@ -97,7 +98,7 @@ export function createTemperSheet(host: HTMLElement, forge: TreatHost): Sheet {
   const result = el('p', 'sheet-note sheet-result')
   result.setAttribute('aria-live', 'polite')
   const sheet = createSheet(host, 'temper.title', () => (result.textContent = ''))
-  sheet.card.append(el('p', 'sheet-note', t('temper.note')))
+  sheet.card.append(glossed('p', 'sheet-note', t('temper.note')))
   const dials = el('div', 'dials')
   sheet.card.append(dials)
   const temp = dial(dials, 'temper.temp', OVEN.minTemp, OVEN.maxTemp, 5, 200)
@@ -145,7 +146,7 @@ export function createInspectSheet(host: HTMLElement, forge: TreatHost): Sheet {
     const look = inspect(bar, forge.pattern().bladeShare)
     const sees = forge.sees()
     if (look.tooHot) {
-      body.append(el('p', 'sheet-note', t('inspect.hot', { n: Math.round(look.temp / 5) * 5 })))
+      body.append(glossed('p', 'sheet-note', t('inspect.hot', { n: Math.round(look.temp / 5) * 5 })))
       row('inspect.magnet', capital(t(MAGNET_KEY[magnetTest(bar, forge.pattern().bladeShare)])))
       const cool = button('btn btn-wide', 'inspect.cool')
       cool.addEventListener('click', () => {
@@ -161,27 +162,27 @@ export function createInspectSheet(host: HTMLElement, forge: TreatHost): Sheet {
       const words = sees.hardness
         ? t('inspect.uneven', { min: Math.round(look.hardnessMin), max: Math.round(look.hardnessMax) })
         : t('inspect.unevenPlain')
-      body.append(el('p', 'sheet-note', words))
+      body.append(glossed('p', 'sheet-note', words))
     }
     row('inspect.tough', t(TOUGH_KEY[look.tough]))
     if (sees.grain) row('inspect.grain', t(GRAIN_KEY[look.grain]))
     row('inspect.straight', look.straight ? t('straight.yes') : t('straight.no', { n: look.warp.toFixed(1) }))
     row('inspect.edge', look.ground ? t('edge.value', { n: look.edge.toFixed(1), min: look.edgeMin.toFixed(1) }) : t('edge.unground'))
-    if (look.lopsided) body.append(el('p', 'sheet-note', t('inspect.lopsided')))
-    if (look.edgeSoft) body.append(el('p', 'sheet-note', t('inspect.edgeSoft')))
+    if (look.lopsided) body.append(glossed('p', 'sheet-note', t('inspect.lopsided')))
+    if (look.edgeSoft) body.append(glossed('p', 'sheet-note', t('inspect.edgeSoft')))
     if (look.ground) row('inspect.sharp', capital(t(KEEN_KEY[look.keen])))
     if (look.handle) row('inspect.handle', capital(t('inspect.handle.value', { name: t(HANDLE_KEY[look.handle]), fit: t(FIT_KEY[look.fit]) })))
     if (look.etched) row('inspect.etch', t(look.hardened ? 'etch.dark' : 'etch.pale'))
     row('inspect.tempers', look.tempers === 0 ? t('tempers.none') : look.tempers === 1 ? t('tempers.once') : t('tempers.n', { n: look.tempers }))
     row('inspect.shape', t('inspect.shape.value', { n: forge.shapePercent() }))
-    if (sees.free) body.append(el('p', 'sheet-note sheet-small', t('inspect.grain.note')))
-    else if (!sees.grain) body.append(el('p', 'sheet-note sheet-small', t('inspect.grain.career')))
-    if (sees.grain && look.next === 'harden' && look.grain !== 'fine') body.append(el('p', 'sheet-note sheet-next', t('next.normalize')))
-    if (look.next === 'harden' && !look.ground) body.append(el('p', 'sheet-note sheet-next', t('next.rough')))
+    if (sees.free) body.append(glossed('p', 'sheet-note sheet-small', t('inspect.grain.note')))
+    else if (!sees.grain) body.append(glossed('p', 'sheet-note sheet-small', t('inspect.grain.career')))
+    if (sees.grain && look.next === 'harden' && look.grain !== 'fine') body.append(glossed('p', 'sheet-note sheet-next', t('next.normalize')))
+    if (look.next === 'harden' && !look.ground) body.append(glossed('p', 'sheet-note sheet-next', t('next.rough')))
     if (look.next === 'harden' && look.ground && look.edgeMin < CRACK.edgeSafe) {
-      body.append(el('p', 'sheet-note sheet-next', t('next.thinEdge', { n: CRACK.edgeSafe })))
+      body.append(glossed('p', 'sheet-note sheet-next', t('next.thinEdge', { n: CRACK.edgeSafe })))
     }
-    body.append(el('p', 'sheet-note sheet-next', t(NEXT_KEY[look.next], { n: INSPECT.edgeWanted })))
+    body.append(glossed('p', 'sheet-note sheet-next', t(NEXT_KEY[look.next], { n: INSPECT.edgeWanted })))
     // A blade can go to its trial at any time: that is how you find out what it still needs.
     const trial = button('btn btn-wide', 'trial.open')
     trial.addEventListener('click', () => {
