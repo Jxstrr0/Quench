@@ -2,16 +2,14 @@
  * The collection: the blades the player has kept, each shown from its saved
  * parameters as a drawing with its trial report.
  */
-import { STEELS } from '../data/steels'
 import { t } from '../data/strings'
-import { BENCH } from '../data/tuning'
 import type { KeptBlade } from '../persist/collection'
 import { COLLECTION_MAX } from '../persist/collection'
-import { barLength } from '../sim/bar'
-import { massAndBalance } from '../sim/trials'
 import { drawBlade } from './bladeDrawing'
+import { keptDay, keptSpec, keptTitle, keptVerdict } from './bladeWords'
 import type { Sheet } from './dom'
 import { button, createSheet, el } from './dom'
+import { shareBlade } from './shareCard'
 import { note, reportParts } from './trialParts'
 
 export interface CollectionHost {
@@ -34,29 +32,6 @@ function picture(blade: KeptBlade, size: { width: number; height: number }, cls:
   return canvas
 }
 
-const title = (blade: KeptBlade): string => `${t(`pattern.${blade.pattern}`)} · ${STEELS[blade.bar.steel].name}`
-const day = (blade: KeptBlade): string => new Date(blade.kept).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
-
-/** How it did, in a few words. */
-function verdict(blade: KeptBlade): string {
-  const { results, passed, broke } = blade.trials
-  if (broke?.how === 'quench') return t('collection.cracked')
-  if (broke) return t('collection.broke', { n: passed, of: results.length })
-  return t('trial.score', { n: passed, of: results.length })
-}
-
-/** Its size and fittings, in a line. */
-function spec(blade: KeptBlade): string {
-  const bar = blade.bar
-  const parts = [
-    t('collection.length', { n: Math.round(barLength(bar) * BENCH.tangShare) }),
-    t('collection.mass', { n: Math.round(massAndBalance(bar, BENCH.tangShare).mass) }),
-    bar.edgeAngle > 0 ? t('collection.edge', { n: Math.round(bar.edgeAngle) }) : t('collection.noEdge'),
-    bar.handle ? t('collection.handle', { handle: t(`handle.${bar.handle}`) }) : t('collection.noHandle'),
-  ]
-  return parts.join(' · ')
-}
-
 export function createCollectionSheet(host: HTMLElement, forge: CollectionHost): Sheet {
   const body = el('div', 'sheet-body')
 
@@ -71,7 +46,7 @@ export function createCollectionSheet(host: HTMLElement, forge: CollectionHost):
     for (const blade of blades) {
       const row = button('kept')
       const words = el('span', 'kept-words')
-      words.append(el('span', 'kept-name', title(blade)), el('span', 'kept-how', `${verdict(blade)} ${day(blade)}`))
+      words.append(el('span', 'kept-name', keptTitle(blade)), el('span', 'kept-how', `${keptVerdict(blade)} ${keptDay(blade)}`))
       row.append(picture(blade, THUMB, 'kept-thumb'), words)
       row.addEventListener('click', () => card(blade))
       body.append(row)
@@ -82,11 +57,26 @@ export function createCollectionSheet(host: HTMLElement, forge: CollectionHost):
   const card = (blade: KeptBlade) => {
     body.replaceChildren(
       picture(blade, LARGE, 'kept-picture'),
-      el('h3', 'sheet-sub', title(blade)),
-      note(spec(blade), 'sheet-note sheet-small'),
-      note(t('collection.keptOn', { date: day(blade) }), 'sheet-note sheet-small'),
+      el('h3', 'sheet-sub', keptTitle(blade)),
+      note(keptSpec(blade), 'sheet-note sheet-small'),
+      note(t('collection.keptOn', { date: keptDay(blade) }), 'sheet-note sheet-small'),
       ...reportParts(blade.bar, blade.trials, true),
     )
+    // The share card is the same blade as a picture, for the phone's share sheet.
+    const share = button('btn btn-wide', 'share.card')
+    const shareNote = note('', 'sheet-note sheet-small')
+    shareNote.setAttribute('aria-live', 'polite')
+    shareNote.hidden = true
+    share.addEventListener('click', () => {
+      share.disabled = true
+      shareNote.hidden = true
+      void shareBlade(blade).then((how) => {
+        share.disabled = false
+        if (how === 'shared' || how === 'cancelled') return
+        shareNote.textContent = t(how === 'saved' ? 'share.saved' : 'share.failed')
+        shareNote.hidden = false
+      })
+    })
     const back = button('btn btn-wide', 'collection.back')
     back.addEventListener('click', list)
     // Taking a blade down cannot be undone, so it takes two taps.
@@ -101,7 +91,7 @@ export function createCollectionSheet(host: HTMLElement, forge: CollectionHost):
       forge.remove(blade.id)
       list()
     })
-    body.append(back, remove)
+    body.append(share, shareNote, back, remove)
     sheet.card.scrollTop = 0
   }
 

@@ -1,0 +1,33 @@
+/** A kept blade in words: what it is, when it was kept, how it did, and its size and fittings. */
+import { STEELS } from '../data/steels'
+import { t } from '../data/strings'
+import { BENCH } from '../data/tuning'
+import type { KeptBlade } from '../persist/collection'
+import { barLength } from '../sim/bar'
+import { massAndBalance } from '../sim/trials'
+
+/** What it is: its pattern and steel. */
+export const keptTitle = (blade: KeptBlade): string => `${t(`pattern.${blade.pattern}`)} · ${STEELS[blade.bar.steel].name}`
+/** The day it was kept, the way this device writes dates. */
+export const keptDay = (blade: KeptBlade): string => new Date(blade.kept).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+
+/** How it did, in a few words. */
+export function keptVerdict(blade: KeptBlade): string {
+  const { results, passed, broke } = blade.trials
+  if (broke?.how === 'quench') return t('collection.cracked')
+  if (broke) return t('collection.broke', { n: passed, of: results.length })
+  if (results.length > 0 && passed === results.length) return t('trial.allPassed')
+  return t('trial.score', { n: passed, of: results.length })
+}
+
+/** Its size and fittings, in a line. */
+export function keptSpec(blade: KeptBlade): string {
+  const bar = blade.bar
+  const parts = [
+    t('collection.length', { n: Math.round(barLength(bar) * BENCH.tangShare) }),
+    t('collection.mass', { n: Math.round(massAndBalance(bar, BENCH.tangShare).mass) }),
+    bar.edgeAngle > 0 ? t('collection.edge', { n: Math.round(bar.edgeAngle) }) : t('collection.noEdge'),
+    bar.handle ? t('collection.handle', { handle: t(`handle.${bar.handle}`) }) : t('collection.noHandle'),
+  ]
+  return parts.join(' · ')
+}
