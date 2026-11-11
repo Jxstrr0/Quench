@@ -133,6 +133,12 @@ export const FIT = {
   pass: 0.6,
 } as const
 
+/** The playbacks: how many seconds each test is shown for, and how long its result stays up afterwards. */
+export const PLAYBACK = {
+  seconds: { fit: 2.2, rope: 2, brass: 2.2, chop: 2.8, shave: 1.8, board: 1.8, bend: 2.6 },
+  hold: 1.6,
+} as const
+
 /** How a trial names the cause of a failure. */
 export const WHY = {
   /** A temper that matches one hour between these temperatures is in the brittle band. */

@@ -31,6 +31,7 @@ import {
   Raycaster,
   Scene,
   Vector2,
+  Vector3,
   WebGLRenderer,
 } from 'three'
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js'
@@ -44,9 +45,11 @@ import type { HandleId } from '../data/grind'
 import { GRIND, SHARPEN } from '../data/grind'
 import { BENCH, FORGE } from '../data/tuning'
 import type { Bar, Segment } from '../sim/bar'
-import { barLength, segmentCentres } from '../sim/bar'
+import { barLength, nearestSegment, segmentCentres } from '../sim/bar'
 import { glowAt } from '../sim/glow'
-import { createBarMesh } from './barMesh'
+import { bentPoint, createBarMesh } from './barMesh'
+import type { BladeDims, TrialShow } from './trialStage'
+import { createTrialStage } from './trialStage'
 
 const MM = 0.001
 const FOV = 40
@@ -78,6 +81,8 @@ export interface ForgeView {
   render(bar: Bar, tipDepth: number, blast: number, lane: number): void
   /** Carry the blade to the grinder and show it there, or pass null to bring it back to the forge. Call before `render`. */
   setBench(pose: BenchPose | null): void
+  /** Show the blade at the trial stand, part way through a test's playback, or pass null to go back. Call before `render`. */
+  setTrial(show: TrialShow | null): void
   /** Fill the tank with this medium. */
   setMedium(medium: MediumId): void
   /** Mark a crack across the bar `at` mm from the tip, or pass null for none. */
@@ -247,8 +252,23 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
   let turn = 0
   let beltRun = 0
 
+  // --- The trial stand: off past the anvil, with its own side-on view -------
+  const stage = createTrialStage()
+  const stageX = 2.2
+  stage.group.position.set(stageX, 0, 0)
+  stage.group.visible = false
+  scene.add(stage.group)
+  let trial: TrialShow | null = null
+  const dims: BladeDims = { gripX: 0, workX: 0, clampX: 0, gripZ: 0, edgeZ: 0, midZ: 0 }
+  const swung = new Vector3()
+  /** The handle's place along the straight blade, and where a bend has taken it. */
+  let gripX = 0
+  const bentGrip = { x: 0, y: 0, turn: 0 }
+  let wasBent = false
+
   // --- The bar and tongs --------------------------------------------------
   const holder = new Group()
+  holder.rotation.order = 'ZYX'
   scene.add(holder)
   let barMesh = createBarMesh(2)
   let segmentCount = -1
@@ -305,7 +325,7 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
   let brightnessOnly = false
   const applyLight = () => {
     // Cold steel on the belt needs the lights up, whatever the forge is set to.
-    const dark = dim && !pose
+    const dark = dim && !pose && !trial
     ambient.intensity = dark ? 0.06 : 1.5
     lamp.intensity = dark ? 0.08 : 1.9
   }
@@ -339,9 +359,29 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
   let vertical = true
   let mmPerPixel = 1
 
+  /** The trial stand, seen from the side: the whole stand fitted into the screen clear of the controls. */
+  const placeTrial = (w: number, h: number) => {
+    // The controls are put away for the tests: only the caption above and the Skip button below need room.
+    const top = vertical ? 96 : 64
+    const bottom = vertical ? 96 : 20
+    const usableH = Math.max(120, h - bottom - top)
+    const see = stage.view(trial?.id ?? 'fit')
+    const scale = Math.max(see.spanX / w, see.spanY / usableH)
+    const distance = (scale * h) / (2 * TAN_HALF_FOV)
+    const tx = stageX + see.x
+    const ty = see.y - ((bottom - top) / 2) * scale
+    camera.up.set(0, 1, 0)
+    camera.position.set(tx, ty + distance * 0.1, distance)
+    camera.lookAt(tx, ty, 0)
+    camera.updateProjectionMatrix()
+  }
   const place = () => {
     const w = host.clientWidth || window.innerWidth
     const h = host.clientHeight || window.innerHeight
+    if (trial) {
+      placeTrial(w, h)
+      return
+    }
     // The close view runs from just before the bar's tip, as it lies on the anvil, to just past its tang.
     const closeFrom = -BENCH.railMin * MM - 0.03
     const closeTo = -BENCH.railMin * MM + barLen + 0.03
@@ -428,6 +468,17 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
         grip.scale.set(length - from + 0.012, (last.thickness + 12) * MM, (last.width + 6) * MM)
         grip.position.set((from + length + 0.012) / 2, 0, (last.width / 2 - spine) * MM)
       }
+      gripX = grip.position.x
+      grip.rotation.z = 0
+      // Where a hand, a test and a vice would each take hold of it.
+      const bladeLen = length * BENCH.tangShare
+      const widthAt = (x: number): number => nearestSegment(bar, x / MM).width
+      dims.gripX = (bladeLen + length) / 2
+      dims.workX = bladeLen * 0.55
+      dims.clampX = Math.min(bladeLen * 0.3, 0.1)
+      dims.gripZ = (last.width / 2 - spine) * MM
+      dims.edgeZ = (widthAt(dims.workX) - spine) * MM
+      dims.midZ = (widthAt(dims.clampX) / 2 - spine) * MM
       tongs.position.set(length - 0.025 + 0.18, 0, (last.width / 2 - spine) * MM)
       jawA.position.y = half
       jawB.position.y = -half
@@ -459,6 +510,16 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
       const changed = (pose === null) !== (next === null)
       pose = next
       if (changed) applyLight()
+    },
+    setTrial(show) {
+      const changed = (trial === null) !== (show === null)
+      // Each test has its own view of the stand: the camera cuts when the test changes.
+      const moved = changed || trial?.id !== show?.id
+      trial = show
+      if (!moved) return
+      stage.group.visible = show !== null
+      if (changed) applyLight()
+      place()
     },
     setMedium(medium) {
       plates = medium === 'plates'
@@ -522,14 +583,34 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
       const wantTurn = pose ? (pose.flipped ? Math.PI - (pose.tilt * Math.PI) / 180 : (pose.tilt * Math.PI) / 180) : 0
       const turnStep = dt * 14
       turn = wantTurn > turn ? Math.min(wantTurn, turn + turnStep) : Math.max(wantTurn, turn - turnStep)
-      holder.rotation.x = turn
+      holder.rotation.set(turn, 0, 0)
       if (atBench > 0) {
         const lift = beltTop + rest + 0.018 * Math.abs(Math.sin(turn)) + Math.sin(Math.PI * atBench) * 0.07
         holder.position.x += (benchX - holder.position.x) * ease
         holder.position.y += (lift - holder.position.y) * ease
         holder.position.z += (benchZ - holder.position.z) * ease
       }
-      tongs.visible = atBench < 0.5
+      if (trial) {
+        // At the trial stand the blade is held in profile, and the stand says how.
+        const held = stage.pose(trial, dims)
+        holder.rotation.set(Math.PI / 2 + held.roll, 0, held.swing)
+        swung.copy(held.local).applyEuler(holder.rotation)
+        holder.position.set(stageX + held.world.x - swung.x, held.world.y - swung.y, held.world.z - swung.z)
+        // In the vice the blade itself bends, and the handle goes with it.
+        barMesh.bend(held.breakX, held.bend, held.cut)
+        bentPoint(gripX, held.breakX, held.bend, bentGrip)
+        grip.position.x = bentGrip.x
+        grip.position.y = bentGrip.y
+        grip.rotation.z = bentGrip.turn
+        wasBent = true
+      } else if (wasBent) {
+        barMesh.bend(0, 0, false)
+        grip.position.x = gripX
+        grip.position.y = 0
+        grip.rotation.z = 0
+        wasBent = false
+      }
+      tongs.visible = atBench < 0.5 && !trial
       grinder.visible = !pose?.stone
       stoneBlock.visible = pose?.stone === true
       if (pose) {
@@ -576,7 +657,7 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
       plateTop.visible = plates && lane >= 1
       barMesh.updateGlow(bar, brightnessOnly)
       barTop = (first.thickness / 2) * MM
-      outline.visible = hasTarget && tipDepth <= 0 && lane <= BENCH.laneRail && atBench === 0
+      outline.visible = hasTarget && tipDepth <= 0 && lane <= BENCH.laneRail && atBench === 0 && !trial
       outline.position.y = barTop + 0.001
 
       // The hammer lifts away over a fifth of a second, and the blow flashes on the steel.

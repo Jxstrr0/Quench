@@ -32,6 +32,13 @@ export interface BarMesh {
   mesh: Mesh
   /** Rebuild the shape. Call only when the bar's geometry has changed. `spine` is in mm. */
   updateShape(bar: Bar, spine: number): void
+  /**
+   * Bend the blade over its flat, for the vice: everything past `at` (metres
+   * from the tip) curls toward +y by `angle` radians. With `cut`, the part
+   * before `at` is left out, as if it had snapped off there. An angle of 0
+   * without `cut` puts the blade back as it was.
+   */
+  bend(at: number, angle: number, cut: boolean): void
   /** Refresh the glow from the segments' temperatures. Cheap; call every frame. */
   updateGlow(bar: Bar, brightnessOnly: boolean): void
 }
@@ -49,12 +56,35 @@ const EDGE = 4
 const SPINE = 5
 /** Each end cap is the blade's six-cornered cross-section. */
 const CAP = 6
+/** A bend in the vice is spread over this much of the blade, in metres. */
+const BEND_OVER = 0.05
+
+/** Where a point `x` along the straight blade's middle line ends up after a bend: its place, and how far it has turned. */
+export function bentPoint(x: number, at: number, angle: number, out: { x: number; y: number; turn: number }): void {
+  const s = x - at
+  if (s <= 0 || angle <= 0.0001) {
+    out.x = x
+    out.y = 0
+    out.turn = 0
+    return
+  }
+  const radius = BEND_OVER / angle
+  const turn = angle * Math.min(1, s / BEND_OVER)
+  const past = Math.max(0, s - BEND_OVER)
+  out.x = at + radius * Math.sin(turn) + past * Math.cos(angle)
+  out.y = radius * (1 - Math.cos(turn)) + past * Math.sin(angle)
+  out.turn = turn
+}
 
 export function createBarMesh(segmentCount: number): BarMesh {
   const rings = segmentCount + 1
   const caps = STRIPS * rings * 2
   const vertexCount = caps + CAP * 2
   const positions = new Float32Array(vertexCount * 3)
+  /** The straight blade, kept so a bend can be taken out again. */
+  const straight = new Float32Array(vertexCount * 3)
+  let bent = false
+  const point = { x: 0, y: 0, turn: 0 }
   const colours = new Float32Array(vertexCount * 3)
   const glow = new Float32Array(vertexCount * 3)
   const index: number[] = []
@@ -193,10 +223,32 @@ export function createBarMesh(segmentCount: number): BarMesh {
           for (let k = 0; k < CAP; k++) paint(colours, v + k, flatColour)
         }
       }
+      straight.set(positions)
+      bent = false
       geometry.attributes.position!.needsUpdate = true
       geometry.attributes.color!.needsUpdate = true
       geometry.computeVertexNormals()
       geometry.computeBoundingSphere()
+    },
+    bend(at, angle, cut) {
+      const none = angle <= 0.0001 && !cut
+      if (none && !bent) return
+      bent = !none
+      for (let v = 0; v < vertexCount; v++) {
+        const x = straight[v * 3] as number
+        const y = straight[v * 3 + 1] as number
+        if (none || x <= at) {
+          // A snapped blade leaves its clamped end behind: fold it away into the break.
+          positions[v * 3] = cut && x < at ? at : x
+          positions[v * 3 + 1] = y
+          continue
+        }
+        bentPoint(x, at, angle, point)
+        positions[v * 3] = point.x - y * Math.sin(point.turn)
+        positions[v * 3 + 1] = point.y + y * Math.cos(point.turn)
+      }
+      geometry.attributes.position!.needsUpdate = true
+      geometry.computeVertexNormals()
     },
     updateGlow(bar, brightnessOnly) {
       const segs = bar.segments

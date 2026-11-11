@@ -220,6 +220,16 @@ html, body {
 .sheet-next { margin-top: 10px; padding: 8px 10px; border-left: 4px solid var(--heat-3); background: rgba(28, 26, 23, 0.06); }
 .sheet-result { min-height: 1.4em; margin-top: 12px; font-weight: 700; }
 .sheet-sub { margin: 14px 0 6px; font-family: var(--font-head); font-weight: 600; font-size: 1.1rem; }
+/* The playbacks: a caption over the trial stand, and a way past them. A tap anywhere moves on. */
+.playback { position: absolute; inset: 0; z-index: 9; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: calc(22px + var(--safe-t, 0px)) 16px calc(40px + var(--safe-b)); background: transparent; }
+#app.trial-on .hud-top, #app.trial-on .hud-hint, #app.trial-on .controls { visibility: hidden; }
+.playback[hidden] { display: none; }
+.playback-caption { width: min(420px, 100%); padding: 10px 14px; border-radius: 8px; background: rgba(8, 9, 11, 0.72); text-align: center; }
+.playback-name { margin: 0; font-family: var(--font-head); font-weight: 600; font-size: 1.15rem; }
+.playback-result { min-height: 2.8em; margin: 4px 0 0; font-size: 0.98rem; line-height: 1.4; }
+.playback-skip { min-width: 120px; }
+#app.wide .playback { padding-top: 10px; padding-bottom: calc(10px + var(--safe-b)); align-items: flex-end; }
+#app.wide .playback-caption { align-self: center; }
 /* The trial card: one block for each test, then the blade's heats as a list. */
 .trial { padding: 9px 0; border-top: 1px solid rgba(28, 26, 23, 0.18); }
 .trial-head { display: flex; justify-content: space-between; gap: 12px; margin: 0; font-weight: 700; line-height: 1.3; }
