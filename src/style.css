@@ -254,6 +254,7 @@ html, body {
 .sheet-sub { margin: 14px 0 6px; font-family: var(--font-head); font-weight: 600; font-size: 1.1rem; }
 /* The collection: a row for each kept blade, and the drawing on a blade's card. */
 .kept { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 64px; margin: 8px 0 0; padding: 8px 10px; border: 1px solid rgba(20, 20, 19, 0.25); border-radius: 8px; background: rgba(255, 255, 255, 0.35); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.kept-on { border: 2px solid var(--ink); background: rgba(255, 255, 255, 0.6); }
 .kept-thumb { flex: none; width: 120px; height: 32px; }
 .kept-words { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .kept-name { font-family: var(--font-head); font-weight: 600; font-size: 1.05rem; }

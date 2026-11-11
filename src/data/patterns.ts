@@ -153,6 +153,9 @@ export const PATTERNS: Record<PatternId, Pattern> = {
   },
 }
 
+/** The order the patterns are listed in: knives by size, then the swords. */
+export const PATTERN_ORDER: readonly PatternId[] = ['campKnife', 'cooksKnife', 'cleaver', 'cuttingKnife', 'shortSword', 'fullSword']
+
 export function pattern(id: PatternId): Pattern {
   return PATTERNS[id]
 }
