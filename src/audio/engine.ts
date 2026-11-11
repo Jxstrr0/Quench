@@ -2,8 +2,8 @@
  * The sound engine: Web Audio, all synthesized, no files. Browsers only allow
  * sound after a touch or click, so `unlock()` is called from the first one.
  */
-import type { TrialSound } from '../data/audio'
-import { FIRE_SOUND, QUENCH_SOUND, TRIAL_SOUNDS } from '../data/audio'
+import type { ForgeSound, SoundShape, TrialSound } from '../data/audio'
+import { FIRE_SOUND, FORGE_SOUNDS, NOISE_SOUND, QUENCH_SOUND, SPARK_SOUND, TRIAL_SOUNDS } from '../data/audio'
 import type { BeltVoice, FireVoice, HammerVoice, HissVoice } from './cues'
 
 /** The ring is three partials, a little out of tune with each other, like struck steel. */
@@ -35,6 +35,10 @@ export interface AudioEngine {
   ping(): void
   /** One sound from the trial stand. */
   trial(sound: TrialSound): void
+  /** One small sound from round the forge. */
+  forge(sound: ForgeSound): void
+  /** Sparks from burning steel: call every frame with the crackles a second (0 for none) and the frame's length. */
+  sparks(rate: number, dt: number): void
   /** The belt grinder's steady rush. Call as often as it changes; pass null to switch the belt off. */
   belt(voice: BeltVoice | null): void
 }
@@ -95,10 +99,40 @@ export function createAudioEngine(): AudioEngine {
     return true
   }
 
+  /** A burst of filtered noise that falls in pitch as it dies: a hiss, a swish, a scrape. */
+  const burst = (hz: number, seconds: number, level: number, delay: number): void => {
+    if (!enabled || !ctx || !master || !longNoise || ctx.state !== 'running' || level <= 0) return
+    const now = ctx.currentTime + delay
+    const src = ctx.createBufferSource()
+    src.buffer = longNoise
+    src.loop = true
+    const filter = ctx.createBiquadFilter()
+    filter.type = 'bandpass'
+    filter.frequency.setValueAtTime(hz, now)
+    filter.frequency.exponentialRampToValueAtTime(hz * 0.45, now + seconds)
+    filter.Q.value = 0.7
+    const gain = ctx.createGain()
+    gain.gain.setValueAtTime(0.0001, now)
+    const lift = Math.min(NOISE_SOUND.maxLift, Math.max(1, Math.sqrt(NOISE_SOUND.fullHz / hz)))
+    const peak = 0.55 * level * lift
+    gain.gain.exponentialRampToValueAtTime(peak, now + Math.min(0.04, seconds / 3))
+    // Die away to a tenth by the end, then close: a fall to nothing would be over in the first third.
+    gain.gain.exponentialRampToValueAtTime(peak * NOISE_SOUND.tail, now + seconds)
+    gain.gain.linearRampToValueAtTime(0, now + seconds + 0.04)
+    src.connect(filter).connect(gain).connect(master)
+    // Start somewhere new in the noise each time, so repeats do not sound the same.
+    src.start(now, Math.random() * 2)
+    src.stop(now + seconds + 0.05)
+  }
+  const play = (shape: SoundShape): void => {
+    if (shape.kind === 'noise') burst(shape.hz, shape.seconds, shape.gain, shape.delay ?? 0)
+    else struck(shape.hz, shape.seconds, shape.gain, shape.metal, shape.delay ?? 0)
+  }
+
   /** Something struck: steel rings on its partials; wood drops in pitch and dies quickly. */
-  const struck = (hz: number, seconds: number, level: number, metal: boolean): void => {
+  const struck = (hz: number, seconds: number, level: number, metal: boolean, delay = 0): void => {
     if (!enabled || !ctx || !master || ctx.state !== 'running') return
-    const now = ctx.currentTime
+    const now = ctx.currentTime + delay
     for (const [ratio, part] of metal ? PARTIALS : WOOD) {
       const osc = ctx.createOscillator()
       const gain = ctx.createGain()
@@ -240,30 +274,22 @@ export function createAudioEngine(): AudioEngine {
       }
     },
     hiss(voice) {
-      if (!enabled || !ctx || !master || !longNoise || ctx.state !== 'running' || voice.gain <= 0) return
-      const now = ctx.currentTime
-      const src = ctx.createBufferSource()
-      src.buffer = longNoise
-      const filter = ctx.createBiquadFilter()
-      filter.type = 'bandpass'
-      filter.frequency.setValueAtTime(voice.hz, now)
-      filter.frequency.exponentialRampToValueAtTime(voice.hz * 0.45, now + voice.seconds)
-      filter.Q.value = 0.7
-      const gain = ctx.createGain()
-      gain.gain.setValueAtTime(0.0001, now)
-      gain.gain.exponentialRampToValueAtTime(0.55 * voice.gain, now + 0.04)
-      gain.gain.exponentialRampToValueAtTime(0.0005, now + voice.seconds)
-      src.connect(filter).connect(gain).connect(master)
-      src.start(now)
-      src.stop(now + voice.seconds + 0.05)
+      burst(voice.hz, voice.seconds, voice.gain, 0)
     },
     ping() {
       struck(QUENCH_SOUND.pingHz, QUENCH_SOUND.pingSeconds, 0.35, true)
     },
     trial(sound) {
-      const shape = TRIAL_SOUNDS[sound]
-      if (shape.kind === 'noise') this.hiss(shape)
-      else struck(shape.hz, shape.seconds, shape.gain, shape.metal)
+      play(TRIAL_SOUNDS[sound])
+    },
+    forge(sound) {
+      for (const shape of FORGE_SOUNDS[sound]) play(shape)
+    },
+    sparks(rate, dt) {
+      // Each frame has a chance of a crackle, so they come unevenly, like sparks.
+      if (rate <= 0 || Math.random() >= rate * dt) return
+      const k = SPARK_SOUND
+      burst(k.hzLow + (k.hzHigh - k.hzLow) * Math.random(), k.seconds, k.gain * (0.5 + 0.5 * Math.random()), 0)
     },
   }
 }
