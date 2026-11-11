@@ -35,6 +35,9 @@ const NEXT_KEY: Record<NextStep, StringKey> = {
   harden: 'next.harden',
   temper: 'next.temper',
   temperAgain: 'next.temperAgain',
+  grind: 'next.grind',
+  sharpen: 'next.sharpen',
+  handle: 'next.handle',
   done: 'next.done',
   cracked: 'next.cracked',
 }
