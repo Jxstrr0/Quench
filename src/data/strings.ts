@@ -186,6 +186,8 @@ const STRINGS = {
   'trial.bend.note': 'One more, if you want it: clamp the blade in the vice and bend it to 90°. A blade does not come back from this one.',
   'trial.bend': 'Bend it in the vice',
   'trial.ended': 'This blade is finished. Closing this card starts a new bar.',
+  'trial.skip': 'Skip',
+  'trial.count': '{n} of {of}',
   'trial.fit': 'Fit and finish',
   'trial.rope': 'Rope cut',
   'trial.brass': 'Brass rod',

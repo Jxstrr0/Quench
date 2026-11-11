@@ -3,7 +3,6 @@
  * why, and see its heats laid out with the bad moment marked.
  */
 import type { Pattern } from '../data/patterns'
-import type { StringKey } from '../data/strings'
 import { t } from '../data/strings'
 import type { TrialId } from '../data/trials'
 import { WHY } from '../data/trials'
@@ -13,10 +12,11 @@ import { heatWord } from '../sim/glow'
 import { coolToRoom } from '../sim/heat'
 import type { Explanation, Moment } from '../sim/report'
 import { explain, fractureReport } from '../sim/report'
-import type { Break, TrialResult } from '../sim/trials'
+import type { Break, TrialReport, TrialResult } from '../sim/trials'
 import { runTrials } from '../sim/trials'
 import type { Sheet } from './dom'
 import { button, createSheet, el } from './dom'
+import { TRIAL_NAME, outcomeText } from './trialPlayback'
 
 export interface TrialHost {
   bar(): Bar
@@ -25,22 +25,8 @@ export interface TrialHost {
   changed(): void
   /** The blade is spent: start a new bar. */
   newBar(): void
-}
-
-const NAME_KEY: Record<TrialId, StringKey> = {
-  fit: 'trial.fit',
-  rope: 'trial.rope',
-  brass: 'trial.brass',
-  chop: 'trial.chop',
-  shave: 'trial.shave',
-  board: 'trial.board',
-  bend: 'trial.bend.name',
-}
-
-/** What happened, as a sentence. */
-function outcomeText(r: TrialResult): string {
-  if (r.id === 'bend' && r.outcome === 'snapped') return t('out.bendSnapped', { n: Math.round(r.value ?? 0) })
-  return t(`out.${r.outcome}`)
+  /** Show these results at the trial stand, one by one, then call `done`. */
+  play(results: readonly TrialResult[], done: () => void): void
 }
 
 /** One line of the timeline. */
@@ -81,13 +67,15 @@ export function createTrialSheet(host: HTMLElement, forge: TrialHost): Sheet {
   const body = el('div', 'sheet-body')
   /** The blade snapped in a test: closing the card starts a new bar. */
   let ended = false
+  /** The card is put away while the tests play. */
+  let playing = false
 
   const note = (text: string, cls = 'sheet-note') => body.append(el('p', cls, text))
 
   const showResult = (r: TrialResult) => {
     const box = el('div', 'trial')
     const head = el('p', 'trial-head')
-    head.append(el('span', 'trial-name', t(NAME_KEY[r.id])))
+    head.append(el('span', 'trial-name', t(TRIAL_NAME[r.id])))
     head.append(el('span', r.passed ? 'trial-mark' : 'trial-mark trial-fail', `${r.passed ? '✓' : '✗'} ${t(r.passed ? 'trial.passed' : 'trial.failed')}`))
     box.append(head)
     box.append(el('p', 'trial-what', r.cause ? `${outcomeText(r)} ${t(`why.${r.cause}`)}` : outcomeText(r)))
@@ -130,9 +118,20 @@ export function createTrialSheet(host: HTMLElement, forge: TrialHost): Sheet {
     forge.changed()
     const p = forge.pattern()
     const report = runTrials(bar, p, BENCH.tangShare, ids ?? p.trials)
+    // Watch the tests first; the card comes back with what they found.
+    playing = true
+    sheet.close()
+    forge.play(report.results, () => {
+      playing = false
+      tell(bar, report, ids !== undefined)
+      sheet.open()
+    })
+  }
+
+  const tell = (bar: Bar, report: TrialReport, bendOnly: boolean) => {
     body.replaceChildren()
     for (const r of report.results) showResult(r)
-    if (!ids && !bar.crack) {
+    if (!bendOnly && !bar.crack) {
       note(report.passed === report.results.length ? t('trial.allPassed') : t('trial.score', { n: report.passed, of: report.results.length }), 'sheet-note sheet-result')
     }
 
@@ -149,7 +148,7 @@ export function createTrialSheet(host: HTMLElement, forge: TrialHost): Sheet {
     }
 
     // A bend ends the blade whether it snaps or not; so does a snap in the chop.
-    if (ids || (report.broke && report.broke.how !== 'quench')) ended = true
+    if (bendOnly || (report.broke && report.broke.how !== 'quench')) ended = true
     if (ended) {
       note(t('trial.ended'), 'sheet-note sheet-small')
     } else if (!bar.crack) {
@@ -174,18 +173,29 @@ export function createTrialSheet(host: HTMLElement, forge: TrialHost): Sheet {
     const p = forge.pattern()
     note(t('trial.intro', { pattern: t(`pattern.${p.id}`).toLowerCase(), n: p.trials.length }))
     const list = el('ol', 'moments')
-    for (const id of p.trials) list.append(el('li', 'moment', t(NAME_KEY[id])))
+    for (const id of p.trials) list.append(el('li', 'moment', t(TRIAL_NAME[id])))
     body.append(list)
     const go = button('btn btn-wide', 'trial.run')
     go.addEventListener('click', () => run())
     body.append(go)
   }
 
-  const sheet = createSheet(host, 'trial.title', intro, () => {
+  const sheet = createSheet(host, 'trial.title', undefined, () => {
+    if (playing) return
     if (ended) forge.newBar()
     ended = false
   })
   sheet.card.append(body)
   sheet.finish()
-  return sheet
+  return {
+    card: sheet.card,
+    open() {
+      intro()
+      sheet.open()
+    },
+    close: sheet.close,
+    get isOpen() {
+      return sheet.isOpen
+    },
+  }
 }

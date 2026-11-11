@@ -36,9 +36,11 @@ import type { Placement } from '../sim/heat'
 import { advance } from '../sim/heat'
 import { magnetTest } from '../sim/inspect'
 import { shapeScore } from '../sim/shape'
+import type { TrialResult } from '../sim/trials'
 import { button, createSheet, el } from './dom'
 import { createGrindBench } from './grindBench'
 import { MAGNET_KEY, createInspectSheet, createTemperSheet } from './treatSheets'
+import { createTrialPlayback } from './trialPlayback'
 import { createTrialSheet } from './trialSheet'
 
 const BLOW_TYPES: BlowType[] = ['flat', 'edge', 'peen', 'point']
@@ -284,6 +286,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
     shapePercent,
     pattern: () => target,
     openTrials: () => trialSheet.open(),
+    play: (results: readonly TrialResult[], done: () => void) => playback.start(results, done),
     newBar: () => {
       if (bench.active) leaveBench()
       freshBar()
@@ -299,6 +302,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   const temperSheet = createTemperSheet(app, treat)
   const inspectSheet = createInspectSheet(app, treat)
   const trialSheet = createTrialSheet(app, treat)
+  const playback = createTrialPlayback(app)
 
   // --- The grinder bench ------------------------------------------------------
   /** Seconds of steel on the belt so far: the bench's hint goes once the player has the idea. */
@@ -540,6 +544,15 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
     last = now
     blast += bellowsHeld ? dt / BENCH.bellowsRise : -dt / BENCH.bellowsFall
     blast = Math.min(1, Math.max(0, blast))
+
+    // The trial stand takes over the view while the tests play.
+    const show = playback.frame(dt)
+    view.setTrial(show)
+    if (show) {
+      view.render(bar, tipDepth, blast, lane)
+      requestAnimationFrame(frame)
+      return
+    }
 
     if (bench.active) {
       const at = bench.frame(dt)
