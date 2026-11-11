@@ -4,7 +4,7 @@ import { BILLETS, JACKET } from '../src/data/billets'
 import { PATTERNS } from '../src/data/patterns'
 import { steel } from '../src/data/steels'
 import type { Bar, Segment } from '../src/sim/bar'
-import { coreMissed, createBar, edgeMartensite } from '../src/sim/bar'
+import { coreMissed, coreShown, createBar, edgeMartensite, isGround } from '../src/sim/bar'
 import { inspect } from '../src/sim/inspect'
 import { bodyHardness, bodyToughness, edgeHardness, hardness, toughness } from '../src/sim/properties'
 import { explain, fixFor } from '../src/sim/report'
@@ -100,6 +100,22 @@ describe('san-mai at the trial', () => {
   it('an even grind keeps the edge in the core', () => {
     const bar = makeBlade('campKnife', { billet: 'sanMai' })
     expect(bar.segments.some((s) => coreMissed(s))).toBe(false)
+  })
+
+  it('shows its core only where the grind has cut through a soft side', () => {
+    // Before the belt, the core is covered all over.
+    const stock = createBar('1084', PATTERNS.campKnife.stock, undefined, 1, 'sanMai')
+    expect(stock.segments.every((s) => coreShown(s) === 0)).toBe(true)
+    // Ground to an edge, the core shows along the lower part of the bevel, and not on the tang.
+    const bar = makeBlade('campKnife', { billet: 'sanMai' })
+    const ground = bar.segments.filter(isGround)
+    expect(ground.length).toBeGreaterThan(10)
+    for (const s of ground) expect(coreShown(s)).toBeLessThan(1)
+    expect(ground.filter((s) => coreShown(s) > 0.2).length).toBeGreaterThan(ground.length * 0.8)
+    expect(coreShown(bar.segments[20] as Segment)).toBeGreaterThan(0.3)
+    expect(bar.segments.filter((s) => !isGround(s)).every((s) => coreShown(s) === 0)).toBe(true)
+    // A plain blade has no core to show.
+    expect(makeBlade('campKnife').segments.every((s) => coreShown(s) === 0)).toBe(true)
   })
 })
 

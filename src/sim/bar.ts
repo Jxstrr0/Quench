@@ -277,6 +277,19 @@ export function coreMissed(s: Segment): boolean {
   return (off < 0 ? -off : off) > s.thickness * (1 - s.jacket)
 }
 
+/**
+ * How much of a san-mai blade's bevel here shows the hard core, 0 to 1,
+ * measured up from the edge on the side ground deeper. The grind cuts
+ * through a soft side as it nears the edge; where it has not, the core is
+ * still covered.
+ */
+export function coreShown(s: Segment): number {
+  if (s.jacket <= 0) return 0
+  const side = (s.thickness * s.jacket) / 2
+  const cut = s.cutLeft > s.cutRight ? s.cutLeft : s.cutRight
+  return cut > side ? 1 - side / cut : 0
+}
+
 /** The share of martensite in the part of a segment that clay did not keep soft: the edge side. */
 export function edgeMartensite(s: Segment): number {
   if (coreMissed(s)) return 0

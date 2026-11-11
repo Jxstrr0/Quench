@@ -5,7 +5,8 @@ import type { KeptBlade } from '../src/persist/collection'
 import { COLLECTION_MAX, keepBlade, packCollection, parseCollection, removeBlade } from '../src/persist/collection'
 import { explain } from '../src/sim/report'
 import { runTrials } from '../src/sim/trials'
-import { finished } from './blades'
+import { keptTitle } from '../src/ui/bladeWords'
+import { finished, makeBlade } from './blades'
 
 /** A blade as the collection would hold it. There is no localStorage here, so it is built by hand. */
 function kept(id: string): KeptBlade {
@@ -58,6 +59,15 @@ describe('the collection', () => {
     // No localStorage in the test run: the save fails, and the caller is told.
     const blade = kept('x')
     expect(keepBlade([], 'campKnife', blade.bar, blade.trials, 1)).toBeNull()
+  })
+
+  it('names what a blade was welded up from', () => {
+    const blade = kept('a')
+    expect(keptTitle(blade)).toBe('Camp knife · 1084')
+    expect(keptTitle({ ...blade, bar: makeBlade('campKnife', { billet: 'sanMai' }) })).toBe('Camp knife · 1084 san-mai')
+    const layered = makeBlade('campKnife', { billet: 'layered' })
+    layered.layers = 64
+    expect(keptTitle({ ...blade, bar: layered })).toBe('Camp knife · 1084, 64 layers')
   })
 
   it('takes a blade down', () => {
