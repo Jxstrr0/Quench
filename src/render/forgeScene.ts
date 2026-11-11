@@ -49,6 +49,7 @@ import { barLength, nearestSegment, segmentCentres } from '../sim/bar'
 import { patternLength } from '../sim/shape'
 import { glowAt } from '../sim/glow'
 import { bentPoint, createBarMesh } from './barMesh'
+import { swapIn } from './models'
 import type { BladeDims, TrialShow } from './trialStage'
 import { createTrialStage } from './trialStage'
 
@@ -171,6 +172,8 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
   const anvil = box(anvilLen, 0.1, 0.11, 0x3a4047, 0.55, 0.7)
   anvil.position.set(BENCH.anvilGap * MM + anvilLen / 2, -0.05, 0)
   scene.add(anvil)
+  // The modelled anvil takes the box's place when it loads: its origin is the forge end of its face.
+  swapIn('anvil', anvil, (model) => model.position.set(BENCH.anvilGap * MM, 0, 0))
 
   // --- The quench tank: a trough beside the rail ----------------------------
   const tankZ = -BENCH.tankOffset * MM

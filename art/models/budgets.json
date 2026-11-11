@@ -1,0 +1,4 @@
+{
+  "note": "The most triangles and bytes each model may have. scripts/models-check.mjs and tests/models.test.ts hold every .glb in public/assets/models to these.",
+  "anvil": { "triangles": 1200, "bytes": 60000 }
+}

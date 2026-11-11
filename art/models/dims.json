@@ -1,0 +1,6 @@
+{
+  "note": "Sizes the models share with the game, in mm. tests/models.test.ts checks them against src/data/tuning.ts.",
+  "anvilLength": 300,
+  "anvilWidth": 110,
+  "floorDrop": 120
+}
