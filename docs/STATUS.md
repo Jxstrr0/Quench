@@ -4,6 +4,7 @@ The plan is `docs/QUENCH-PLAN.md`. Newest line first.
 
 | Version | PR | What changed |
 | --- | --- | --- |
+| 0.7.5.0 | PR 7h: The sword tests on the stand | The two sword tests now play at the trial stand. **Flex and spring back**: the blade stands on its tip against a peg and is bowed over, then springs back true, comes back bent, or snaps in the hand. **Rolled mat cut**: a slanting cut through a straw mat on a stand; the top slides off, folds over, or the mat only rocks. The view grows to fit a long blade in every test. |
 | 0.7.4.0 | PR 7g: The short sword in Free forge | A small **Change pattern** button beside the "% to shape" line swaps between the camp knife and the short sword in Free forge (it starts a new bar, in the pattern's steel). The sword's bar is 320 mm and draws out to 600 mm. The forge has a port in its back wall: a blade longer than the fire is pushed through and out, and steel outside the fire cools in the air, so a sword has to be slid back and forth to heat it (Kelbo's choice, 11 November 2026; a long trench forge comes as a bought tool). The view widens to keep a long bar in sight and the quench trough is longer for a sword. The trial card runs the sword's three tests; their playbacks are still a blade on the table (next PR). Blade length is now read from the pattern everywhere. 3 new tests (276 in total). |
 | 0.7.3.0 | PR 7f: The short sword (sim only) | Nothing new on screen. The second pattern: a **short sword**, a 450 mm single-edged blade in 5160 spring steel on a long tang, forged from a 320 mm bar. Two sword tests. **Flex and spring back**: the blade is bowed over a peg; a brittle one snaps (with its cause), a soft one comes back bent, and the bend then spoils its cut. **Rolled mat cut**: sharpness, sharpening angle, a straight blade and even bevels all count. A sword faces fit and finish, the flex and the mat. 10 new tests (273 in total). PR 7g puts the sword on screen with its commissions. |
 | 0.7.2.0 | PR 7e: Save code and backup | The Career card gains **Save code and backup**. Copy the whole game (three careers, the collection, the settings) as one code starting `QNC1:`, or download it as `quench-backup-YYYY-MM-DD.txt`. Paste a code or choose a backup file on any phone to bring it back: the first tap reads it and says what is inside, the second replaces what is on the device. The game asks the browser to keep its saves, and reminds you on the Career card (and once when the game opens) when the last backup is two weeks old. |
@@ -32,7 +33,7 @@ The plan is `docs/QUENCH-PLAN.md`. Newest line first.
 
 Pages is on and the custom domain is set: https://quench.longlight.games/. Each merge to `main` publishes there.
 
-## Questions for Kelbo after playing 0.7.4.0
+## Questions for Kelbo after playing 0.7.5.0
 
 Kelbo said to keep rolling and tune later, so these are saved up, not blocking.
 

@@ -32,6 +32,8 @@ export interface BladeDims {
   gripZ: number
   edgeZ: number
   midZ: number
+  /** The whole bar, tip to tang end. */
+  length: number
 }
 
 /** How to hold the blade: `local` (a point on the blade) sits at `world` (stage space); the blade is swung by `swing` and rolled by `roll`. */
@@ -60,7 +62,7 @@ export interface StageView {
 export interface TrialStage {
   group: Group
   /** What the camera must see for this test: the middle of it and how much of it, in stage space. */
-  view(id: TrialId): StageView
+  view(id: TrialId, blade: BladeDims): StageView
   /** Set the props for this moment and say how the blade is held. */
   pose(show: TrialShow, blade: BladeDims): BladePose
 }
@@ -68,6 +70,13 @@ export interface TrialStage {
 const VIEW_ROPE: StageView = { x: 0.02, y: 0.3, spanX: 0.5, spanY: 0.7 }
 const VIEW_VICE: StageView = { x: 0, y: 0.19, spanX: 0.46, spanY: 0.5 }
 const VIEW_TABLE: StageView = { x: 0.03, y: 0.1, spanX: 0.42, spanY: 0.36 }
+
+/** A blade longer than this (metres) does not fit the knife views: the view grows with it. */
+const LONG = 0.4
+/** How far the flex bows a blade over the peg, in degrees: the same for every blade, so it is staging, not a result. */
+const BOW = 35
+/** A blade that takes a set comes back this far short, in degrees, for each mm of set. */
+const SET_SHOWN = 1.5
 
 const DEG = Math.PI / 180
 const GRAVITY = 9.8
@@ -148,17 +157,51 @@ export function createTrialStage(): TrialStage {
   // The end of a blade that snapped in the chop, left behind in the timber.
   const shard = prop(new BoxGeometry(1, 1, 1), 0x6f757d, 0.6, 0.6)
 
-  group.add(rope, timber, brass, vice, pad, shard)
+  // The peg the sword's tip is set against for the flex: a post on the table with a notch block.
+  const pegTop = 0.06
+  const pegX = -0.12
+  const peg = new Group()
+  const pegPost = prop(new BoxGeometry(0.05, pegTop, 0.1), 0x5a626c, 0.6, 0.5)
+  pegPost.position.set(pegX - 0.03, pegTop / 2, 0)
+  const pegStop = prop(new BoxGeometry(0.014, pegTop + 0.05, 0.1), 0x454c55, 0.6, 0.5)
+  pegStop.position.set(pegX + 0.012, (pegTop + 0.05) / 2, 0)
+  peg.add(pegPost, pegStop)
+
+  // The rolled mat stands on a spike stand, in two lengths so the top can slide off the cut.
+  const matR = 0.045
+  const matFoot = 0.12
+  const matTop = 0.72
+  const matMat = new MeshStandardMaterial({ color: 0xb9a468, roughness: 1 })
+  const matLow = new Mesh(new CylinderGeometry(matR, matR, 1, 18), matMat)
+  const matHigh = new Mesh(new CylinderGeometry(matR, matR, 1, 18), matMat)
+  const matStand = prop(new BoxGeometry(0.16, matFoot, 0.16), 0x3d3328, 0.95)
+  matStand.position.set(0, matFoot / 2, 0)
+  const mat = new Group()
+  mat.position.set(spotX, 0, 0)
+  mat.add(matStand, matLow, matHigh)
+
+  group.add(rope, timber, brass, vice, pad, shard, peg, mat)
 
   const local = new Vector3()
   const world = new Vector3()
 
   return {
     group,
-    view(id) {
+    view(id, blade) {
+      const long = blade.length > LONG
+      // The flex stands the blade on its tip against the peg: the view is as tall as the blade.
+      if (id === 'flex') return { x: pegX + 0.1, y: (pegTop + blade.length) / 2, spanX: 0.2 + blade.length * 0.9, spanY: pegTop + blade.length + 0.12 }
+      // The mat is cut with a full swing from the grip: room for the blade above and below the hand.
+      if (id === 'mat') {
+        const reach = blade.gripX
+        return { x: spotX + (blade.gripX - blade.workX) - reach / 2 + 0.03, y: 0.5, spanX: reach + 0.3, spanY: 1.1 }
+      }
       // The rope needs its height; the vice needs room for the blade to stand; the rest happen on the table top.
       if (id === 'rope') return VIEW_ROPE
-      return id === 'bend' ? VIEW_VICE : VIEW_TABLE
+      if (id === 'bend') return long ? { x: 0, y: (viceTop + blade.length) / 2, spanX: 0.3 + blade.length * 0.9, spanY: viceTop + blade.length + 0.1 } : VIEW_VICE
+      // A long blade on the table: the view is as wide as it is.
+      if (long) return { x: spotX - blade.workX + blade.length / 2, y: 0.1, spanX: blade.length + 0.12, spanY: 0.36 }
+      return VIEW_TABLE
     },
     pose(show, blade) {
       const { t, outcome } = show
@@ -167,6 +210,8 @@ export function createTrialStage(): TrialStage {
       brass.visible = show.id === 'brass'
       vice.visible = show.id === 'bend'
       pad.visible = show.id === 'shave'
+      peg.visible = show.id === 'flex'
+      mat.visible = show.id === 'mat'
       shard.visible = false
 
       // Held by the grip unless a test says otherwise. `drop` is how far the edge hangs below the hand.
@@ -255,6 +300,61 @@ export function createTrialStage(): TrialStage {
           world.y += 0.035 * away
           world.x += 0.03 + 0.04 * away
           swing -= ((show.value ?? 90) + (80 - (show.value ?? 90)) * away) * DEG
+        }
+      } else if (show.id === 'flex') {
+        // Stood on its tip against the peg, flat toward us, then bowed over and let go.
+        local.set(0.012, 0, blade.midZ)
+        world.set(pegX, pegTop, 0)
+        roll = Math.PI / 2
+        swing = 90 * DEG
+        breakX = blade.workX * 0.7
+        const bowed = over(t, 0.08, 0.5)
+        if (outcome === 'snapped') {
+          // It lets go part-way into the bow, and the hand is left holding the upper part.
+          const at = clamp01((show.value ?? BOW) / BOW) * 0.5
+          bend = Math.min(show.value ?? BOW, BOW * bowed) * DEG
+          if (t > at) {
+            const away = over(t, at, at + 0.15)
+            cut = true
+            bend = 0
+            world.x += 0.03 + 0.05 * away
+            world.y += 0.03 * away
+            swing -= 25 * away * DEG
+          }
+        } else {
+          // Sprung back true, or left with a set: the bend it keeps is drawn larger than life so it can be seen.
+          const kept = outcome === 'takesSet' ? Math.min(BOW * 0.6, 3 + (show.value ?? 0) * SET_SHOWN) : 0
+          bend = (BOW * bowed - (BOW - kept) * over(t, 0.6, 0.8)) * DEG
+        }
+      } else if (show.id === 'mat') {
+        // One slanting cut from the shoulder, down through the mat.
+        world.y = 0.5
+        const cutY = world.y - drop - 0.02
+        const hit = 0.45
+        const through = outcome === 'clean' || outcome === 'cut'
+        const back = over(t, 0, 0.3)
+        const end = through ? 40 : outcome === 'partCut' ? 6 : -20
+        swing = (-50 - 15 * back + (t < hit ? 65 * over(t, 0.3, hit) : 65 + end * over(t, hit, hit + 0.22))) * DEG
+        const since = t > hit ? (t - hit) * show.seconds : 0
+        const lowLen = cutY - matFoot
+        const highLen = matTop - cutY
+        matLow.scale.y = lowLen
+        matLow.position.set(0, matFoot + lowLen / 2, 0)
+        matHigh.scale.y = highLen
+        matHigh.position.set(0, cutY + highLen / 2, 0)
+        matHigh.rotation.z = 0
+        mat.rotation.z = 0
+        if (through) {
+          // The top slides down the slant of the cut and drops; a torn cut sends it tumbling.
+          const slide = Math.min(since, 0.25)
+          const fall = since > 0.25 ? since - 0.25 : 0
+          matHigh.position.x = -0.35 * slide
+          matHigh.position.y -= 0.2 * slide + 0.5 * GRAVITY * fall * fall
+          matHigh.rotation.z = (outcome === 'cut' ? 1.6 : 0.5) * since
+        } else if (since > 0) {
+          // Still standing: the top folds over at the cut, or the whole mat rocks on its stand.
+          if (outcome === 'partCut') matHigh.rotation.z = 0.35 * over(t, hit, hit + 0.2)
+          else mat.rotation.z = (6 * DEG * Math.sin(since * 8)) / (1 + since * 4)
         }
       } else {
         // Fit and finish, and anything without its own staging: turned over slowly in the light.
