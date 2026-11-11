@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { beltVoice, hammerVoice, strokeVoice } from '../src/audio/cues'
+import { beltVoice, fireVoice, hammerVoice, strokeVoice } from '../src/audio/cues'
 
 describe('the sound of a blow', () => {
   it('hot, thick steel gives a dull thud with no ring', () => {
@@ -57,5 +57,31 @@ describe('the sound of the stone', () => {
     expect(firm.gain).toBeGreaterThan(light.gain)
     expect(firm.seconds).toBeLessThan(0.5)
     expect(strokeVoice(9)).toEqual(firm)
+  })
+})
+
+describe('the sound of the fire', () => {
+  it('is never silent, and roars louder, brighter and rougher with the bellows', () => {
+    const idle = fireVoice(0, false, false)
+    const full = fireVoice(1, false, false)
+    expect(idle.gain).toBeGreaterThan(0)
+    expect(full.gain).toBeGreaterThan(idle.gain)
+    expect(full.hz).toBeGreaterThan(idle.hz)
+    expect(full.flutter).toBeGreaterThan(idle.flutter)
+  })
+  it('is louder for the trench forge and quieter from across the room', () => {
+    expect(fireVoice(0.5, true, false).gain).toBeGreaterThan(fireVoice(0.5, false, false).gain)
+    expect(fireVoice(0.5, false, true).gain).toBeLessThan(fireVoice(0.5, false, false).gain)
+  })
+  it('stays in range whatever it is given', () => {
+    for (const blast of [-1, 0, 0.5, 1, 3]) {
+      for (const long of [false, true]) {
+        const v = fireVoice(blast, long, false)
+        expect(v.gain).toBeGreaterThanOrEqual(0)
+        expect(v.gain).toBeLessThanOrEqual(1)
+        expect(v.flutter).toBeLessThanOrEqual(1)
+        expect(v.hz).toBeGreaterThan(0)
+      }
+    }
   })
 })

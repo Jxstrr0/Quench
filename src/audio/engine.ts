@@ -2,8 +2,8 @@
  * The sound engine: Web Audio, all synthesized, no files. Browsers only allow
  * sound after a touch or click, so `unlock()` is called from the first one.
  */
-import { QUENCH_SOUND } from '../data/audio'
-import type { BeltVoice, HammerVoice, HissVoice } from './cues'
+import { FIRE_SOUND, QUENCH_SOUND } from '../data/audio'
+import type { BeltVoice, FireVoice, HammerVoice, HissVoice } from './cues'
 
 /** The ring is three partials, a little out of tune with each other, like struck steel. */
 const PARTIALS: [ratio: number, level: number][] = [
@@ -15,6 +15,12 @@ const PARTIALS: [ratio: number, level: number][] = [
 export interface AudioEngine {
   unlock(): void
   setEnabled(on: boolean): void
+  /** Hold every sound while the page is hidden, and carry on when it is back. */
+  sleep(on: boolean): void
+  /** How loud everything is, 0 to 1. */
+  setVolume(level: number): void
+  /** The forge fire's steady roar. Call every frame; pass null to put it out. */
+  fire(voice: FireVoice | null): void
   hammer(voice: HammerVoice): void
   /** Hot steel going into the quench. */
   hiss(voice: HissVoice): void
@@ -33,6 +39,23 @@ export function createAudioEngine(): AudioEngine {
   let beltSrc: AudioBufferSourceNode | null = null
   let beltFilter: BiquadFilterNode | null = null
   let beltGain: GainNode | null = null
+  let volume = 0.7
+  let fireSrc: AudioBufferSourceNode | null = null
+  let fireFilter: BiquadFilterNode | null = null
+  let fireGain: GainNode | null = null
+  let flutter: OscillatorNode | null = null
+  let flutterDepth: GainNode | null = null
+  const stopFire = (): void => {
+    if (!ctx || !fireSrc || !fireGain) return
+    fireGain.gain.setTargetAtTime(0, ctx.currentTime, 0.08)
+    fireSrc.stop(ctx.currentTime + 0.6)
+    flutter?.stop(ctx.currentTime + 0.6)
+    fireSrc = null
+    fireFilter = null
+    fireGain = null
+    flutter = null
+    flutterDepth = null
+  }
   const stopBelt = (): void => {
     if (!ctx || !beltSrc || !beltGain) return
     beltGain.gain.setTargetAtTime(0, ctx.currentTime, 0.04)
@@ -50,7 +73,7 @@ export function createAudioEngine(): AudioEngine {
       return false
     }
     master = ctx.createGain()
-    master.gain.value = 0.6
+    master.gain.value = volume
     master.connect(ctx.destination)
     // A short burst of noise for the click of the hammer face.
     noise = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.03), ctx.sampleRate)
@@ -70,7 +93,52 @@ export function createAudioEngine(): AudioEngine {
     },
     setEnabled(on) {
       enabled = on
-      if (!on) stopBelt()
+      if (!on) {
+        stopBelt()
+        stopFire()
+      }
+    },
+    sleep(on) {
+      if (!ctx) return
+      if (on) void ctx.suspend()
+      else if (enabled) void ctx.resume()
+    },
+    setVolume(level) {
+      volume = level < 0 ? 0 : level > 1 ? 1 : level
+      if (ctx && master) master.gain.setTargetAtTime(volume, ctx.currentTime, 0.03)
+    },
+    fire(voice) {
+      if (!voice || !enabled || !ctx || !master || !longNoise || ctx.state !== 'running') {
+        stopFire()
+        return
+      }
+      const now = ctx.currentTime
+      if (!fireSrc || !fireFilter || !fireGain || !flutterDepth) {
+        fireSrc = ctx.createBufferSource()
+        fireSrc.buffer = longNoise
+        fireSrc.loop = true
+        fireFilter = ctx.createBiquadFilter()
+        fireFilter.type = 'lowpass'
+        fireFilter.Q.value = 0.5
+        fireFilter.frequency.value = voice.hz
+        // The flutter: a slow wobble added to the loudness, so the flames breathe.
+        const wobble = ctx.createGain()
+        wobble.gain.value = 1
+        flutter = ctx.createOscillator()
+        flutter.frequency.value = FIRE_SOUND.flutterHz
+        flutterDepth = ctx.createGain()
+        flutterDepth.gain.value = voice.flutter
+        flutter.connect(flutterDepth).connect(wobble.gain)
+        fireGain = ctx.createGain()
+        fireGain.gain.value = 0
+        fireSrc.connect(fireFilter).connect(wobble).connect(fireGain).connect(master)
+        fireSrc.start(now)
+        flutter.start(now)
+      }
+      // Low-passed noise is quiet for its level, so the roar is lifted to sit with the other sounds.
+      fireGain.gain.setTargetAtTime(voice.gain * 3, now, 0.12)
+      fireFilter.frequency.setTargetAtTime(voice.hz, now, 0.12)
+      flutterDepth.gain.setTargetAtTime(voice.flutter, now, 0.12)
     },
     belt(voice) {
       if (!voice || !enabled || !ctx || !master || !longNoise || ctx.state !== 'running') {

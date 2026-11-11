@@ -61,3 +61,21 @@ export const BELT_SOUND = {
   fullGain: 0.3,
   fullHz: 3400,
 } as const
+
+/** The forge fire: a low roar that rises and brightens with the bellows. */
+export const FIRE_SOUND = {
+  /** The fire left alone: loudness (0 to 1) and how bright the roar is (a low-pass filter, in Hz). */
+  idleGain: 0.05,
+  idleHz: 260,
+  /** The bellows at full blast. */
+  fullGain: 0.3,
+  fullHz: 1500,
+  /** The long trench fire is this much louder than the short one. */
+  longGain: 1.25,
+  /** With the bar at the grinder or the trial stand the fire is across the room: this much of its loudness is left. */
+  awayGain: 0.4,
+  /** The flames flutter this many times a second, by this much of the loudness, rising to `fullFlutter` at full blast. */
+  flutterHz: 7,
+  idleFlutter: 0.15,
+  fullFlutter: 0.4,
+} as const

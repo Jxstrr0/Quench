@@ -9,7 +9,7 @@
  * Grinder button carries a cool blade to the belt (see `grindBench.ts`). The
  * controls sit at the bottom, under the thumbs.
  */
-import { hammerVoice, hissVoice } from '../audio/cues'
+import { fireVoice, hammerVoice, hissVoice } from '../audio/cues'
 import { createAudioEngine } from '../audio/engine'
 import type { StageId } from '../data/career'
 import { BRIEFS, FIRST_JOB, PROVINGS } from '../data/career'
@@ -255,7 +255,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
   // --- Sheets: assists, the tempering oven, the inspection ---------------------
   const sheet = createSheet(app, 'assists.title')
   sheet.card.append(el('p', 'sheet-note', t('assists.note')))
-  const toggle = (key: keyof Settings, label: StringKey, note: StringKey) => {
+  const toggle = (key: Exclude<keyof Settings, 'volume'>, label: StringKey, note: StringKey) => {
     const line = el('label', 'toggle')
     const input = el('input')
     input.type = 'checkbox'
@@ -275,6 +275,20 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
   toggle('heatNumber', 'assists.number', 'assists.number.note')
   toggle('dimLights', 'assists.dim', 'assists.dim.note')
   toggle('sound', 'settings.sound', 'settings.sound.note')
+  const volumeLine = el('label', 'toggle volume')
+  const volume = el('input')
+  volume.type = 'range'
+  volume.min = '0'
+  volume.max = '100'
+  volume.step = '5'
+  volume.value = String(Math.round(settings.volume * 100))
+  volume.addEventListener('input', () => {
+    settings.volume = Number(volume.value) / 100
+    saveSettings(settings)
+    applySettings()
+  })
+  volumeLine.append(el('span', 'toggle-label', t('settings.volume')), volume)
+  sheet.card.append(volumeLine)
   toggle('haptics', 'settings.haptics', 'settings.haptics.note')
   // Graphics: one button that steps through Auto, Lite, Full and Ultra.
   const gfx = button('btn btn-wide btn-quiet')
@@ -307,6 +321,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
     view.setDim(settings.dimLights)
     view.setBrightnessOnly(settings.brightnessOnly)
     audio.setEnabled(settings.sound)
+    audio.setVolume(settings.volume)
     // At the grinder the edge's heat is always given in words.
     readout.hidden = !(bench.active || settings.heatWords || showsNumber())
   }
@@ -767,6 +782,9 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
   cool.addEventListener('contextmenu', (e) => e.preventDefault())
 
   // Drag anywhere on the scene to slide the bar along the rail, and sideways to the tank.
+  // Browsers only allow sound after a touch or a key, wherever it lands.
+  for (const type of ['pointerdown', 'keydown'] as const) document.addEventListener(type, () => audio.unlock(), { passive: true })
+  document.addEventListener('visibilitychange', () => audio.sleep(document.hidden))
   const canvas = app.querySelector('canvas')
   let dragId = -1
   let lastX = 0
@@ -888,6 +906,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
     last = now
     blast += bellowsHeld ? dt / BENCH.bellowsRise : -dt / BENCH.bellowsFall
     blast = Math.min(1, Math.max(0, blast))
+    audio.fire(fireVoice(blast, longFire(), bench.active || playback.active))
 
     // The trial stand takes over the view while the tests play.
     const show = playback.frame(dt)
