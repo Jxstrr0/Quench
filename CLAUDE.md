@@ -103,6 +103,9 @@ pieces: the loading splash, the credit line, the studio link.
 - Copied code gets `// Adapted from <Repo> <path> (<date>)` at the top. Never
   import across repos or hotlink.
 - Every third-party file gets a line in `CREDITS.md`.
+- Kelbo allows CC0 and CC BY assets (models, textures, sounds, fonts), for
+  Blender work or directly in the game. CC BY needs the author, source and
+  licence in `CREDITS.md`. No other licences without asking.
 - Assets from Higgsfield or ElevenLabs are optional layers. Never spend
   Kelbo's credits without his direct yes (plan section 11).
 
