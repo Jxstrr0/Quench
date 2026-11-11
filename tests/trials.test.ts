@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import { PATTERNS } from '../src/data/patterns'
 import type { TrialId } from '../src/data/trials'
 import type { Bar } from '../src/sim/bar'
+import { createBar } from '../src/sim/bar'
 import { fitHandle, strokeStone } from '../src/sim/finish'
 import { grindFor, stepGrind } from '../src/sim/grind'
 import { advance } from '../src/sim/heat'
@@ -115,7 +116,7 @@ describe('a sound blade', () => {
     const full = runTrials(bar, P, BLADE, ALL)
     expect(full.results.map((x) => `${x.id} ${x.outcome} ${x.score.toFixed(2)}${x.value === null ? '' : ' ' + x.value.toFixed(2)}`)).toMatchInlineSnapshot(`
       [
-        "fit fine 0.97",
+        "fit fine 0.96",
         "rope clean 1.00",
         "brass springsBack 1.00",
         "chop held 1.00",
@@ -143,13 +144,21 @@ describe('what went wrong, by name', () => {
   it('a bar that was never ground or hardened', () => {
     const r = runTrials(blade(), P, BLADE, ALL)
     expect(told(r)).toMatchObject({
-      fit: 'fair: noHandle',
+      fit: 'rough: noHandle',
       rope: 'bounced: notGround',
       brass: 'tooStiff: edgeTooThick',
       chop: 'rolled: notHardened',
       bend: 'bent90',
     })
     expect(r.broke).toBeNull()
+  })
+
+  it('bar stock that was never forged, however well it is ground and handled', () => {
+    const bar = createBar('1084', P.stock)
+    for (let n = 0; n < 200; n++) for (const side of BOTH) for (let at = 30; at <= 200; at += 5) stepGrind(bar, { at, side, tilt: 5, pressure: 1 })
+    sharpen(bar)
+    fitHandle(bar, 'ash')
+    expect(told(runTrials(bar, P, BLADE, ['fit']))).toEqual({ fit: 'rough: offShape' })
   })
 
   it('a blade ground and sharpened but never hardened', () => {

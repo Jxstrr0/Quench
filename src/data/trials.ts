@@ -123,8 +123,11 @@ export const FIT = {
   /** Hammer marks: lumps in the blade's thickness averaging this share of it score nothing for surface. */
   lumpRef: 0.12,
   weights: { shape: 0.3, straight: 0.2, bevels: 0.15, surface: 0.15, handle: 0.2 },
-  /** One part scoring under this is named as what let the blade down. */
+  /** A bar that was never forged already scores this for shape: it counts as nothing, and a perfect match as 1. */
+  shapeFloor: 0.6,
+  /** One part scoring under this is named as what let the blade down, and the work is fair at best; under `itemFail` it is rough. */
   itemPass: 0.6,
+  itemFail: 0.3,
   /** Overall: from `fine` up is fine work; from `pass` up is fair. */
   fine: 0.8,
   pass: 0.6,

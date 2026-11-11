@@ -39,6 +39,7 @@ import { shapeScore } from '../sim/shape'
 import { button, createSheet, el } from './dom'
 import { createGrindBench } from './grindBench'
 import { MAGNET_KEY, createInspectSheet, createTemperSheet } from './treatSheets'
+import { createTrialSheet } from './trialSheet'
 
 const BLOW_TYPES: BlowType[] = ['flat', 'edge', 'peen', 'point']
 const BLOW_KEY: Record<BlowType, [StringKey, StringKey]> = {
@@ -281,6 +282,12 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   const treat = {
     bar: () => bar,
     shapePercent,
+    pattern: () => target,
+    openTrials: () => trialSheet.open(),
+    newBar: () => {
+      if (bench.active) leaveBench()
+      freshBar()
+    },
     changed: () => {
       // The blade comes back cold, lying on the anvil.
       lane = 0
@@ -291,6 +298,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   }
   const temperSheet = createTemperSheet(app, treat)
   const inspectSheet = createInspectSheet(app, treat)
+  const trialSheet = createTrialSheet(app, treat)
 
   // --- The grinder bench ------------------------------------------------------
   /** Seconds of steel on the belt so far: the bench's hint goes once the player has the idea. */

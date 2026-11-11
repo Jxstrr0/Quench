@@ -219,6 +219,18 @@ html, body {
 .sheet-small { margin-top: 2px; font-size: 0.82rem; opacity: 0.75; }
 .sheet-next { margin-top: 10px; padding: 8px 10px; border-left: 4px solid var(--heat-3); background: rgba(28, 26, 23, 0.06); }
 .sheet-result { min-height: 1.4em; margin-top: 12px; font-weight: 700; }
+.sheet-sub { margin: 14px 0 6px; font-family: var(--font-head); font-weight: 600; font-size: 1.1rem; }
+/* The trial card: one block for each test, then the blade's heats as a list. */
+.trial { padding: 9px 0; border-top: 1px solid rgba(28, 26, 23, 0.18); }
+.trial-head { display: flex; justify-content: space-between; gap: 12px; margin: 0; font-weight: 700; line-height: 1.3; }
+.trial-mark { flex: none; }
+.trial-fail { color: #8f2a1c; }
+.trial-what { margin: 3px 0 0; font-size: 0.95rem; line-height: 1.4; }
+.trial-extra { margin-top: 14px; }
+.moments { margin: 0 0 10px; padding-left: 1.5em; font-size: 0.95rem; line-height: 1.4; }
+.moment { padding: 2px 0; }
+.moment-bad { font-weight: 700; color: #8f2a1c; }
+.moment-tag { margin-left: 8px; padding: 1px 6px; border: 1px solid currentColor; border-radius: 4px; font-size: 0.8rem; white-space: nowrap; }
 .dial { padding: 8px 0; border-top: 1px solid rgba(28, 26, 23, 0.18); }
 .dial-label { margin: 0 0 6px; font-weight: 700; }
 .dial-row { display: flex; align-items: center; gap: 10px; }
