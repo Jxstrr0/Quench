@@ -102,6 +102,14 @@ export const BENCH = {
   /** The rail measures how far the tip is past the forge mouth (negative is outside). */
   railMin: -85,
   railMax: 225,
+  /**
+   * How far into the short fire's hot core the heel of a knife blade can be
+   * pushed, in mm past where the core starts. A knife too long to manage that
+   * from `railMax` goes out through the port in the back wall instead, so the
+   * whole blade can be slid through the hottest fire. Swords keep their own
+   * reach (`railReach`): heating them evenly is what the trench forge is for.
+   */
+  heelIntoCore: 60,
   /** Tip positions at or below this rest the bar on the anvil. */
   anvilFrom: -70,
   /** Gap between the forge mouth and the anvil, and the anvil's length. */

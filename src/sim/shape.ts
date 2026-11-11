@@ -24,9 +24,11 @@ export function wantsLongFire(p: Pattern): boolean {
 
 /**
  * How far past the forge mouth the tip of this pattern's bar may be pushed, in
- * mm. A blade that fits in the fire stops short of the back wall. A blade
- * longer than the short fire goes out through the back, far enough to bring
- * its heel into the hot core. In the trench forge (`long`) a short sword fits
+ * mm. A knife stops short of the back wall when its heel still reaches well
+ * into the hot core from there; a longer knife goes out through the port in
+ * the back wall, so the whole blade can be slid through the hottest fire. A
+ * blade longer than the short fire goes out through the back far enough to
+ * bring its heel into the core. In the trench forge (`long`) a short sword fits
  * again; a full sword goes out through the back of that too.
  */
 export function railReach(p: Pattern, long = false): number {
@@ -36,7 +38,9 @@ export function railReach(p: Pattern, long = false): number {
     const fits = TRENCH.depth - TRENCH.backGap
     return blade + TRENCH.coreStart > fits ? blade + TRENCH.coreStart : fits
   }
-  return wantsLongFire(p) ? patternLength(p) * p.bladeShare + FORGE.coreStart : BENCH.railMax
+  if (wantsLongFire(p)) return blade + FORGE.coreStart
+  const knife = blade + FORGE.coreStart + BENCH.heelIntoCore
+  return knife > BENCH.railMax ? knife : BENCH.railMax
 }
 
 /** The pattern's width and thickness at `x` mm from the tip, or null past its end. */
