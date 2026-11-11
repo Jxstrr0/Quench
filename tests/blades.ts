@@ -1,4 +1,5 @@
 // Blades made the quick way, for tests: forged to shape by fiat, then ground, hardened and tempered by the sim.
+import type { BilletId } from '../src/data/billets'
 import type { MediumId } from '../src/data/media'
 import type { HandleId } from '../src/data/grind'
 import type { BlowType } from '../src/data/hammer'
@@ -87,6 +88,10 @@ export interface Made {
   temper?: number
   handle?: HandleId
   seed?: number
+  /** What it was built from. A billet comes out welded sound, unless `prep` says otherwise. */
+  billet?: BilletId
+  /** Something done to the bar once it has its shape, before it is ground. */
+  prep?: (bar: Bar) => void
 }
 
 /** A blade of any pattern made the quick way: forged by fiat, then ground, hardened, tempered, sharpened and handled by the sim. */
@@ -95,13 +100,15 @@ export function makeBlade(id: PatternId, how: Made = {}): Bar {
   const st = steel(p.steel)
   const length = patternLength(p)
   const blade = length * p.bladeShare
-  const bar = createBar(p.steel, { length, width: 30, thickness: 4 }, 48, how.seed ?? 5)
+  const bar = createBar(p.steel, { length, width: 30, thickness: 4 }, 48, how.seed ?? 5, how.billet ?? 'plain')
+  for (const s of bar.segments) s.weld = 1
   let x = 0
   for (const s of bar.segments) {
     const size = patternAt(p, x + s.length / 2)
     x += s.length
     if (size) Object.assign(s, size)
   }
+  if (how.prep) how.prep(bar)
   const centres = segmentCentres(bar)
   const work = bar.segments.filter((_, i) => (centres[i] as number) > blade * 0.08 && (centres[i] as number) < blade * 0.95)
   const edge = (): number => work.reduce((e, s) => e + edgeThickness(s), 0) / work.length

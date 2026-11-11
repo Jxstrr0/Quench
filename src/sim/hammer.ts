@@ -4,6 +4,7 @@
  * so every segment keeps its volume exactly. Hot steel moves easily; cold
  * steel barely moves and cracks; burning steel crumbles.
  */
+import { WELD } from '../data/billets'
 import type { BlowType } from '../data/hammer'
 import { BLOWS, HAMMER, RHYTHM } from '../data/hammer'
 import type { Steel } from '../data/steels'
@@ -12,6 +13,7 @@ import type { Bar, CrackCause, Segment } from './bar'
 import { fitBevels, isGround, segmentCentres } from './bar'
 import { detExp, detLog } from './det'
 import { recordBlow } from './history'
+import { weldBlow } from './weld'
 
 export interface Blow {
   type: BlowType
@@ -32,6 +34,12 @@ export interface BlowResult {
   /** True if any steel under the blow was below its forging heat, or above its burning heat. */
   cold: boolean
   burning: boolean
+  /**
+   * What the blow did to a billet's loose layers: 'took' if it welded them,
+   * 'shut' if it closed them without welding and left a flaw, 'none' if it
+   * met no loose layers.
+   */
+  weld: 'none' | 'took' | 'shut'
 }
 
 /** How easily steel moves at this heat: near 0 when rigid, 1 at a full forging heat. */
@@ -116,7 +124,7 @@ export function strike(bar: Bar, blow: Blow): BlowResult {
   const under = segs[nearest] as Segment
   // Dry clay does not survive the hammer.
   for (const s of segs) s.clay = 0
-  const result: BlowResult = { segment: nearest, temp: under.temp, thickness: under.thickness, moved: 0, cold: false, burning: false }
+  const result: BlowResult = { segment: nearest, temp: under.temp, thickness: under.thickness, moved: 0, cold: false, burning: false, weld: 'none' }
 
   for (let i = 0; i < segs.length; i++) {
     const s = segs[i] as Segment
@@ -132,6 +140,11 @@ export function strike(bar: Bar, blow: Blow): BlowResult {
       result.burning = true
       s.burnt += part * HAMMER.burnBlow
     }
+    if (s.weld < 1) {
+      const flaw = weldBlow(s, spec, part, st)
+      if (flaw >= WELD.flawSeen) result.weld = 'shut'
+      else if (result.weld === 'none') result.weld = 'took'
+    }
 
     let strain = part * spec.strain * softness(s.temp, st)
     const size = spec.squeezes === 'thickness' ? s.thickness : s.width
@@ -143,7 +156,7 @@ export function strike(bar: Bar, blow: Blow): BlowResult {
     if (strain > result.moved) result.moved = strain
   }
   bar.blows++
-  recordBlow(bar, result.cold)
+  recordBlow(bar, result.cold, result.weld)
   return result
 }
 

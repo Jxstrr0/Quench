@@ -7,6 +7,7 @@
  * The tests run in order on a copy of the blade, and they wear it: the shave
  * comes after the chop, on whatever edge the chop left.
  */
+import { WELD } from '../data/billets'
 import { handle } from '../data/grind'
 import type { Pattern } from '../data/patterns'
 import type { Steel } from '../data/steels'
@@ -21,6 +22,7 @@ import { handleFit, keenestFor } from './finish'
 import { edgeDrawn, edgeHardness, edgeTemperOf, edgeToughness, hardness, toughness } from './properties'
 import { shapeScore } from './shape'
 import { equivalentTemp } from './temper'
+import { seamCause, worstSeam } from './weld'
 
 export type Outcome =
   // fit and finish
@@ -85,6 +87,9 @@ export type TrialCause =
   | 'temperedCool'
   | 'hardThroughout'
   | 'quenchCrack'
+  // a billet's welds
+  | 'coldShut'
+  | 'notWelded'
   // what an earlier test did to the edge
   | 'rolledInChop'
   | 'chippedInChop'
@@ -229,6 +234,20 @@ function backing(s: Segment, angle: number): number {
   return (angle / CHOP.angleRef) * (CHOP.thickFloor + (1 - CHOP.thickFloor) * (thick < CHOP.thickMax ? thick : CHOP.thickMax))
 }
 
+/**
+ * A weld in the blade bad enough to come apart under load, or null. The
+ * blade parts along it before the steel itself is tested.
+ */
+function openSeam(r: Rig, how: Break['how']): { at: number; cause: TrialCause } | null {
+  const worst = worstSeam(r.bar, r.blade)
+  if (!worst || worst.seam < WELD.opens) return null
+  const s = seg(r, worst.segment)
+  const at = r.centres[worst.segment] as number
+  const cause = seamCause(s)
+  r.broke = { how, segment: worst.segment, at, grain: s.grain, cause }
+  return { at, cause }
+}
+
 // --- The tests ----------------------------------------------------------------
 
 function ropeCut(r: Rig): TrialResult {
@@ -281,6 +300,11 @@ function brassRod(r: Rig): TrialResult {
 
 function chopTimber(r: Rig): TrialResult {
   const angle = r.bar.edgeAngle
+  const seam = openSeam(r, 'chop')
+  if (seam) {
+    r.chop = 'snapped'
+    return { id: 'chop', passed: false, score: 0, outcome: 'snapped', cause: seam.cause, value: null, at: seam.at }
+  }
   // A blade this brittle does not last the first timber.
   let brittle = -1
   for (const i of r.blade) {
@@ -409,10 +433,26 @@ function fitAndFinish(r: Rig, p: Pattern): TrialResult {
   const low = items[worst] as [number, TrialCause]
   // One bad part spoils the whole: a fine blade with no handle is not finished work.
   const outcome: Outcome = score < FIT.pass || low[0] < FIT.itemFail ? 'rough' : score < FIT.fine || low[0] < FIT.itemPass ? 'fair' : 'fine'
+  // A seam that shows, anywhere from tip to tang, is the first thing anyone sees.
+  const bad = worstSeam(r.bar)
+  if (bad && bad.seam >= WELD.shows) {
+    const open = bad.seam >= WELD.opens
+    return {
+      id: 'fit',
+      passed: !open && outcome !== 'rough',
+      score: score * (open ? WELD.fitOpen : WELD.fitShows),
+      outcome: open ? 'rough' : outcome === 'fine' ? 'fair' : outcome,
+      cause: seamCause(seg(r, bad.segment)),
+      value: null,
+      at: r.centres[bad.segment] as number,
+    }
+  }
   return { id: 'fit', passed: outcome !== 'rough', score, outcome, cause: low[0] < FIT.itemPass ? low[1] : null, value: null, at: null }
 }
 
 function bendInVice(r: Rig): TrialResult {
+  const seam = openSeam(r, 'bend')
+  if (seam) return { id: 'bend', passed: false, score: WELD.partsAt / BEND.angle, outcome: 'snapped', cause: seam.cause, value: WELD.partsAt, at: seam.at }
   const { angle, weak } = bendReach(r)
   if (angle >= BEND.angle) return { id: 'bend', passed: true, score: 1, outcome: 'bent90', cause: null, value: BEND.angle, at: null }
   const s = seg(r, weak)
@@ -438,6 +478,8 @@ function bendReach(r: Rig): { angle: number; weak: number } {
 }
 
 function flexAndSpring(r: Rig): TrialResult {
+  const seam = openSeam(r, 'flex')
+  if (seam) return { id: 'flex', passed: false, score: WELD.partsAt / BEND.angle, outcome: 'snapped', cause: seam.cause, value: WELD.partsAt, at: seam.at }
   const { angle, weak } = bendReach(r)
   if (angle < FLEX.angle) {
     const s = seg(r, weak)

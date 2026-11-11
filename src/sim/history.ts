@@ -99,12 +99,14 @@ export function recordQuench(bar: Bar, medium: MediumId): void {
   add(bar, event)
 }
 
-/** A hammer blow has landed. */
-export function recordBlow(bar: Bar, cold: boolean): void {
+/** A hammer blow has landed. `weld` says what it did to a billet's loose layers, if it met any. */
+export function recordBlow(bar: Bar, cold: boolean, weld: 'none' | 'took' | 'shut' = 'none'): void {
   const prev = last(bar)
   const e = prev && prev.kind === 'heat' ? prev : newHeat(bar, false)
   e.blows++
   if (cold) e.coldBlows++
+  if (weld === 'took') e.welds = (e.welds ?? 0) + 1
+  if (weld === 'shut') e.flawBlows = (e.flawBlows ?? 0) + 1
 }
 
 export function recordTemper(bar: Bar, temp: number, minutes: number): void {

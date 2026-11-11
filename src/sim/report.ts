@@ -29,7 +29,7 @@ export type MomentKind =
   /** A step that should have been here and was not. */
   | 'missing'
 
-export type MomentNote = 'burnt' | 'overheated' | 'coldBlows' | 'cracked' | 'tooCool' | 'tooSlow' | 'brittleBand' | 'edgeBlued' | 'clayed'
+export type MomentNote = 'burnt' | 'overheated' | 'coldBlows' | 'cracked' | 'tooCool' | 'tooSlow' | 'brittleBand' | 'edgeBlued' | 'clayed' | 'welded' | 'coldWeld'
 
 export type Missing = 'normalize' | 'harden' | 'temper'
 
@@ -73,6 +73,9 @@ export type Lesson =
   | 'shorterHeats'
   | 'softerBack'
   | 'noClay'
+  // welding a billet
+  | 'weldHotter'
+  | 'weldAll'
   // the edge
   | 'grind'
   | 'grindThinner'
@@ -158,6 +161,9 @@ function heatKind(e: HeatEvent, next: HistoryEvent | undefined, st: Steel, harde
 function heatNote(e: HeatEvent, kind: MomentKind, st: Steel): MomentNote | null {
   if (e.peak > st.burn) return 'burnt'
   if (kind === 'forge') {
+    // A billet is welded far hotter than steel is forged: that heat is no mistake. A blow that shut the layers cold is.
+    if (e.flawBlows) return 'coldWeld'
+    if (e.welds) return 'welded'
     // Forging heat is far past hardening heat, and the grain it leaves is what normalizing is for.
     if (e.peak > st.forgeMax) return 'overheated'
     return e.coldBlows >= HISTORY.coldBlows ? 'coldBlows' : null
@@ -238,6 +244,7 @@ const PLAIN: Partial<Record<TrialCause, Lesson>> = {
   warped: 'straighten',
   lopsided: 'evenBevels',
   forgeMarks: 'smoothForging',
+  notWelded: 'weldAll',
   noHandle: 'fitHandle',
   badHandle: 'betterHandle',
 }
@@ -306,6 +313,8 @@ function blame(bar: Bar, marks: Marked[], cause: TrialCause): Blame {
       return blameGrain(marks, quench, steel(bar.steel))
     case 'coldWork':
       return blameColdWork(marks)
+    case 'coldShut':
+      return { index: most(marks, (m) => (m.event.kind === 'heat' ? (m.event.flawBlows ?? 0) : 0)), missing: null, before: 0, lesson: 'weldHotter' }
     case 'untempered':
       return { index: -1, missing: 'temper', before: quench >= 0 ? quench + 1 : marks.length, lesson: 'temper' }
     case 'temperedCool': {

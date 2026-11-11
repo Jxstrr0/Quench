@@ -5,6 +5,8 @@
  *
  * Units: millimetres and degrees Celsius.
  */
+import type { BilletId } from '../data/billets'
+import { BILLETS, WELD } from '../data/billets'
 import type { HandleId } from '../data/grind'
 import type { MediumId } from '../data/media'
 import type { SteelId } from '../data/steels'
@@ -70,6 +72,10 @@ export interface Segment {
    * the quench made of it.
    */
   soft: number
+  /** How far the layers of a billet are welded here: 0 is loose, 1 is one piece. A plain bar is 1. */
+  weld: number
+  /** A flaw in the weld, from a blow that landed on loose layers too cold to stick: 0 is none, 1 is the worst. */
+  flaw: number
 }
 
 /** Why a blade cracked in the quench. */
@@ -96,6 +102,9 @@ export interface HeatEvent {
   /** Hammer blows on this heat, and how many of them landed on steel too cold to forge. */
   blows: number
   coldBlows: number
+  /** Blows on this heat that welded loose layers, and blows that shut them cold and left a flaw. Left out of bars with no welding. */
+  welds?: number
+  flawBlows?: number
   /** It was left to cool slowly, out of the quench, until it was past changing. */
   cooled: boolean
 }
@@ -142,6 +151,9 @@ export type HistoryEvent = HeatEvent | QuenchEvent | TemperEvent | GrindEvent
 
 export interface Bar {
   steel: SteelId
+  /** What it was built from (see `data/billets.ts`), and how many layers it has now. */
+  billet: BilletId
+  layers: number
   segments: Segment[]
   /** Sim seconds this bar has lived through. */
   clock: number
@@ -180,7 +192,17 @@ export interface StockSize {
   thickness: number
 }
 
-export function createBar(steelId: SteelId, size: StockSize, count: number = SIM.segments, seed = 1): Bar {
+/**
+ * How far a billet that has just been stacked or folded is welded at `at` mm
+ * from the tip, when it is `length` mm long: loose, except where it is tacked
+ * at the tongs end.
+ */
+export function freshWeld(at: number, length: number): number {
+  const loose = length * (1 - WELD.tacked)
+  return at <= (loose < WELD.looseMax ? loose : WELD.looseMax) ? 0 : 1
+}
+
+export function createBar(steelId: SteelId, size: StockSize, count: number = SIM.segments, seed = 1, billet: BilletId = 'plain'): Bar {
   if (!Number.isInteger(count) || count < 2) throw new RangeError('createBar: need at least 2 segments')
   if (!(size.length > 0 && size.width > 0 && size.thickness > 0)) throw new RangeError('createBar: bad stock size')
   const st = steel(steelId)
@@ -215,10 +237,14 @@ export function createBar(steelId: SteelId, size: StockSize, count: number = SIM
       sharp: 0,
       clay: 0,
       soft: 0,
+      weld: billet === 'plain' ? 1 : freshWeld(((i + 0.5) * size.length) / count, size.length),
+      flaw: 0,
     })
   }
   return {
     steel: steelId,
+    billet,
+    layers: BILLETS[billet].layers,
     segments,
     clock: 0,
     carry: 0,
