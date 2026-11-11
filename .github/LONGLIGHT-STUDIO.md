@@ -1,11 +1,11 @@
 # Longlight Interactive: studio catalogue
 
-> **Snapshot: 7 November 2026.** One reference file for every Longlight game.
+> **Snapshot: 7 November 2026** (Quench added 11 November). One reference file for every Longlight game.
 > The same file is dropped into each game repo. Versions and details drift;
 > when something matters, check the live repo. A game's own `CLAUDE.md` always
 > wins over this file inside that game's repo.
 >
-> **Public edition.** It covers the ten games in the studio site's
+> **Public edition.** It covers the eleven games in the studio site's
 > `projects.json` and leaves out Kelbo's private and parked repos. Ask Kelbo
 > about those.
 >
@@ -14,7 +14,8 @@
 > no card, no game page, no devlog or release lines. Their repos and live
 > games stay up, and everything in this file still applies to them. The
 > listed six are Prairie Engine Works, Season Ticket, Scrapline, Lombard,
-> Frontier Lab and Red Skies.
+> Frontier Lab and Red Skies. Quench, the newest game, was added hidden on
+> the same day and stays hidden until Kelbo says it's built enough.
 
 ---
 
@@ -70,6 +71,7 @@ on its own subdomain of **longlight.games** (November 2026; the old
 | Frontier Lab | [Jxstrr0/FrontierLab](https://github.com/Jxstrr0/FrontierLab) | https://frontierlab.longlight.games/ | Listed |
 | The Whip | [Jxstrr0/The-Whip](https://github.com/Jxstrr0/The-Whip) | https://thewhip.longlight.games/ | Hidden |
 | Red Skies | [Jxstrr0/RedSkies](https://github.com/Jxstrr0/RedSkies) | https://redskies.longlight.games/ | Listed |
+| Quench | [Jxstrr0/Quench](https://github.com/Jxstrr0/Quench) | https://quench.longlight.games/ | Hidden |
 | Studio site | [Jxstrr0/Kelbo.Website](https://github.com/Jxstrr0/Kelbo.Website) | https://longlight.games/ | — |
 
 Kelbo's private and parked repos are not covered here (section 11).
@@ -176,6 +178,7 @@ cost nothing, keep old copies apart, and let a game move again safely.
 | Frontier Lab | `frontierlab.*` + IndexedDB `frontierlab` | content-hash name | `FL<schema>:` |
 | The Whip | `whip:*`; sessionStorage `whip:backup-reminded` | none (no service worker) | no prefix: plain base64 JSON (see profile) |
 | Red Skies | `redskies.v1.*` | none (no service worker) | `RS1:` |
+| Quench | `quench.*` | `quench-` | `QNC1:` |
 
 > **Fixed on 7 November 2026:** the studio site's `sw.js` used to delete every
 > cache that wasn't its own when it updated, which wiped the games' offline
@@ -189,7 +192,8 @@ cost nothing, keep old copies apart, and let a game move again safely.
 Status is Kelbo's label on the studio site (`projects.json`); version is what
 the repo's code says on 7 November 2026. Order is Kelbo's own ranking.
 **Hidden** marks the four games taken off the site on 11 November 2026
-(`"hidden": true`); they are still live at their own addresses.
+(`"hidden": true`); they are still live at their own addresses. Quench is
+new and hidden until it's more built.
 
 | Game | Status | Version | Genre | Setting | Screen | Stack |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -203,6 +207,7 @@ the repo's code says on 7 November 2026. Order is Kelbo's own ranking.
 | Frontier Lab | In development | 0.1.63.0 | AI-lab tycoon (fork of Vault Street) | Real cities on procedural maps | Portrait | TypeScript, Preact, 2D canvas/SVG |
 | The Whip | Released, **hidden** | 1.0.0.0 | Political career: votes, deals, whip | Dominion of Caledor (Westminster) | Portrait first | ES modules, no build, three 0.160 (CDN) |
 | Red Skies | Complete | 1.6.1.0 | SAM air-defence: identify, hold fire | Republic of Varenna | **Portrait only** | Plain JS + inline build, three r128 vendored |
+| Quench | Prototype, **hidden** | 0.2.1.0 (11 Nov) | Bladesmithing: heat, hammer, grind, quench, temper, trial | Aldersay, the Skerrow Isles (present day) | Portrait first | TypeScript, Vite, three 0.187 (npm) |
 
 Studio site trading projects (not games): Pre-market brief, AI Trading Journal,
 Agent Fleet.
@@ -733,6 +738,16 @@ are as of this snapshot.
   - Settle salvo MISS and add attacker ids.
   - A docs sync, the press-kit logo, and new wording for the real "Pantsir" mentions in comments.
 
+### Quench
+
+- **Status:** prototype, 0.2.1.0 on 11 November 2026 (`VERSION` file), early in its staged plan (`docs/QUENCH-PLAN.md` section 13; `docs/STATUS.md` says where it stands). Hidden on the studio site until Kelbo says otherwise.
+- **Pitch:** a bladesmithing game. Heat a bar, read its colour, hammer it to shape, grind it, harden it in the quench, temper it, then find out at the trial what you really made.
+- **Setting and tone:** Aldersay, a harbour town on the invented Skerrow Isles, present day. Money is the Skerrow crown (`kr`). No fantasy, no combat, no gore: blades are tools, sport cutting pieces and collector pieces. Steel grades are real generic standards (1084, 5160, W2).
+- **Look:** chalk and slate, Zilla Slab and Atkinson Hyperlegible, a heat-colour ramp. Reading heat always has a non-colour path.
+- **Stack:** TypeScript (strict), Vite, three.js 0.187 from npm, plain DOM UI, Vitest. Pages from Actions, `base: './'`. Much of the setup is adapted from Lombard.
+- **Rules worth knowing:** the sim (`src/sim/`, `src/data/`) is pure and deterministic: seeded RNG, fixed step, its own `det.ts` maths, every number in a table. Names live in `docs/NAMES.md`.
+- **Saves:** localStorage `quench.*`, caches `quench-`, save code `QNC1:`.
+
 ---
 
 ## 8. Names already taken
@@ -750,6 +765,7 @@ noted, so a repeated name reads as a mistake.
 | The prairie, Saskatoon | Prairie Engine Works, the studio site's sky |
 | Valmere (Valmeran dollar), Kestrel Football League | Season Ticket |
 | Dominion of Caledor, capital Ostrava | The Whip |
+| Aldersay, a harbour town on the Skerrow Isles; Skerrow crown (`kr`) | Quench |
 | Republic of Varenna, battery and airbase Kessel | Red Skies |
 | Real low Earth orbit | Station Keeper |
 | Real world cities on procedural maps | Frontier Lab |
@@ -812,7 +828,7 @@ date or institution.
 
 | Family | Games |
 | --- | --- |
-| Craft career: build or make something part by part, test it, compete or sell, in a workshop that grows | Prairie Engine Works (engines), Escapement (watches), Scrapline (combat robots), Ink (tattoos) |
+| Craft career: build or make something part by part, test it, compete or sell, in a workshop that grows | Prairie Engine Works (engines), Escapement (watches), Scrapline (combat robots), Ink (tattoos), Quench (blades) |
 | Tycoon and management | Season Ticket (football club), Frontier Lab (AI lab), Station Keeper (space station), Lombard (pawn shop) |
 | Politics and negotiation | The Whip (parliament) |
 | Tense real-time sim | Red Skies (air defence) |
@@ -843,6 +859,7 @@ date or institution.
 | Navy, gold and teal, system fonts, semi-realistic 3D | Season Ticket |
 | "Banknote Deco": engraved isometric map, Bodoni Moda / Public Sans | Frontier Lab |
 | "The Order Paper": cream paper, ink, stamps, Newsreader | The Whip |
+| Chalk and slate with a heat-colour ramp, Zilla Slab / Atkinson Hyperlegible | Quench |
 | Green radar console in a 3D cabin, Russo One / Big Shoulders | Red Skies |
 
 **Open space** (observations, not decisions; Kelbo picks):
