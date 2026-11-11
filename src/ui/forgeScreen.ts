@@ -12,7 +12,8 @@
 import { hammerVoice, hissVoice } from '../audio/cues'
 import { createAudioEngine } from '../audio/engine'
 import type { StageId } from '../data/career'
-import { PROVINGS } from '../data/career'
+import { BRIEFS, FIRST_JOB, PROVINGS } from '../data/career'
+import { COACH } from '../data/coach'
 import type { BlowType } from '../data/hammer'
 import { RHYTHM } from '../data/hammer'
 import type { HeatWord } from '../data/heatRamp'
@@ -35,6 +36,8 @@ import type { ForgeView } from '../render/forgeScene'
 import type { Bar } from '../sim/bar'
 import { barLength, cloneBar, createBar, hottest } from '../sim/bar'
 import type { CareerState } from '../sim/career'
+import type { Tested } from '../sim/coach'
+import { COACH_STAGES, coachStage, coachStep } from '../sim/coach'
 import { benchWork, bladeCost, deliver, fundBlade, newCareer, nextRating, provingBar, provingDay, sitProving, swapBlade, takeFirstJob, wantedPattern } from '../sim/career'
 import { heatWord } from '../sim/glow'
 import type { CrackCause } from '../sim/bar'
@@ -109,6 +112,12 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   let lastBlowAt = -1
   let strikes = 0
   let fault: Fault | null = null
+  /** How this bar did in the test the first commission asks for: the coach reads it. */
+  let tested: Tested = 'no'
+  let coachClock = 0
+  /** The neighbour has her knife: say where the next work is, with the next bar. */
+  let thanks = false
+  let shownCoach = ''
   /** The plain stock's score, so the readout starts at 0%. */
   let baseScore = 0
   let note = ''
@@ -157,7 +166,14 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   const shapeRow = el('div', 'hud-shape-row')
   const patternBtn = button('btn hud-rack', 'btn.pattern')
   shapeRow.append(shape, patternBtn)
-  top.append(head, place, shapeRow, readout, faultLine)
+  // The coach: the neighbour's next instruction, while her knife is the job in hand.
+  const coach = el('p', 'hud-coach')
+  coach.setAttribute('role', 'status')
+  coach.hidden = true
+  const coachWho = el('span', 'coach-who')
+  const coachSays = el('span', 'coach-says')
+  coach.append(coachWho, coachSays)
+  top.append(head, place, shapeRow, coach, readout, faultLine)
 
   // The blades kept so far, and how many, on the button that opens them.
   let kept = loadCollection()
@@ -343,13 +359,21 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
     openTrials: () => trialSheet.open(),
     play: (results: readonly TrialResult[], done: () => void) => {
       charge('finish')
+      // The coach wants to know how the blade did in what the neighbour asked for.
+      const asked = BRIEFS[FIRST_JOB].needs.map((id) => results.find((r) => r.id === id))
+      if (asked.every((r) => r !== undefined)) tested = asked.every((r) => r?.passed) ? 'passed' : 'failed'
       playback.start(results, done)
     },
     job: () => career?.job?.kind ?? null,
     deliver: (report: TrialReport) => {
       if (!career) return null
+      const first = career.job?.kind === FIRST_JOB
       const d = deliver(career, report, target.id)
-      if (d?.taken) careerChanged()
+      if (d?.taken) {
+        careerChanged()
+        // Said once the next bar is on the anvil, so the bar's own note does not cover it.
+        if (first) thanks = true
+      }
       return d
     },
     barCost: () => (career ? bladeCost(wantedPattern(career)) : 0),
@@ -508,7 +532,27 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
     baseScore = shapeScore(createBar(steelId, target.stock), target).score
     redraw()
   }
+  /** True while the neighbour's knife is the job in hand and its bar is on the bench. */
+  const coaching = () => career?.job?.kind === FIRST_JOB && target.id === BRIEFS[FIRST_JOB].pattern
+  /** Show the coach's instruction for where the blade is now. */
+  const refreshCoach = () => {
+    const on = coaching()
+    coach.hidden = !on
+    // The coach's line takes the place of the passing hints.
+    hint.hidden = on
+    if (!on) {
+      shownCoach = ''
+      return
+    }
+    const step = coachStep(bar, target, tested, fault !== null)
+    if (step === shownCoach) return
+    shownCoach = step
+    const n = coachStage(step)
+    coachWho.textContent = n > 0 ? t('coach.who', { n, of: COACH_STAGES }) : ''
+    coachSays.textContent = t(`coach.${step}`)
+  }
   const freshBar = () => {
+    tested = 'no'
     // Each bar has its own luck in the quench. In a career it comes from the career's own seed.
     barsMade++
     const seed = career ? (career.rng ^ Math.imul(career.bars, 0x9e3779b1)) >>> 0 : barsMade
@@ -549,6 +593,8 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
     freshBar()
     careerChanged()
     say(days === 0 ? t('note.newBar', { money: money(bladeCost(target.id)) }) : t(days === 1 ? 'note.oddJobOne' : 'note.oddJobs', { n: days }), 4000)
+    if (thanks) say(t('coach.done'), 9000)
+    thanks = false
   }
   const playCareer = (n: number, fresh: boolean) => {
     saveCareer()
@@ -801,6 +847,11 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   const frame = (now: number) => {
     // A hidden tab can hand back a huge gap; never simulate more than a quarter second of it.
     const dt = Math.min(0.25, Math.max(0, (now - last) / 1000))
+    coachClock += dt
+    if (coachClock >= COACH.lookEvery) {
+      coachClock = 0
+      refreshCoach()
+    }
     last = now
     blast += bellowsHeld ? dt / BENCH.bellowsRise : -dt / BENCH.bellowsFall
     blast = Math.min(1, Math.max(0, blast))
