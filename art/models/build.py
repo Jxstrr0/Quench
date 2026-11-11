@@ -331,7 +331,45 @@ def bench():
     return finish("bench", bm, [timber(), dark_timber()], bevel=0.002)
 
 
-MODELS = {"anvil": anvil, "forge": forge, "trench": trench, "tank": tank, "bench": bench}
+def black_iron():
+    """Tongs and other smith-made tools: forged, scaled, never polished."""
+    return material("blackIron", (0.026, 0.028, 0.033), 0.62, 0.55)
+
+
+def tongs():
+    """
+    One half of a pair of flat-jaw tongs: the bit that lies on the bar, the
+    boss where the rivet goes, and a rein that tapers and swings out to one
+    side. The game uses it twice, the second turned over, so the two bits grip
+    the bar from above and below and the reins part. The underside of the bit
+    is the plane z = 0; the bite is at the -x end.
+    """
+    half = DIMS["tongsLength"] * MM / 2
+    bm = bmesh.new()
+    # The bit.
+    box(bm, -half, -half + 0.055, -0.008, 0.008, 0.0, 0.006)
+    # The boss, with the rivet's head standing on it.
+    cx = -half + 0.066
+
+    def disc(r, z):
+        return [(cx + r * math.cos(a), r * math.sin(a), z) for a in (math.radians(22.5 + 45 * i) for i in range(8))]
+
+    loft(bm, [disc(0.0125, 0.0), disc(0.0125, 0.007)])
+    loft(bm, [disc(0.005, 0.007), disc(0.004, 0.0095)])
+    # The rein: square bar, tapering, swinging out and back in toward the hand.
+    rings = []
+    steps = 7
+    for k in range(steps + 1):
+        t = k / steps
+        x = cx + 0.008 + (half - cx - 0.008) * t
+        y = 0.022 * math.sin(math.pi * min(1.0, t * 1.15) * 0.5) - 0.006 * t * t
+        r = 0.0045 - 0.0012 * t
+        rings.append([(x, y - r, 0.0005), (x, y + r, 0.0005), (x, y + r, 0.0005 + 2 * r), (x, y - r, 0.0005 + 2 * r)])
+    loft(bm, rings)
+    return finish("tongs", bm, [black_iron()], bevel=0.001)
+
+
+MODELS = {"anvil": anvil, "forge": forge, "trench": trench, "tank": tank, "bench": bench, "tongs": tongs}
 
 
 def export(name):
