@@ -8,6 +8,7 @@ import { OVEN, TEMPER } from '../data/treat'
 import { KELVIN, SHOP } from '../data/tuning'
 import type { Bar, Segment } from './bar'
 import { detExp, detLog } from './det'
+import { recordTemper } from './history'
 
 const LN10 = 2.302585092994046
 
@@ -54,4 +55,5 @@ export function temperInOven(bar: Bar, temp: number, minutes: number): void {
   }
   bar.clock += minutes * 60
   bar.tempers++
+  recordTemper(bar, temp, minutes)
 }

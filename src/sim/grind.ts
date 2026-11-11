@@ -16,6 +16,7 @@ import type { Bar, Segment } from './bar'
 import { edgeThickness, fitBevels, hottest, nearestSegment, segmentCentres, steelVolume } from './bar'
 import { PI, detCos, detSin } from './det'
 import { edgeZone, stepHeat } from './heat'
+import { recordGrind } from './history'
 import { hardness } from './properties'
 
 export type Side = 'left' | 'right'
@@ -130,11 +131,13 @@ export function stepGrind(bar: Bar, g: Grind): GrindResult {
   const slope = detSin(angle) / detCos(angle)
   const centres = segmentCentres(bar)
   const result: GrindResult = { removed: 0, edgeTemp: -Infinity }
+  const ground: Segment[] = []
 
   for (let i = 0; i < bar.segments.length; i++) {
     const s = bar.segments[i] as Segment
     const part = share(g.at, centres[i] as number) * g.pressure
     if (part <= 0) continue
+    ground.push(s)
 
     const steelBefore = steelVolume(s)
     const area = GRIND.areaRate * part * beltBite(hardness(s, st)) * dt
@@ -154,6 +157,7 @@ export function stepGrind(bar: Bar, g: Grind): GrindResult {
     if (s.temp + s.edgeHot > result.edgeTemp) result.edgeTemp = s.temp + s.edgeHot
   }
   if (result.removed > 0) bar.etched = false
+  if (ground.length > 0) recordGrind(bar, ground, result.edgeTemp)
   stepHeat(bar, { where: 'air' })
   return result
 }

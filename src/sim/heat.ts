@@ -16,6 +16,7 @@ import { COOL, WARP } from '../data/treat'
 import { FORGE, KELVIN, SCALE, SHOP, SIGMA, SIM, STEEL_PHYSICS } from '../data/tuning'
 import type { Bar, Segment } from './bar'
 import { edgeZoneArea, fitBevels, hottest, isGround, segmentCentres, steelVolume } from './bar'
+import { recordFire, recordOut, recordQuench } from './history'
 import { beginQuench, stepPhase } from './phase'
 
 /** Where the bar is right now. */
@@ -153,7 +154,11 @@ export function stepHeat(bar: Bar, placement: Placement): void {
   const bath = placement.where === 'quench' ? medium(placement.medium) : null
   let warpFreedom = 1
   if (placement.where === 'quench' && bath) {
-    if (!bar.inQuench) beginQuench(bar)
+    if (!bar.inQuench) {
+      const quenches = bar.quenches
+      beginQuench(bar)
+      if (bar.quenches > quenches) recordQuench(bar, placement.medium)
+    }
     bar.inQuench = true
     warpFreedom = bath.warp * (1 - WARP.agitationEase * clamp01(placement.agitation))
   } else {
@@ -212,6 +217,8 @@ export function stepHeat(bar: Bar, placement: Placement): void {
   if (bar.handle && (segs[segs.length - 1] as Segment).temp > HANDLE.burnAt) bar.handle = null
   stepPhase(bar, before, warpFreedom)
   bar.clock += dt
+  if (placement.where === 'fire') recordFire(bar)
+  else recordOut(bar, placement.where === 'quench')
 }
 
 /**

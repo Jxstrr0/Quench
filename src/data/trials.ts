@@ -135,6 +135,8 @@ export const WHY = {
   /** A temper that matches one hour between these temperatures is in the brittle band. */
   brittleFrom: 250,
   brittleTo: 380,
+  /** A hardened blade with less martensite than this only part hardened. */
+  partHard: 0.85,
   /** Surface carbon this far under the core's means the fire took it. */
   lostCarbon: 0.15,
   /** Cold-work damage from this up is blamed. */
