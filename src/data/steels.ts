@@ -1,7 +1,7 @@
 /**
  * The steel table. Grades are real generic standards, not brands.
  * Temperatures in degrees Celsius. PR 1 uses only carbon and the scaling
- * numbers; the rest is here so later PRs (hammering, heat treatment) read
+ * numbers and PR 3 the forging ones; the rest is here so later PRs read
  * one row per steel.
  */
 
