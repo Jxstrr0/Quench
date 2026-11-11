@@ -3,17 +3,20 @@
  * why, and see its heats laid out with the bad moment marked. A tested blade
  * can be kept in the collection.
  */
+import type { BriefKind } from '../data/career'
 import type { Pattern } from '../data/patterns'
 import { t } from '../data/strings'
 import type { TrialId } from '../data/trials'
 import { BENCH } from '../data/tuning'
 import { COLLECTION_MAX } from '../persist/collection'
 import type { Bar } from '../sim/bar'
+import type { Delivery } from '../sim/career'
 import { coolToRoom } from '../sim/heat'
 import type { TrialReport, TrialResult } from '../sim/trials'
 import { runTrials } from '../sim/trials'
 import type { Sheet } from './dom'
 import { button, createSheet, el } from './dom'
+import { customerName, money, refusal } from './careerWords'
 import { TRIAL_NAME, note, reportParts } from './trialParts'
 
 /** What came of asking to keep a blade: its place in the collection, or why not. */
@@ -30,6 +33,12 @@ export interface TrialHost {
   play(results: readonly TrialResult[], done: () => void): void
   /** Keep the blade as it is now, with this report. With `replace`, it takes the place of the blade kept under that id. */
   keep(report: TrialReport, replace: string | null): Kept
+  /** In a career: the commission in hand, or null. */
+  job(): BriefKind | null
+  /** In a career: hand the blade over for the commission in hand. */
+  deliver(report: TrialReport): Delivery | null
+  /** What the next bar will cost, in a career; 0 in Free forge. */
+  barCost(): number
 }
 
 export function createTrialSheet(host: HTMLElement, forge: TrialHost): Sheet {
@@ -72,6 +81,7 @@ export function createTrialSheet(host: HTMLElement, forge: TrialHost): Sheet {
     // A bend ends the blade whether it snaps or not; so does a snap in the chop.
     if (bendOnly || (report.broke && report.broke.how !== 'quench')) ended = true
     addKeep(total)
+    if (!ended && !bar.crack && !report.broke) addDeliver(total)
     if (ended) {
       body.append(note(t('trial.ended'), 'sheet-note sheet-small'))
     } else if (!bar.crack) {
@@ -103,6 +113,35 @@ export function createTrialSheet(host: HTMLElement, forge: TrialHost): Sheet {
       keep.replaceWith(keptNote(kept))
     })
     body.append(keep)
+  }
+
+  /** In a career with a commission in hand: offer the blade to the customer. */
+  const addDeliver = (report: TrialReport) => {
+    const kind = forge.job()
+    if (!kind) return
+    const name = customerName(kind)
+    const hand = button('btn btn-wide')
+    hand.textContent = t('deliver.btn', { name })
+    const said = note('', 'sheet-note')
+    said.setAttribute('role', 'status')
+    said.hidden = true
+    hand.addEventListener('click', () => {
+      const d = forge.deliver(report)
+      if (!d) return
+      if (!d.taken) {
+        said.textContent = refusal(kind, d.unmet, report.broke !== null)
+        said.hidden = false
+        return
+      }
+      // The blade is the customer's now: nothing more can be done with it here.
+      ended = true
+      const lines = [t('deliver.paid', { name, money: money(d.pay) })]
+      if (d.tip > 0) lines.push(t('deliver.tip', { money: money(d.tip) }))
+      if (d.late > 0) lines.push(t(d.late === 1 ? 'deliver.lateOne' : 'deliver.late', { n: d.late }))
+      body.replaceChildren(note(lines.join(' ')), note(t('deliver.next', { money: money(forge.barCost()) }), 'sheet-note sheet-small'))
+      sheet.card.scrollTop = 0
+    })
+    body.append(hand, said)
   }
 
   const addBend = () => {

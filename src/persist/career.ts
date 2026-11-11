@@ -3,8 +3,8 @@
  * A slot holds the career's state and the bar on the bench, if there is one,
  * so closing the page never loses a blade that was paid for.
  */
-import type { Group, Rating, ToolId } from '../data/career'
-import { BRIEFS, DAY, GROUPS, RATINGS, REP, TOOLS } from '../data/career'
+import type { Group, Rating, StageId, ToolId } from '../data/career'
+import { BRIEFS, DAY, GROUPS, HOURS, RATINGS, REP, TOOLS } from '../data/career'
 import type { Bar } from '../sim/bar'
 import type { Brief, CareerState } from '../sim/career'
 import type { Store } from './sound'
@@ -18,6 +18,8 @@ export interface CareerSave {
   career: CareerState
   /** The bar on the bench, or null. */
   bar: Bar | null
+  /** The stages of that bar whose bench hours have been spent. */
+  stages: StageId[]
   /** When it was saved, in milliseconds since 1970. */
   saved: number
 }
@@ -46,7 +48,8 @@ export function soundCareer(x: unknown): x is CareerState {
 
 /** True when `x` is a slot's save. */
 export function soundSave(x: unknown): x is CareerSave {
-  return isObject(x) && x.v === 1 && soundCareer(x.career) && (x.bar === null || soundBar(x.bar)) && isNumber(x.saved)
+  if (!isObject(x) || x.v !== 1 || !soundCareer(x.career) || !(x.bar === null || soundBar(x.bar)) || !isNumber(x.saved)) return false
+  return Array.isArray(x.stages) && x.stages.every((s) => typeof s === 'string' && s in HOURS)
 }
 
 export function parseSave(raw: string | null): CareerSave | null {
@@ -92,6 +95,26 @@ export function clearSlot(slot: number, store: Store | null = browserStore()): v
     store.removeItem(key(slot))
   } catch {
     // Nothing to do.
+  }
+}
+
+const ACTIVE_KEY = 'quench.career.active'
+
+/** The slot that was in play when the game was last open, or 0 for Free forge. */
+export function loadActive(store: Store | null = browserStore()): number {
+  try {
+    const n = Number(store?.getItem(ACTIVE_KEY))
+    return inRange(n) ? n : 0
+  } catch {
+    return 0
+  }
+}
+
+export function saveActive(slot: number, store: Store | null = browserStore()): void {
+  try {
+    store?.setItem(ACTIVE_KEY, String(inRange(slot) ? slot : 0))
+  } catch {
+    // Nothing to do: the game opens in Free forge.
   }
 }
 

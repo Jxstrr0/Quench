@@ -145,6 +145,20 @@ export function startBlade(state: CareerState, id: PatternId): boolean {
   return true
 }
 
+/**
+ * Buy a bar, doing as many days of odd jobs first as it takes to afford it.
+ * Returns how many days that was: none, for a smith with money. This is what
+ * being broke costs, and all it costs.
+ */
+export function fundBlade(state: CareerState, id: PatternId): number {
+  let days = 0
+  while (!startBlade(state, id)) {
+    oddJob(state)
+    days++
+  }
+  return days
+}
+
 /** A day of sharpening and repairs for the harbour: the rest of today goes, and a little money comes in. */
 export function oddJob(state: CareerState): number {
   state.money += MONEY.oddJob

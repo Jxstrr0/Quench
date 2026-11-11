@@ -230,6 +230,17 @@ html, body {
 .kept-how { font-size: 0.88rem; opacity: 0.8; }
 .kept-picture { display: block; width: 100%; height: auto; margin: 4px 0 0; border-radius: 6px; background: rgba(20, 20, 19, 0.06); }
 .sheet-card .btn-quiet { background: transparent; color: var(--ink); }
+.sheet-card .btn-slim { min-height: 40px; margin-top: 6px; font-size: 0.88rem; }
+.ledger { margin: 0 0 12px; padding: 10px 12px; border-radius: 8px; background: rgba(20, 20, 19, 0.07); }
+.ledger p { margin: 0; line-height: 1.45; }
+.ledger-main { font-family: var(--font-head); font-weight: 600; font-size: 1.1rem; }
+.ledger-line { font-size: 0.9rem; opacity: 0.85; }
+.brief { margin: 8px 0 0; padding: 10px 12px; border: 1px solid rgba(20, 20, 19, 0.25); border-radius: 8px; background: rgba(255, 255, 255, 0.35); }
+.brief p { margin: 2px 0 0; font-size: 0.92rem; line-height: 1.4; }
+.brief-title { margin: 0; font-family: var(--font-head); font-weight: 600; font-size: 1.05rem; }
+.brief-needs { opacity: 0.85; }
+.brief .brief-terms { margin-top: 6px; font-weight: 700; }
+.brief .btn-wide { margin-top: 10px; }
 /* The playbacks: a caption over the trial stand, and a way past them. A tap anywhere moves on. */
 .playback { position: absolute; inset: 0; z-index: 9; display: flex; flex-direction: column; justify-content: space-between; align-items: center; padding: calc(22px + var(--safe-t, 0px)) 16px calc(40px + var(--safe-b)); background: transparent; }
 #app.trial-on .hud-top, #app.trial-on .hud-hint, #app.trial-on .controls { visibility: hidden; }

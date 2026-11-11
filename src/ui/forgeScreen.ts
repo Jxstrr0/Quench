@@ -11,6 +11,7 @@
  */
 import { hammerVoice, hissVoice } from '../audio/cues'
 import { createAudioEngine } from '../audio/engine'
+import type { StageId } from '../data/career'
 import type { BlowType } from '../data/hammer'
 import { RHYTHM } from '../data/hammer'
 import type { HeatWord } from '../data/heatRamp'
@@ -22,13 +23,16 @@ import { STEELS } from '../data/steels'
 import type { StringKey } from '../data/strings'
 import { t } from '../data/strings'
 import { BENCH } from '../data/tuning'
+import { loadActive, loadSlot, loadSlots, saveActive, saveSlot } from '../persist/career'
 import type { KeptBlade } from '../persist/collection'
 import { COLLECTION_MAX, keepBlade, loadCollection, removeBlade } from '../persist/collection'
 import type { Settings } from '../persist/settings'
 import { loadSettings, saveSettings } from '../persist/settings'
 import type { ForgeView } from '../render/forgeScene'
 import type { Bar } from '../sim/bar'
-import { barLength, createBar, hottest } from '../sim/bar'
+import { barLength, cloneBar, createBar, hottest } from '../sim/bar'
+import type { CareerState } from '../sim/career'
+import { benchWork, bladeCost, deliver, fundBlade, newCareer } from '../sim/career'
 import { heatWord } from '../sim/glow'
 import type { CrackCause } from '../sim/bar'
 import type { Fault } from '../sim/hammer'
@@ -39,6 +43,8 @@ import { advance } from '../sim/heat'
 import { magnetTest } from '../sim/inspect'
 import { shapeScore } from '../sim/shape'
 import type { TrialReport, TrialResult } from '../sim/trials'
+import { createCareerSheet } from './careerSheet'
+import { money } from './careerWords'
 import { createCollectionSheet } from './collectionSheet'
 import { button, createSheet, el } from './dom'
 import { createGrindBench } from './grindBench'
@@ -121,6 +127,13 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   let wasInTank = false
   let everInTank = false
   let shownWarp = 0
+  /** The career in play and the slot it is saved in, or null and 0 in Free forge. */
+  let career: CareerState | null = null
+  let slot = 0
+  /** The stages of the bar on the bench whose bench hours have been spent. */
+  let stages: StageId[] = []
+  /** When New bar was last tapped in a career: a second tap soon after scraps the blade. */
+  let scrapAskedAt = -1
 
   // --- Top: mode, place, heat readout ---------------------------------------
   const top = el('div', 'hud-top')
@@ -134,7 +147,8 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   faultLine.hidden = true
   const head = el('div', 'hud-head')
   const rackBtn = button('btn hud-rack')
-  head.append(mode, rackBtn)
+  const careerBtn = button('btn hud-rack')
+  head.append(mode, rackBtn, careerBtn)
   top.append(head, place, shape, readout, faultLine)
 
   // The blades kept so far, and how many, on the button that opens them.
@@ -300,7 +314,18 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
     shapePercent,
     pattern: () => target,
     openTrials: () => trialSheet.open(),
-    play: (results: readonly TrialResult[], done: () => void) => playback.start(results, done),
+    play: (results: readonly TrialResult[], done: () => void) => {
+      charge('finish')
+      playback.start(results, done)
+    },
+    job: () => career?.job?.kind ?? null,
+    deliver: (report: TrialReport) => {
+      if (!career) return null
+      const d = deliver(career, report)
+      if (d?.taken) careerChanged()
+      return d
+    },
+    barCost: () => (career ? bladeCost(target.id) : 0),
     keep: (report: TrialReport, replace: string | null): Kept => {
       if (!replace && kept.length >= COLLECTION_MAX) return 'full'
       const next = keepBlade(kept, target.id, bar, report, Date.now(), replace)
@@ -312,7 +337,8 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
     },
     newBar: () => {
       if (bench.active) leaveBench()
-      freshBar()
+      if (career) buyBar()
+      else freshBar()
     },
     changed: () => {
       // The blade comes back cold, lying on the anvil.
@@ -371,6 +397,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
     hold(false)
     holdCool(false)
     for (const part of [tankSet, anvilSet, bellows, cool, tools, row]) part.hidden = true
+    charge('grind')
     bench.enter()
     if (groundFor < BENCH.hintGrindSeconds) {
       hint.textContent = t('hint.belt')
@@ -389,6 +416,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
     const where = Math.min(barLength(bar), Math.max(0, at))
     const hit = strike(bar, { type: blowType, at: where, force })
     strikes++
+    charge('forge')
     view.setBar(bar)
     view.showStrike(blowType, where, force)
     audio.hammer(hammerVoice(hit.temp, hit.thickness, force))
@@ -418,19 +446,111 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
     applySteel()
     freshBar()
   })
-  const freshBar = () => {
-    // Each bar has its own luck in the quench.
-    barsMade++
-    bar = createBar(steelId, target.stock, undefined, barsMade)
+  /** Lay the bar cold on the anvil end of the rail and show it. */
+  const placeBar = () => {
     tipDepth = BENCH.railMin
     lane = 0
     laneTarget = -1
     agitation = 0
     lastBlowAt = -1
-    baseScore = shapeScore(bar, target).score
+    baseScore = shapeScore(createBar(steelId, target.stock), target).score
     redraw()
   }
-  newBar.addEventListener('click', freshBar)
+  const freshBar = () => {
+    // Each bar has its own luck in the quench. In a career it comes from the career's own seed.
+    barsMade++
+    const seed = career ? (career.rng ^ Math.imul(career.bars, 0x9e3779b1)) >>> 0 : barsMade
+    bar = createBar(steelId, target.stock, undefined, seed)
+    placeBar()
+  }
+
+  // --- The career ----------------------------------------------------------------
+  const saveCareer = () => {
+    if (career) saveSlot(slot, { v: 1, career, bar: cloneBar(bar), stages, saved: Date.now() })
+  }
+  const showCareer = () => {
+    mode.textContent = t(career ? 'mode.career' : 'mode.freeForge')
+    careerBtn.textContent = career ? t('career.hud', { day: career.day, money: money(career.money) }) : t('btn.career')
+    steelBtn.hidden = career !== null
+  }
+  const careerChanged = () => {
+    showCareer()
+    saveCareer()
+  }
+  /** Spend a stage's bench hours, once for each bar. */
+  const charge = (stage: StageId) => {
+    if (!career || stages.includes(stage)) return
+    stages.push(stage)
+    benchWork(career, stage)
+    careerChanged()
+  }
+  /** In a career a bar is bought. A smith short of money does odd jobs first: never stuck, only a day or two older. */
+  const buyBar = () => {
+    if (!career) return
+    const days = fundBlade(career, target.id)
+    stages = []
+    freshBar()
+    careerChanged()
+    say(days === 0 ? t('note.newBar', { money: money(bladeCost(target.id)) }) : t(days === 1 ? 'note.oddJobOne' : 'note.oddJobs', { n: days }), 4000)
+  }
+  const playCareer = (n: number, fresh: boolean) => {
+    saveCareer()
+    const save = fresh ? null : loadSlot(n)
+    if (bench.active) leaveBench()
+    slot = n
+    steelId = target.steel
+    applySteel()
+    if (save) {
+      career = save.career
+      stages = save.stages
+      if (save.bar) {
+        bar = save.bar
+        placeBar()
+      } else buyBar()
+    } else {
+      career = newCareer((Date.now() ^ Math.floor(Math.random() * 0x100000000)) >>> 0)
+      buyBar()
+    }
+    saveActive(slot)
+    careerChanged()
+  }
+  const leaveCareer = () => {
+    saveCareer()
+    if (bench.active) leaveBench()
+    career = null
+    slot = 0
+    stages = []
+    saveActive(0)
+    showCareer()
+    freshBar()
+  }
+  const careerSheet = createCareerSheet(app, {
+    career: () => career,
+    slots: loadSlots,
+    play: playCareer,
+    leave: leaveCareer,
+    changed: careerChanged,
+  })
+  careerBtn.addEventListener('click', () => careerSheet.open())
+  // Save when the page is put away, and every so often while it is open.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') saveCareer()
+  })
+  window.addEventListener('pagehide', saveCareer)
+  window.setInterval(saveCareer, BENCH.careerSaveSeconds * 1000)
+
+  newBar.addEventListener('click', () => {
+    if (!career) return freshBar()
+    // A career bar costs money and its blade may be half made: ask twice.
+    const now = performance.now()
+    if (scrapAskedAt >= 0 && now - scrapAskedAt < 4000) {
+      scrapAskedAt = -1
+      buyBar()
+    } else {
+      scrapAskedAt = now
+      say(t('note.scrapSure', { money: money(bladeCost(target.id)) }), 4000)
+    }
+  })
 
   const hold = (on: boolean) => {
     bellowsHeld = on
@@ -550,6 +670,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
       sheet.close()
       temperSheet.close()
       inspectSheet.close()
+      careerSheet.close()
     }
     else if (e.key >= '1' && e.key <= '4') pickBlow(BLOW_TYPES[Number(e.key) - 1] as BlowType)
   })
@@ -563,6 +684,10 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   applyMedium()
   view.setTarget(target)
   freshBar()
+  showCareer()
+  // Carry on the career that was in play last time, if there was one.
+  const lastSlot = loadActive()
+  if (lastSlot && loadSlot(lastSlot)) playCareer(lastSlot, false)
   layout()
 
   // --- The loop -------------------------------------------------------------
@@ -620,6 +745,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
           : BENCH.timeScale
     if (inTank && !wasInTank) {
       everInTank = true
+      charge('treat')
       audio.hiss(hissVoice(hottest(bar), mediumId))
       if (settings.haptics && 'vibrate' in navigator && hottest(bar) > BENCH.strikeMinTemp) navigator.vibrate(30)
     }
