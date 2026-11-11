@@ -2,6 +2,8 @@
  * Checks for saved data. Anything read back from storage, a save code or a
  * backup file is untrusted: it is used only if it has the shape the game wrote.
  */
+import type { BilletId } from '../data/billets'
+import { BILLETS } from '../data/billets'
 import { STEELS } from '../data/steels'
 import type { Bar } from '../sim/bar'
 import type { TrialReport } from '../sim/trials'
@@ -18,7 +20,12 @@ export function soundBar(x: unknown): x is Bar {
   for (const s of x.segments as Record<string, unknown>[]) {
     if (!isNumber(s.clay)) s.clay = 0
     if (!isNumber(s.soft)) s.soft = 0
+    // Nor do bars saved before billets: they are one piece of steel.
+    if (!isNumber(s.weld)) s.weld = 1
+    if (!isNumber(s.flaw)) s.flaw = 0
   }
+  if (typeof x.billet !== 'string' || !(x.billet in BILLETS)) x.billet = 'plain'
+  if (!isNumber(x.layers) || x.layers < 1) x.layers = BILLETS[x.billet as BilletId].layers
   return true
 }
 
