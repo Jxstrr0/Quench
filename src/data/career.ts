@@ -59,7 +59,7 @@ export const MONEY = {
 /** What a blade costs to start: the bar, by its steel and length, and a flat sum for the rest. */
 export const SUPPLIES = {
   /** Price of bar stock per 100 mm. */
-  steelPer100: { '1084': 25, '5160': 30 } satisfies Record<SteelId, number>,
+  steelPer100: { '1084': 25, '5160': 30, '1095': 28, 'W2': 34, '52100': 36, '15N20': 32, '80CrV2': 34 } satisfies Record<SteelId, number>,
   fuel: 40,
   belts: 30,
   oil: 20,

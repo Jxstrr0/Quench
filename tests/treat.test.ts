@@ -4,7 +4,7 @@ import type { MediumId } from '../src/data/media'
 import { MEDIUM_ORDER } from '../src/data/media'
 import { PATTERNS } from '../src/data/patterns'
 import type { SteelId } from '../src/data/steels'
-import { STEELS } from '../src/data/steels'
+import { STEEL_ORDER, STEELS } from '../src/data/steels'
 import { COOL, GRAIN, OVEN, STOCK_STATE } from '../src/data/treat'
 import type { Bar, Segment } from '../src/sim/bar'
 import { cloneBar, createBar, hottest } from '../src/sim/bar'
@@ -186,6 +186,27 @@ describe('cooling decides the result', () => {
       expect(deep.martensite).toBeGreaterThan(0.9)
       expect(plain.martensite).toBeLessThan(0.7)
     }
+  })
+
+  it('every steel on the rack has a safe way to a hard edge: fast oil', () => {
+    expect([...STEEL_ORDER].sort()).toEqual(Object.keys(STEELS).sort())
+    for (const id of STEEL_ORDER) {
+      const bar = hardened(id, 'fastOil')
+      expect(barFault(bar), id).toBeNull()
+      expect(summarize(bar, 0, BLADE).hardnessMax, id).toBeGreaterThan(58)
+    }
+  })
+
+  it('1095 and W2 harden shallow: slow oil leaves them soft, and W2 softer than 1095', () => {
+    const body = (id: SteelId) => summarize(hardened(id, 'slowOil'), 0, BLADE).hardness
+    expect(body('1095')).toBeLessThan(body('1084'))
+    expect(body('W2')).toBeLessThan(body('1095'))
+    expect(body('W2')).toBeLessThan(35)
+  })
+
+  it('the alloy steels harden in slow oil, and 52100 and 80CrV2 even on plates', () => {
+    for (const id of ['52100', '80CrV2', '15N20'] as const) expect(summarize(hardened(id, 'slowOil'), 0, BLADE).hardness, id).toBeGreaterThan(52)
+    for (const id of ['52100', '80CrV2'] as const) expect(summarize(hardened(id, 'plates'), 0, BLADE).hardness, id).toBeGreaterThan(58)
   })
 
   it('the media run from fastest to slowest: each hardens plain steel less than the one before', () => {
