@@ -4,6 +4,7 @@ The plan is `docs/QUENCH-PLAN.md`. Newest line first.
 
 | Version | PR | What changed |
 | --- | --- | --- |
+| 0.9.10.0 | PR 9k: The trial table and its fittings | The **trial table** is now three long planks on an apron and legs. The test rope hangs from an **iron bracket** out of the wall, which stays still while the rope swings. The brass rod lies on a **steel block** with a cheek each side. Kelbo's answer on the lightmap (do the bake) is in the plan as Q12. |
 | 0.9.9.0 | PR 9j: The wall and the harbour window | Behind the trial stand there is now a **coursed stone wall** with a timber-framed **window onto Aldersay harbour at dusk**: the last light on the horizon, the far headland, and the harbour light on the mole with its path on the water. The harbour is flat unlit shapes drawn by the game, so the lamp does not wash it out. |
 | 0.9.8.0 | PR 9i: The floor | The smithy has a **flagstone floor** round the work: rows of uneven flags in three tints of stone, each a hair off level, with dark joints. |
 | 0.9.7.0 | PR 9h: The sword test props | The **flex peg** is now a timber block with a braced iron stop, and the **mat stand** is two crossed timber feet, a post and a round plate. Their sizes moved into the tuning table so the models and the game share them. |
@@ -49,7 +50,7 @@ The plan is `docs/QUENCH-PLAN.md`. Newest line first.
 
 Pages is on and the custom domain is set: https://quench.longlight.games/. Each merge to `main` publishes there.
 
-## Questions for Kelbo after playing 0.9.9.0
+## Questions for Kelbo after playing 0.9.10.0
 
 Kelbo said to keep rolling and tune later, so these are saved up, not blocking.
 

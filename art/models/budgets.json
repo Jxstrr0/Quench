@@ -43,5 +43,17 @@
   "wall": {
     "triangles": 500,
     "bytes": 30000
+  },
+  "table": {
+    "triangles": 500,
+    "bytes": 30000
+  },
+  "bracket": {
+    "triangles": 500,
+    "bytes": 30000
+  },
+  "rodblock": {
+    "triangles": 500,
+    "bytes": 30000
   }
 }

@@ -555,8 +555,64 @@ def wall():
     return finish("wall", bm, [wall_stone(0), wall_stone(1), wall_stone(2), dark_timber()])
 
 
+def table():
+    """
+    The trial table: three long planks on an apron and two trestle legs. Its
+    origin is the middle of the top, which is the plane z = 0. Blender's -y is
+    the front edge, toward the camera.
+    """
+    half_l = DIMS["tableLength"] * MM / 2
+    half_d = DIMS["tableDepth"] * MM / 2
+    thick = DIMS["tableThick"] * MM
+    rnd = random.Random(31)
+    bm = bmesh.new()
+    deep = 2 * half_d / 3
+    for k in range(3):
+        y0 = -half_d + k * deep
+        box(bm, -half_l + rnd.uniform(0, 0.01), half_l - rnd.uniform(0, 0.01), y0 + 0.001, y0 + deep - 0.001, -thick, -rnd.uniform(0, 0.001))
+    box(bm, -half_l + 0.05, half_l - 0.05, -half_d + 0.025, -half_d + 0.045, -thick - 0.07, -thick, mat=1)
+    for x in (-half_l + 0.09, half_l - 0.09):
+        box(bm, x - 0.03, x + 0.03, -half_d + 0.03, half_d - 0.03, -0.75, -thick, mat=1)
+    return finish("table", bm, [timber(), dark_timber()], bevel=0.002)
+
+
+def bracket():
+    """
+    The iron bracket the test rope hangs from: an arm out from the wall, a
+    brace under it, and an eye at its end. Its origin is the point the rope
+    hangs from; the wall is `wallBack` behind it, at +y.
+    """
+    back = DIMS["wallBack"] * MM
+    bm = bmesh.new()
+    box(bm, -0.008, 0.008, -0.02, back, 0.008, 0.024)
+    box(bm, -0.03, 0.03, back - 0.008, back, -0.09, 0.05)
+    frustum(bm, -0.005, 0.005, back - 0.02, back - 0.008, -0.08, -0.005, 0.005, back - 0.2, back - 0.185, 0.008)
+
+    def ring(y, r):
+        return [(r * math.cos(a), y, 0.004 + r * math.sin(a)) for a in (math.radians(22.5 + 45 * i) for i in range(8))]
+
+    loft(bm, [ring(-0.004, 0.012), ring(0.004, 0.012)])
+    return finish("bracket", bm, [black_iron()], bevel=0.0015)
+
+
+def rodblock():
+    """
+    The block the brass rod lies on: a steel base with a cheek each side of
+    the rod. Its origin is on the table top under the rod, which runs along y.
+    """
+    top = DIMS["rodBlockTop"] * MM
+    bm = bmesh.new()
+    box(bm, -0.04, 0.04, -0.045, 0.045, 0.0, 0.008)
+    frustum(bm, -0.035, 0.035, -0.04, 0.04, 0.008, -0.03, 0.03, -0.04, 0.04, top)
+    for side in (1, -1):
+        x0, x1 = sorted((side * 0.009, side * 0.028))
+        box(bm, x0, x1, -0.04, 0.04, top, top + 0.007, mat=1)
+    return finish("rodblock", bm, [cast_iron(), worn_steel()], bevel=0.0015)
+
+
 MODELS = {"anvil": anvil, "forge": forge, "trench": trench, "tank": tank, "bench": bench, "tongs": tongs, "vice": vice,
-          "peg": peg, "matstand": matstand, "floor": floor, "wall": wall}
+          "peg": peg, "matstand": matstand, "floor": floor, "wall": wall, "table": table, "bracket": bracket,
+          "rodblock": rodblock}
 
 
 def export(name):
