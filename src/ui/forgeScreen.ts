@@ -33,6 +33,8 @@ import { COLLECTION_MAX, keepBlade, loadCollection, removeBlade } from '../persi
 import type { Settings } from '../persist/settings'
 import { loadSettings, saveSettings } from '../persist/settings'
 import type { ForgeView } from '../render/forgeScene'
+import type { Graphics } from '../render/perf'
+import { CHOICES } from '../render/perf'
 import type { Bar } from '../sim/bar'
 import { barLength, cloneBar, createBar, hottest } from '../sim/bar'
 import type { CareerState } from '../sim/career'
@@ -103,7 +105,7 @@ function placementFor(tipDepth: number, blast: number, lane: number, medium: Med
   return { where: 'air' }
 }
 
-export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
+export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Graphics): void {
   const settings: Settings = loadSettings()
   const audio = createAudioEngine()
   let target = pattern('campKnife')
@@ -274,6 +276,20 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   toggle('dimLights', 'assists.dim', 'assists.dim.note')
   toggle('sound', 'settings.sound', 'settings.sound.note')
   toggle('haptics', 'settings.haptics', 'settings.haptics.note')
+  // Graphics: one button that steps through Auto, Lite, Full and Ultra.
+  const gfx = button('btn btn-wide btn-quiet')
+  const gfxNote = el('p', 'sheet-note sheet-small')
+  const showGraphics = () => {
+    const choice = graphics.choice()
+    const name = t(`graphics.${choice}`)
+    gfx.textContent = t('graphics.label', { name: choice === 'auto' ? t('graphics.autoNow', { name, tier: t(`graphics.${graphics.tier()}`) }) : name })
+    gfxNote.textContent = t(`graphics.${choice}.note`)
+  }
+  gfx.addEventListener('click', () => {
+    graphics.choose(CHOICES[(CHOICES.indexOf(graphics.choice()) + 1) % CHOICES.length] as (typeof CHOICES)[number])
+    showGraphics()
+  })
+  sheet.card.append(gfx, gfxNote)
   sheet.finish()
 
   const studio = el('p', 'studio', t('credit'))
@@ -509,7 +525,10 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
     if (strikes >= 3) hint.classList.add('gone')
   }
 
-  assists.addEventListener('click', sheet.open)
+  assists.addEventListener('click', () => {
+    showGraphics()
+    sheet.open()
+  })
   temperBtn.addEventListener('click', temperSheet.open)
   inspectBtn.addEventListener('click', inspectSheet.open)
   const useMagnet = () => say(t(MAGNET_KEY[magnetTest(bar, target.bladeShare)]), 2500)
@@ -860,6 +879,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   const frame = (now: number) => {
     // A hidden tab can hand back a huge gap; never simulate more than a quarter second of it.
     const dt = Math.min(0.25, Math.max(0, (now - last) / 1000))
+    graphics.frame((now - last) / 1000)
     coachClock += dt
     if (coachClock >= COACH.lookEvery) {
       coachClock = 0

@@ -5,6 +5,7 @@ import '@fontsource/atkinson-hyperlegible/latin-700.css'
 import './style.css'
 import { t } from './data/strings'
 import { bindLoadingScreen } from './ui/loading'
+import { TIER_SETTINGS, createGraphics } from './render/perf'
 
 const loading = bindLoadingScreen()
 
@@ -19,9 +20,10 @@ async function boot(): Promise<void> {
     import('./ui/forgeScreen'),
   ])
   loading.progress(0.9)
-  // ?tier=lite turns bloom off. Graphics tiers with auto step-down arrive in PR 9.
-  const lite = new URLSearchParams(location.search).get('tier') === 'lite'
-  startForgeScreen(app, createForgeView(app, !lite))
+  // The graphics tier: ?tier= pins one for this visit; otherwise the saved choice, or Auto.
+  const graphics = createGraphics(location.search, (settings) => view.setTier(settings))
+  const view = createForgeView(app, TIER_SETTINGS[graphics.start])
+  startForgeScreen(app, view, graphics)
   loading.done()
 }
 

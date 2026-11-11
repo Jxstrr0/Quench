@@ -51,6 +51,7 @@ import { glowAt } from '../sim/glow'
 import { bentPoint, createBarMesh } from './barMesh'
 import type { ModelName } from './models'
 import { loadModel, swapIn } from './models'
+import type { TierSettings } from './perf'
 import type { BladeDims, TrialShow } from './trialStage'
 import { createTrialStage } from './trialStage'
 
@@ -86,6 +87,8 @@ export interface ForgeView {
   setBench(pose: BenchPose | null): void
   /** Show the blade at the trial stand, part way through a test's playback, or pass null to go back. Call before `render`. */
   setTrial(show: TrialShow | null): void
+  /** Change the graphics tier: how many pixels are drawn, and whether the glow blooms. */
+  setTier(next: TierSettings): void
   /** Fill the tank with this medium. */
   setMedium(medium: MediumId): void
   /** Mark a crack across the bar `at` mm from the tip, or pass null for none. */
@@ -112,9 +115,11 @@ function box(w: number, h: number, d: number, colour: number, rough = 0.9, metal
   return new Mesh(new BoxGeometry(w, h, d), new MeshStandardMaterial({ color: colour, roughness: rough, metalness: metal }))
 }
 
-export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView {
-  const renderer = new WebGLRenderer({ antialias: !useBloom, powerPreference: 'high-performance' })
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, useBloom ? 1.5 : 2))
+export function createForgeView(host: HTMLElement, start: TierSettings): ForgeView {
+  let tier = start
+  // Smooth edges are fixed when the context is made: a view that starts without bloom gets them.
+  const renderer = new WebGLRenderer({ antialias: !start.bloom, powerPreference: 'high-performance' })
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, start.pixelRatioCap))
   renderer.toneMapping = ACESFilmicToneMapping
   host.prepend(renderer.domElement)
 
@@ -379,12 +384,17 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
 
   // --- Post ---------------------------------------------------------------
   let composer: EffectComposer | null = null
-  if (useBloom) {
-    composer = new EffectComposer(renderer)
-    composer.addPass(new RenderPass(scene, camera))
-    composer.addPass(new UnrealBloomPass(new Vector2(256, 256), 0.45, 0.35, 1.0))
-    composer.addPass(new OutputPass())
+  /** Bloom is built the first time a tier asks for it. */
+  const bloom = (): EffectComposer => {
+    if (!composer) {
+      composer = new EffectComposer(renderer)
+      composer.addPass(new RenderPass(scene, camera))
+      composer.addPass(new UnrealBloomPass(new Vector2(256, 256), 0.45, 0.35, 1.0))
+      composer.addPass(new OutputPass())
+    }
+    return composer
   }
+  if (tier.bloom) bloom()
 
   // --- Camera fit ---------------------------------------------------------
   // The rail and everything on it: from the back of the fire to the far end of the anvil.
@@ -475,6 +485,7 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
     const w = host.clientWidth || window.innerWidth
     const h = host.clientHeight || window.innerHeight
     renderer.setSize(w, h, false)
+    composer?.setPixelRatio(renderer.getPixelRatio())
     composer?.setSize(w, h)
     camera.aspect = w / h
     vertical = h >= w
@@ -572,6 +583,12 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
       const changed = (pose === null) !== (next === null)
       pose = next
       if (changed) applyLight()
+    },
+    setTier(next) {
+      tier = next
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, next.pixelRatioCap))
+      if (next.bloom) bloom()
+      fit()
     },
     setTrial(show) {
       const changed = (trial === null) !== (show === null)
@@ -764,7 +781,7 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
       coreMat.color.setRGB(0.6 + 0.45 * blast, 0.16 + 0.2 * blast, 0.03 + 0.04 * blast)
       fireLight.intensity = 0.12 + 0.2 * blast
 
-      if (composer) composer.render()
+      if (tier.bloom && composer) composer.render()
       else renderer.render(scene, camera)
     },
   }
