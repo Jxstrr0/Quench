@@ -4,6 +4,7 @@ The plan is `docs/QUENCH-PLAN.md`. Newest line first.
 
 | Version | PR | What changed |
 | --- | --- | --- |
+| 0.10.4.0 | PR 10f: The examiner speaks | **The Guild examiner has a voice** (ElevenLabs, with Kelbo's yes: 1,478 credits; plus 207 for six sound effects kept for comparison; 1,685 of the 2,700 limit). He opens the trials, says a line for each test as its result comes up, gives a last word, and speaks at the Proving. His words always show on screen as well, in the caption and on the trial card. New switch in the Assists card: Examiner's voice. Recordings are fetched one at a time when first needed (368 KiB for all 23), never at start-up. Results wait a little longer while he speaks. `art/audio/build.py` packs the takes; `PICKS` chooses which take of each line is used. 3 new tests (347 in total). |
 | 0.10.3.1 | PR 10e: Voice and sound quotes | Nothing new in the game. Kelbo's answers recorded in the plan: Q8 (draft the examiner's script and quote it) and Q13 (add CC0 recordings; ElevenLabs effects may be quoted). `docs/voice/QUOTE.md` holds the examiner's 23 lines, the voice picked for him, six sound effects, and the price: about 1,520 credits for the voice and 680 for the effects at two takes each, half that at one take. **Nothing has been generated and no credits spent**; each batch waits for Kelbo's yes. |
 | 0.10.3.0 | PR 10d: The harbour outside | The room's ambience loop: slow waves on the quay wall, heard through the window. Nearly lost under the fire at the forge, plain at the trial stand by the window. The fire and the sea share one piece of code. This ends the made-in-code sound pass; the examiner voice (Q8) and any recordings wait on Kelbo hearing the game. 1 new test (344 in total). |
 | 0.10.2.0 | PR 10c: Coals, sparks and coins | Small sounds round the forge: a crunch as the bar goes into the coals, a light clink as it is set on the anvil, coins on the bench when a customer pays. **Steel that is burning now crackles**, faster the further past its burning heat it is, so you can hear a bar being ruined without looking. Fix: every swish, scrape and hiss used to die away in the first third of its length; they now last as long as the table says, and low ones are lifted to match bright ones. 3 new tests (343 in total). |
@@ -57,7 +58,7 @@ The plan is `docs/QUENCH-PLAN.md`. Newest line first.
 
 Pages is on and the custom domain is set: https://quench.longlight.games/. Each merge to `main` publishes there.
 
-## Questions for Kelbo after playing 0.10.3.0
+## Questions for Kelbo after playing 0.10.4.0
 
 Kelbo said to keep rolling and tune later, so these are saved up, not blocking.
 
@@ -88,6 +89,8 @@ Kelbo said to keep rolling and tune later, so these are saved up, not blocking.
 - **The fire's roar.** Too quiet at rest, too loud on the bellows, or right? Does it get tiring over a long session? Is the Volume slider easy to drag on your phone?
 - **The trial sounds.** With the screen dimmed, can you tell a pass from a fail, and a snap from a clean cut? Is any one of them too loud, too quiet or annoying on the tenth hearing?
 - **Sparks.** Burning steel crackles in the fire. Is that warning enough with the screen dimmed, or should it be louder? The quench hiss is fuller than it was: too much?
+- **The examiner.** Is the voice right for him? Any line that sounds wrong, or that you want reworded? The game uses take 1 of each line; take 2 of each is in the ElevenLabs flow "QNC — Examiner and SFX v1" to compare. Does he get tiresome by the fifth trial?
+- **The six generated effects** are in the same flow, not in the game. They are short (1 to 3 seconds). Worth using, or wait for CC0 recordings?
 - **The whole sound pass.** Every sound is made in code, none recorded. Play a blade through with the screen dimmed: does it sound like a forge, or like a synthesizer? That decides whether to bring in CC0 recordings. And Q8: do you want the examiner to speak the results (ElevenLabs, your credits, a script sheet and a quote first)?
 - The room looks dark in screenshots even with the lights up. Is it on your phone?
 - Still open from 0.2.0.0: heating speed (1.5 times real speed), reading colour with the assists off, bar size.

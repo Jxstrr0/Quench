@@ -204,3 +204,44 @@ export const SEA_SOUND = {
   waveHz: 0.12,
   swell: 0.7,
 } as const
+
+/**
+ * The Guild examiner's spoken lines: each key's recording, by file name under
+ * `public/assets/audio/voice/`. The words are in `strings.ts` as
+ * `examiner.<key>` and always show on screen too. The script sheet is
+ * `docs/voice/quench-examiner-v1.csv`.
+ */
+export const EXAMINER_LINES = {
+  'open': 'exam-0001',
+  'fit.pass': 'exam-0002',
+  'fit.fail': 'exam-0003',
+  'rope.pass': 'exam-0004',
+  'rope.fail': 'exam-0005',
+  'brass.pass': 'exam-0006',
+  'brass.fail': 'exam-0007',
+  'chop.pass': 'exam-0008',
+  'chop.fail': 'exam-0009',
+  'shave.pass': 'exam-0010',
+  'shave.fail': 'exam-0011',
+  'board.pass': 'exam-0012',
+  'board.fail': 'exam-0013',
+  'bend.pass': 'exam-0014',
+  'bend.fail': 'exam-0015',
+  'flex.pass': 'exam-0016',
+  'flex.fail': 'exam-0017',
+  'mat.pass': 'exam-0018',
+  'mat.fail': 'exam-0019',
+  'allPass': 'exam-0020',
+  'someFail': 'exam-0021',
+  'provingPass': 'exam-0022',
+  'provingFail': 'exam-0023',
+} as const
+
+export type ExaminerLine = keyof typeof EXAMINER_LINES
+
+export const VOICE_SOUND = {
+  /** The examiner's loudness against the other sounds. */
+  gain: 1,
+  /** Where the recordings live, from the page. */
+  path: './assets/audio/voice/',
+} as const

@@ -4,8 +4,8 @@
  * on; Skip goes straight to the card. Players who ask their device for less
  * motion get the card at once.
  */
-import { cuesDue, trialCues } from '../audio/cues'
-import type { TrialSound } from '../data/audio'
+import { cuesDue, examinerLine, trialCues } from '../audio/cues'
+import type { ExaminerLine, TrialSound } from '../data/audio'
 import { t } from '../data/strings'
 import { FLEX, PLAYBACK } from '../data/trials'
 import type { TrialShow } from '../render/trialStage'
@@ -24,14 +24,24 @@ export interface Playback {
 /** How far a sword bows in the flex test, in degrees: a snap part-way sounds part-way. */
 const BOW = FLEX.angle
 
-export function createTrialPlayback(host: HTMLElement, sound: (name: TrialSound) => void): Playback {
+export interface PlaybackVoice {
+  sound(name: TrialSound): void
+  /** The examiner says a line. */
+  say(line: ExaminerLine): void
+  /** True when the examiner speaks aloud, so results wait for him. */
+  spoken(): boolean
+}
+
+export function createTrialPlayback(host: HTMLElement, voice: PlaybackVoice): Playback {
   const layer = el('div', 'playback')
   layer.hidden = true
   const caption = el('div', 'playback-caption')
   const name = el('p', 'playback-name')
   const result = el('p', 'playback-result')
   result.setAttribute('aria-live', 'polite')
-  caption.append(name, result)
+  /** What the examiner says of the result. */
+  const said = el('p', 'playback-said')
+  caption.append(name, result, said)
   const skip = button('btn playback-skip', 'trial.skip')
   layer.append(caption, skip)
   host.append(layer)
@@ -47,6 +57,7 @@ export function createTrialPlayback(host: HTMLElement, sound: (name: TrialSound)
     if (!r) return
     name.textContent = `${t(TRIAL_NAME[r.id])} · ${t('trial.count', { n: index + 1, of: results.length })}`
     result.textContent = ''
+    said.textContent = ''
   }
   const finish = () => {
     if (!playing) return
@@ -88,6 +99,8 @@ export function createTrialPlayback(host: HTMLElement, sound: (name: TrialSound)
       // The bench's readouts and controls are put away while the tests play.
       host.classList.add('trial-on')
       show()
+      voice.say('open')
+      said.textContent = `“${t('examiner.open')}”`
     },
     frame(dt) {
       if (!playing) return null
@@ -95,12 +108,15 @@ export function createTrialPlayback(host: HTMLElement, sound: (name: TrialSound)
       const seconds = PLAYBACK.seconds[r.id]
       const before = clock / seconds
       clock += dt
-      for (const name of cuesDue(trialCues(r.id, r.outcome, (r.value ?? BOW) / BOW), before, clock / seconds)) sound(name)
+      for (const name of cuesDue(trialCues(r.id, r.outcome, (r.value ?? BOW) / BOW), before, clock / seconds)) voice.sound(name)
       if (clock >= seconds && !result.textContent) {
-        sound(r.passed ? 'pass' : 'fail')
+        voice.sound(r.passed ? 'pass' : 'fail')
+        const line = examinerLine(r.id, r.passed)
+        voice.say(line)
+        said.textContent = `“${t(`examiner.${line}`)}”`
         result.textContent = `${r.passed ? '✓' : '✗'} ${t(r.passed ? 'trial.passed' : 'trial.failed')}. ${outcomeText(r)}`
       }
-      if (clock >= seconds + PLAYBACK.hold) {
+      if (clock >= seconds + (voice.spoken() ? PLAYBACK.holdSpoken : PLAYBACK.hold)) {
         next()
         if (!playing) return null
       }

@@ -2,8 +2,8 @@
  * The sound engine: Web Audio, all synthesized, no files. Browsers only allow
  * sound after a touch or click, so `unlock()` is called from the first one.
  */
-import type { ForgeSound, SoundShape, TrialSound } from '../data/audio'
-import { FIRE_SOUND, FORGE_SOUNDS, SEA_SOUND, NOISE_SOUND, QUENCH_SOUND, SPARK_SOUND, TRIAL_SOUNDS } from '../data/audio'
+import type { ExaminerLine, ForgeSound, SoundShape, TrialSound } from '../data/audio'
+import { FIRE_SOUND, FORGE_SOUNDS, SEA_SOUND, EXAMINER_LINES, NOISE_SOUND, QUENCH_SOUND, SPARK_SOUND, TRIAL_SOUNDS, VOICE_SOUND } from '../data/audio'
 import type { BeltVoice, FireVoice, HammerVoice, HissVoice } from './cues'
 
 /** The ring is three partials, a little out of tune with each other, like struck steel. */
@@ -35,6 +35,10 @@ export interface AudioEngine {
   hiss(voice: HissVoice): void
   /** The small, clear sound of a blade cracking. */
   ping(): void
+  /** Whether the examiner speaks. */
+  setVoice(on: boolean): void
+  /** The examiner says a line. It cuts off whatever he was saying. The recording is fetched the first time it is wanted. */
+  say(line: ExaminerLine): void
   /** One sound from the trial stand. */
   trial(sound: TrialSound): void
   /** One small sound from round the forge. */
@@ -191,7 +195,57 @@ export function createAudioEngine(): AudioEngine {
     }
   }
 
+  let voiceOn = true
+  let wanted: ExaminerLine | null = null
+  const lines = new Map<ExaminerLine, Promise<AudioBuffer | null>>()
+  let speaking: AudioBufferSourceNode | null = null
+  /** The line's recording, fetched and decoded once. Null if it cannot be had: the words are on screen anyway. */
+  const recording = (line: ExaminerLine): Promise<AudioBuffer | null> => {
+    let got = lines.get(line)
+    if (!got) {
+      const at = ctx
+      got = at
+        ? fetch(`${VOICE_SOUND.path}${EXAMINER_LINES[line]}.mp3`)
+            .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
+            .then((data) => at.decodeAudioData(data))
+            .catch(() => null)
+        : Promise.resolve(null)
+      lines.set(line, got)
+    }
+    return got
+  }
+  const hush = (): void => {
+    try {
+      speaking?.stop()
+    } catch {
+      // Already stopped.
+    }
+    speaking = null
+  }
+
   return {
+    setVoice(on) {
+      voiceOn = on
+      if (!on) hush()
+    },
+    say(line) {
+      if (!voiceOn || !enabled || !ctx || !master || ctx.state !== 'running') return
+      hush()
+      // Only the newest line asked for is spoken, however long its recording takes to arrive.
+      const mine = (wanted = line)
+      void recording(line).then((buffer) => {
+        if (!buffer || !ctx || !master || !voiceOn || !enabled || wanted !== mine) return
+        hush()
+        const src = ctx.createBufferSource()
+        src.buffer = buffer
+        const gain = ctx.createGain()
+        gain.gain.value = VOICE_SOUND.gain
+        src.connect(gain).connect(master)
+        src.start()
+        speaking = src
+        wanted = null
+      })
+    },
     unlock() {
       if (!enabled || !start()) return
       if (ctx?.state === 'suspended') void ctx.resume()
@@ -202,6 +256,7 @@ export function createAudioEngine(): AudioEngine {
         stopBelt()
         fireBed(null)
         seaBed(null)
+        hush()
       }
     },
     sleep(on) {

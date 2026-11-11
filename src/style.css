@@ -277,6 +277,7 @@ html, body {
 .playback-caption { width: min(420px, 100%); padding: 10px 14px; border-radius: 8px; background: rgba(8, 9, 11, 0.72); text-align: center; }
 .playback-name { margin: 0; font-family: var(--font-head); font-weight: 600; font-size: 1.15rem; }
 .playback-result { min-height: 2.8em; margin: 4px 0 0; font-size: 0.98rem; line-height: 1.4; }
+.playback-said { margin: 2px 0 0; font-family: var(--font-head); font-style: italic; font-size: 0.95rem; opacity: 0.9; min-height: 1.4em; }
 .playback-skip { min-width: 120px; }
 #app.wide .playback { padding-top: 10px; padding-bottom: calc(10px + var(--safe-b)); align-items: flex-end; }
 #app.wide .playback-caption { align-self: center; }

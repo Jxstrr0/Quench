@@ -10,7 +10,7 @@
  * controls sit at the bottom, under the thumbs.
  */
 import type { Where } from '../audio/cues'
-import { fireVoice, hammerVoice, hissVoice, placeCue, seaVoice, sparkRate } from '../audio/cues'
+import { fireVoice, hammerVoice, hissVoice, placeCue, seaVoice, sparkRate, verdictLine } from '../audio/cues'
 import { createAudioEngine } from '../audio/engine'
 import type { StageId } from '../data/career'
 import { BRIEFS, FIRST_JOB, PROVINGS } from '../data/career'
@@ -290,6 +290,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
   })
   volumeLine.append(el('span', 'toggle-label', t('settings.volume')), volume)
   sheet.card.append(volumeLine)
+  toggle('voice', 'settings.voice', 'settings.voice.note')
   toggle('haptics', 'settings.haptics', 'settings.haptics.note')
   // Graphics: one button that steps through Auto, Lite, Full and Ultra.
   const gfx = button('btn btn-wide btn-quiet')
@@ -323,6 +324,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
     view.setBrightnessOnly(settings.brightnessOnly)
     audio.setEnabled(settings.sound)
     audio.setVolume(settings.volume)
+    audio.setVoice(settings.voice)
     // At the grinder the edge's heat is always given in words.
     readout.hidden = !(bench.active || settings.heatWords || showsNumber())
   }
@@ -398,7 +400,10 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
       // The coach wants to know how the blade did in what the neighbour asked for.
       const asked = BRIEFS[FIRST_JOB].needs.map((id) => results.find((r) => r.id === id))
       if (asked.every((r) => r !== undefined)) tested = asked.every((r) => r?.passed) ? 'passed' : 'failed'
-      playback.start(results, done)
+      playback.start(results, () => {
+        done()
+        audio.say(verdictLine(results.filter((r) => r.passed).length, results.length))
+      })
     },
     job: () => career?.job?.kind ?? null,
     fix: (stage: FixStage) => {
@@ -435,7 +440,10 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
     sitProving: (report: TrialReport) => {
       if (!career) return null
       const r = sitProving(career, report, target.id)
-      if (r) careerChanged()
+      if (r) {
+        careerChanged()
+        audio.say(r.passed ? 'provingPass' : 'provingFail')
+      }
       return r
     },
     keep: (report: TrialReport, replace: string | null): Kept => {
@@ -471,7 +479,11 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
     },
   })
   rackBtn.addEventListener('click', () => collectionSheet.open())
-  const playback = createTrialPlayback(app, (name) => audio.trial(name))
+  const playback = createTrialPlayback(app, {
+    sound: (name) => audio.trial(name),
+    say: (line) => audio.say(line),
+    spoken: () => settings.sound && settings.voice,
+  })
 
   // --- The grinder bench ------------------------------------------------------
   /** Seconds of steel on the belt so far: the bench's hint goes once the player has the idea. */

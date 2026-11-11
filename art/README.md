@@ -33,3 +33,12 @@ stands the forge, anvil, tank and bench where the game puts them
 flag's own tint is multiplied by it. Move a piece in `src/data/tuning.ts` and
 the test in `tests/models.test.ts` will fail until `dims.json` matches and
 the floor is rebuilt.
+
+## Recorded sound
+
+Most sounds are made in code (`src/audio/engine.ts`). The Guild examiner's
+voice is recorded: raw takes live in `art/audio/src/elevenlabs/`, and
+`python3 art/audio/build.py` (needs ffmpeg) trims, levels and packs the chosen
+take of each line to `public/assets/audio/voice/`. Change `PICKS` in that
+script to use a different take. The script sheet and the spend are in
+`docs/voice/`.
