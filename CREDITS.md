@@ -17,6 +17,7 @@ Every third-party file in the game is listed here.
 | Library | Licence | Source |
 | --- | --- | --- |
 | three.js | MIT | https://threejs.org/ |
+| fflate (Arjun Barrett) | MIT | https://github.com/101arrowz/fflate |
 
 ## Studio
 
