@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { beltVoice, fireVoice, hammerVoice, strokeVoice } from '../src/audio/cues'
+import { beltVoice, cuesDue, fireVoice, hammerVoice, strokeVoice, trialCues } from '../src/audio/cues'
+import { TRIAL_SOUNDS } from '../src/data/audio'
 
 describe('the sound of a blow', () => {
   it('hot, thick steel gives a dull thud with no ring', () => {
@@ -83,5 +84,59 @@ describe('the sound of the fire', () => {
         expect(v.hz).toBeGreaterThan(0)
       }
     }
+  })
+})
+
+describe('the sounds of the trial stand', () => {
+  const names = (id: Parameters<typeof trialCues>[0], outcome: Parameters<typeof trialCues>[1], bow?: number) =>
+    trialCues(id, outcome, bow).map((c) => c.sound)
+
+  it('a rope cut swishes, then tells a clean cut from a drag from a bounce', () => {
+    expect(names('rope', 'clean')).toEqual(['swish', 'ropeCut'])
+    expect(names('rope', 'partCut')).toEqual(['swish', 'ropeDrag'])
+    expect(names('rope', 'bounced')).toEqual(['swish', 'bounce'])
+    expect(names('mat', 'cut')).toEqual(['swish', 'matCut'])
+  })
+  it('a blade that snaps in the chop never gets its second blow', () => {
+    expect(names('chop', 'held')).toEqual(['chop', 'chop', 'split'])
+    expect(names('chop', 'chipped')).toEqual(['chop', 'chop', 'chip', 'split'])
+    expect(names('chop', 'snapped')).toEqual(['chop', 'snap'])
+  })
+  it('a failure can be heard: a dull edge drags, a brittle one snaps or chips', () => {
+    expect(names('shave', 'shaves')).not.toEqual(names('shave', 'wontShave'))
+    expect(names('board', 'glides')).not.toEqual(names('board', 'wedges'))
+    expect(names('bend', 'snapped')).toContain('snap')
+    expect(names('bend', 'bent90')).not.toContain('snap')
+    expect(names('brass', 'chips')).toContain('chip')
+    expect(names('flex', 'springsTrue')).toContain('spring')
+    expect(names('flex', 'takesSet')).not.toContain('spring')
+  })
+  it('a sword that snaps early in its bow sounds early', () => {
+    const early = trialCues('flex', 'snapped', 0.3).find((c) => c.sound === 'snap')
+    const late = trialCues('flex', 'snapped', 1).find((c) => c.sound === 'snap')
+    expect(early?.at).toBeLessThan(late?.at ?? 0)
+  })
+  it('every cue is in order, inside the playback, and names a real sound', () => {
+    const ids = ['fit', 'rope', 'brass', 'chop', 'shave', 'board', 'bend', 'flex', 'mat'] as const
+    const outcomes = ['fine', 'clean', 'partCut', 'bounced', 'chips', 'held', 'chipped', 'snapped', 'shaves', 'wontShave', 'glides', 'wedges', 'bent90', 'springsTrue', 'takesSet'] as const
+    for (const id of ids) {
+      for (const outcome of outcomes) {
+        const cues = trialCues(id, outcome, 0.5)
+        let last = 0
+        for (const c of cues) {
+          expect(c.at).toBeGreaterThanOrEqual(last)
+          expect(c.at).toBeLessThan(1)
+          expect(TRIAL_SOUNDS[c.sound]).toBeDefined()
+          last = c.at
+        }
+      }
+    }
+  })
+  it('each cue plays once as time moves through it', () => {
+    const cues = trialCues('chop', 'held')
+    const heard: string[] = []
+    for (let i = 0; i < 50; i++) heard.push(...cuesDue(cues, i / 50, (i + 1) / 50))
+    expect(heard).toEqual(['chop', 'chop', 'split'])
+    expect(cuesDue(cues, 0.2, 0.2)).toEqual([])
   })
 })

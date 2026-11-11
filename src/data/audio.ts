@@ -79,3 +79,74 @@ export const FIRE_SOUND = {
   idleFlutter: 0.15,
   fullFlutter: 0.4,
 } as const
+
+/**
+ * The sounds of the trial stand. Each is either a burst of filtered noise
+ * (a swish, a scrape) or something struck (timber, a bell, steel letting go).
+ */
+export type TrialSoundShape =
+  | { kind: 'noise'; hz: number; seconds: number; gain: number }
+  /** `metal` rings like steel; without it the note drops and dies like wood. */
+  | { kind: 'struck'; hz: number; seconds: number; gain: number; metal: boolean }
+
+export const TRIAL_SOUNDS = {
+  /** The blade coming round through the air. */
+  swish: { kind: 'noise', hz: 1800, seconds: 0.28, gain: 0.6 },
+  /** Through the rope: a short, bright snip. */
+  ropeCut: { kind: 'noise', hz: 4200, seconds: 0.14, gain: 0.6 },
+  /** Into the rope and stopped: a dull drag. */
+  ropeDrag: { kind: 'noise', hz: 900, seconds: 0.3, gain: 0.5 },
+  /** Through the rolled mat: wetter and lower than rope. */
+  matCut: { kind: 'noise', hz: 2400, seconds: 0.22, gain: 0.65 },
+  /** The edge bouncing off rope or mat. */
+  bounce: { kind: 'struck', hz: 140, seconds: 0.18, gain: 0.5, metal: false },
+  /** The edge going into the timber. */
+  chop: { kind: 'struck', hz: 210, seconds: 0.16, gain: 0.9, metal: false },
+  /** The timber splitting apart. */
+  split: { kind: 'struck', hz: 320, seconds: 0.25, gain: 0.5, metal: false },
+  /** A blade snapping: the same clear note as a crack in the quench, louder. */
+  snap: { kind: 'struck', hz: 3100, seconds: 0.8, gain: 0.5, metal: true },
+  /** A chip leaving the edge: small and high. */
+  chip: { kind: 'struck', hz: 5200, seconds: 0.2, gain: 0.25, metal: true },
+  /** The edge leaned on the brass rod. */
+  brass: { kind: 'noise', hz: 3200, seconds: 0.2, gain: 0.6 },
+  /** Hair, or a slice on the board: a soft, dry stroke. */
+  stroke: { kind: 'noise', hz: 2800, seconds: 0.3, gain: 0.5 },
+  /** A blade that will not shave or that wedges: a rougher drag. */
+  drag: { kind: 'noise', hz: 1100, seconds: 0.4, gain: 0.8 },
+  /** Steel being bent a long way: a low strain. */
+  strain: { kind: 'noise', hz: 500, seconds: 1.1, gain: 0.8 },
+  /** A sword springing back true. */
+  spring: { kind: 'struck', hz: 620, seconds: 0.7, gain: 0.3, metal: true },
+  /** The examiner's small bell for a pass, and the flat knock on the table for a fail. */
+  pass: { kind: 'struck', hz: 1320, seconds: 1.1, gain: 0.3, metal: true },
+  fail: { kind: 'struck', hz: 110, seconds: 0.3, gain: 0.7, metal: false },
+} as const satisfies Record<string, TrialSoundShape>
+
+export type TrialSound = keyof typeof TRIAL_SOUNDS
+
+/**
+ * When things sound in each playback, as shares of its length. These follow
+ * the moves the trial stand makes (`src/render/trialStage.ts`).
+ */
+export const TRIAL_TIMES = {
+  /** Rope and mat: the swing starts, then the edge arrives. */
+  swing: 0.32,
+  hit: 0.45,
+  /** The chop: two blows, a snap after the first, the timber parting after the second. */
+  chopFirst: 0.2,
+  chopSnap: 0.28,
+  chopSecond: 0.65,
+  chopSplit: 0.75,
+  /** The brass rod: leaned on to one side, then the other. */
+  brass: [0.38, 0.52, 0.68, 0.82],
+  /** Hair and the board: three passes. */
+  strokes: [0.12, 0.42, 0.7],
+  /** The bend in the vice: the pull starts, and where a blade that snaps lets go. */
+  bendStart: 0.1,
+  bendSnap: 0.75,
+  /** The flex: the bow starts, the latest a sword snaps, and when one that holds is let go. */
+  flexStart: 0.08,
+  flexSnapBy: 0.5,
+  flexRelease: 0.62,
+} as const

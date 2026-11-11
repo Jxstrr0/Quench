@@ -469,7 +469,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
     },
   })
   rackBtn.addEventListener('click', () => collectionSheet.open())
-  const playback = createTrialPlayback(app)
+  const playback = createTrialPlayback(app, (name) => audio.trial(name))
 
   // --- The grinder bench ------------------------------------------------------
   /** Seconds of steel on the belt so far: the bench's hint goes once the player has the idea. */
