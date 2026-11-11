@@ -4,6 +4,7 @@ The plan is `docs/QUENCH-PLAN.md`. Newest line first.
 
 | Version | PR | What changed |
 | --- | --- | --- |
+| 0.10.5.0 | PR 10g: Three sets of sounds to compare | **A new choice in the Assists card, "Sound set"**: Made in code (as before, and still the default), Recordings (CC0 from OpenGameArt: a fireplace, waves, a steam hiss), or Generated (the six ElevenLabs effects Kelbo paid for: fire, fire under blast, sea, grinder, oil hiss, water hiss). A set uses the code-made sound for anything it has no file for (there is no CC0 grinder or oil hiss). The bellows still brighten and raise the fire in every set. Files are fetched when the set is first picked (285 KiB in all), never at start-up. `art/audio/build.py` packs them; every recording is in `CREDITS.md`. No credits spent. 4 new tests (351 in total). |
 | 0.10.4.0 | PR 10f: The examiner speaks | **The Guild examiner has a voice** (ElevenLabs, with Kelbo's yes: 1,478 credits; plus 207 for six sound effects kept for comparison; 1,685 of the 2,700 limit). He opens the trials, says a line for each test as its result comes up, gives a last word, and speaks at the Proving. His words always show on screen as well, in the caption and on the trial card. New switch in the Assists card: Examiner's voice. Recordings are fetched one at a time when first needed (368 KiB for all 23), never at start-up. Results wait a little longer while he speaks. `art/audio/build.py` packs the takes; `PICKS` chooses which take of each line is used. 3 new tests (347 in total). |
 | 0.10.3.1 | PR 10e: Voice and sound quotes | Nothing new in the game. Kelbo's answers recorded in the plan: Q8 (draft the examiner's script and quote it) and Q13 (add CC0 recordings; ElevenLabs effects may be quoted). `docs/voice/QUOTE.md` holds the examiner's 23 lines, the voice picked for him, six sound effects, and the price: about 1,520 credits for the voice and 680 for the effects at two takes each, half that at one take. **Nothing has been generated and no credits spent**; each batch waits for Kelbo's yes. |
 | 0.10.3.0 | PR 10d: The harbour outside | The room's ambience loop: slow waves on the quay wall, heard through the window. Nearly lost under the fire at the forge, plain at the trial stand by the window. The fire and the sea share one piece of code. This ends the made-in-code sound pass; the examiner voice (Q8) and any recordings wait on Kelbo hearing the game. 1 new test (344 in total). |
@@ -58,10 +59,11 @@ The plan is `docs/QUENCH-PLAN.md`. Newest line first.
 
 Pages is on and the custom domain is set: https://quench.longlight.games/. Each merge to `main` publishes there.
 
-## Questions for Kelbo after playing 0.10.4.0
+## Questions for Kelbo after playing 0.10.5.0
 
 Kelbo said to keep rolling and tune later, so these are saved up, not blocking.
 
+- **Which sounds to keep** (0.10.5.0): in the Assists card, try all three choices under "Sound set" with the bellows, a quench in oil and in water, the grinder, and a trial (the sea is clearest there). Which set wins for each? The generated ones are short (1 to 3 seconds), so they may sound like a loop. Nobody has listened to any of them yet.
 - **Hammer feel** (from 0.3.0.0, still the plan's biggest risk): too weak, too strong, too slow? Is the rhythm window (0.45 to 0.8 seconds) a comfortable beat?
 - Cracking from cold blows takes about 50 slow blows on dull-red steel. Too forgiving?
 - **The tank.** Is dragging sideways into it clear? Does sliding to stir feel like stirring?

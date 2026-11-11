@@ -301,6 +301,7 @@ html, body {
 .toggle input { width: 26px; height: 26px; flex: none; accent-color: var(--heat-2); }
 .toggle-text { display: flex; flex-direction: column; }
 .volume input { flex: 1; width: auto; height: 44px; }
+.volume select { flex: 1; min-width: 0; height: 44px; padding: 0 8px; font: inherit; color: inherit; background: transparent; border: 1px solid rgba(28, 26, 23, 0.4); border-radius: 6px; }
 .toggle-label { font-weight: 700; }
 .toggle-note { font-size: 0.88rem; opacity: 0.8; }
 

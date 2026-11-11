@@ -1,9 +1,23 @@
 /**
- * The sound engine: Web Audio, all synthesized, no files. Browsers only allow
- * sound after a touch or click, so `unlock()` is called from the first one.
+ * The sound engine: Web Audio. Nearly everything is made in code; the
+ * examiner's voice is recorded, and the fire, quench, sea and grinder can be
+ * switched to recorded files (`setSounds`). Browsers only allow sound after a
+ * touch or click, so `unlock()` is called from the first one.
  */
-import type { ExaminerLine, ForgeSound, SoundShape, TrialSound } from '../data/audio'
-import { FIRE_SOUND, FORGE_SOUNDS, SEA_SOUND, EXAMINER_LINES, NOISE_SOUND, QUENCH_SOUND, SPARK_SOUND, TRIAL_SOUNDS, VOICE_SOUND } from '../data/audio'
+import type { ExaminerLine, ForgeSound, SoundFiles, SoundSet, SoundShape, TrialSound } from '../data/audio'
+import {
+  EXAMINER_LINES,
+  FILE_SOUND,
+  FIRE_SOUND,
+  FORGE_SOUNDS,
+  NOISE_SOUND,
+  QUENCH_SOUND,
+  SEA_SOUND,
+  SOUND_SETS,
+  SPARK_SOUND,
+  TRIAL_SOUNDS,
+  VOICE_SOUND,
+} from '../data/audio'
 import type { BeltVoice, FireVoice, HammerVoice, HissVoice } from './cues'
 
 /** The ring is three partials, a little out of tune with each other, like struck steel. */
@@ -26,6 +40,8 @@ export interface AudioEngine {
   sleep(on: boolean): void
   /** How loud everything is, 0 to 1. */
   setVolume(level: number): void
+  /** Which set of sounds the fire, quench, sea and grinder use. */
+  setSounds(set: SoundSet): void
   /** The forge fire's steady roar. Call every frame; pass null to put it out. */
   fire(voice: FireVoice | null): void
   /** The sea outside, heard through the window. Call every frame; pass null to stop it. */
@@ -197,22 +213,102 @@ export function createAudioEngine(): AudioEngine {
 
   let voiceOn = true
   let wanted: ExaminerLine | null = null
-  const lines = new Map<ExaminerLine, Promise<AudioBuffer | null>>()
   let speaking: AudioBufferSourceNode | null = null
-  /** The line's recording, fetched and decoded once. Null if it cannot be had: the words are on screen anyway. */
-  const recording = (line: ExaminerLine): Promise<AudioBuffer | null> => {
-    let got = lines.get(line)
+  const fetched = new Map<string, Promise<AudioBuffer | null>>()
+  const ready = new Map<string, AudioBuffer>()
+  /** A sound file, fetched and decoded once. Null if it cannot be had. */
+  const file = (url: string): Promise<AudioBuffer | null> => {
+    let got = fetched.get(url)
     if (!got) {
       const at = ctx
-      got = at
-        ? fetch(`${VOICE_SOUND.path}${EXAMINER_LINES[line]}.mp3`)
-            .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
-            .then((data) => at.decodeAudioData(data))
-            .catch(() => null)
-        : Promise.resolve(null)
-      lines.set(line, got)
+      if (!at) return Promise.resolve(null)
+      got = fetch(url)
+        .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
+        .then((data) => at.decodeAudioData(data))
+        .then((buffer) => {
+          ready.set(url, buffer)
+          return buffer
+        })
+        .catch(() => null)
+      fetched.set(url, got)
     }
     return got
+  }
+  /** The line's recording. If it cannot be had, the words are on screen anyway. */
+  const recording = (line: ExaminerLine): Promise<AudioBuffer | null> => file(`${VOICE_SOUND.path}${EXAMINER_LINES[line]}.mp3`)
+
+  let files: SoundFiles = SOUND_SETS.made
+  /** A file of the set in use, if the set has one and it has arrived. Asking for it starts it on its way. */
+  const sample = (name: string | undefined): AudioBuffer | null => {
+    if (!name || !ctx) return null
+    const url = `${FILE_SOUND.path}${name}.mp3`
+    const buffer = ready.get(url)
+    if (!buffer) void file(url)
+    return buffer ?? null
+  }
+  /** A file played round and round, dulled by a low-pass filter. Pass null to stop it. */
+  const looper = (): ((buffer: AudioBuffer | null, level?: number, hz?: number) => void) => {
+    let src: AudioBufferSourceNode | null = null
+    let filter: BiquadFilterNode | null = null
+    let gain: GainNode | null = null
+    const stop = (): void => {
+      if (!ctx || !src || !gain) return
+      gain.gain.setTargetAtTime(0, ctx.currentTime, 0.08)
+      src.stop(ctx.currentTime + 0.6)
+      src = filter = gain = null
+    }
+    return (buffer, level = 0, hz = 20000) => {
+      if (!buffer || !enabled || !ctx || !master || ctx.state !== 'running') return stop()
+      if (src && src.buffer !== buffer) stop()
+      const now = ctx.currentTime
+      if (!src || !filter || !gain) {
+        const k = FILE_SOUND
+        src = ctx.createBufferSource()
+        src.buffer = buffer
+        src.loop = true
+        src.loopStart = k.inset
+        src.loopEnd = buffer.duration - k.inset
+        filter = ctx.createBiquadFilter()
+        filter.type = 'lowpass'
+        filter.Q.value = 0.5
+        filter.frequency.value = hz
+        gain = ctx.createGain()
+        gain.gain.value = 0
+        src.connect(filter).connect(gain).connect(master)
+        src.start(now, k.inset + Math.random() * (buffer.duration - 2 * k.inset))
+      }
+      gain.gain.setTargetAtTime(level, now, 0.12)
+      filter.frequency.setTargetAtTime(Math.min(hz, 20000), now, 0.12)
+    }
+  }
+  const fireLoop = looper()
+  const blastLoop = looper()
+  const seaLoop = looper()
+  const beltLoop = looper()
+  /** A file played once, for at most `seconds`. */
+  const shot = (buffer: AudioBuffer, level: number, seconds: number): void => {
+    if (!enabled || !ctx || !master || ctx.state !== 'running' || level <= 0) return
+    const now = ctx.currentTime
+    const src = ctx.createBufferSource()
+    src.buffer = buffer
+    const gain = ctx.createGain()
+    gain.gain.setValueAtTime(level, now)
+    const end = Math.min(seconds, buffer.duration)
+    gain.gain.setValueAtTime(level, now + Math.max(0, end - FILE_SOUND.fade))
+    gain.gain.linearRampToValueAtTime(0, now + end)
+    src.connect(gain).connect(master)
+    src.start(now)
+    src.stop(now + end + 0.02)
+  }
+  /** Send for every file of the set in use, so the first quench has its hiss. */
+  const warm = (): void => {
+    for (const name of Object.values(files) as string[]) sample(name)
+  }
+  const stopLoops = (): void => {
+    fireLoop(null)
+    blastLoop(null)
+    seaLoop(null)
+    beltLoop(null)
   }
   const hush = (): void => {
     try {
@@ -248,6 +344,7 @@ export function createAudioEngine(): AudioEngine {
     },
     unlock() {
       if (!enabled || !start()) return
+      warm()
       if (ctx?.state === 'suspended') void ctx.resume()
     },
     setEnabled(on) {
@@ -256,6 +353,7 @@ export function createAudioEngine(): AudioEngine {
         stopBelt()
         fireBed(null)
         seaBed(null)
+        stopLoops()
         hush()
       }
     },
@@ -268,9 +366,41 @@ export function createAudioEngine(): AudioEngine {
       volume = level < 0 ? 0 : level > 1 ? 1 : level
       if (ctx && master) master.gain.setTargetAtTime(volume, ctx.currentTime, 0.03)
     },
-    fire: fireBed,
-    sea: seaBed,
+    setSounds(set) {
+      files = SOUND_SETS[set]
+      warm()
+    },
+    fire(voice) {
+      const base = voice ? sample(files.fire) : null
+      const roar = voice && files.blast ? sample(files.blast) : null
+      if (!voice || !base || (files.blast && !roar)) {
+        fireLoop(null)
+        blastLoop(null)
+        return fireBed(voice)
+      }
+      fireBed(null)
+      const k = FILE_SOUND
+      // With a second file for the blast, fade from one to the other as the bellows work.
+      const blast = roar ? Math.min(1, Math.max(0, (voice.hz - FIRE_SOUND.idleHz) / (FIRE_SOUND.fullHz - FIRE_SOUND.idleHz))) : 0
+      fireLoop(base, voice.gain * k.fireLift * Math.sqrt(1 - blast), voice.hz * k.open)
+      blastLoop(roar, voice.gain * k.fireLift * Math.sqrt(blast), voice.hz * k.open)
+    },
+    sea(voice) {
+      const waves = voice ? sample(files.sea) : null
+      if (!voice || !waves) {
+        seaLoop(null)
+        return seaBed(voice)
+      }
+      seaBed(null)
+      seaLoop(waves, voice.gain * FILE_SOUND.seaLift, voice.hz * FILE_SOUND.open)
+    },
     belt(voice) {
+      const running = voice ? sample(files.belt) : null
+      if (voice && running) {
+        stopBelt()
+        return beltLoop(running, voice.gain * FILE_SOUND.beltLift, voice.hz * FILE_SOUND.beltOpen)
+      }
+      beltLoop(null)
       if (!voice || !enabled || !ctx || !master || !longNoise || ctx.state !== 'running') {
         stopBelt()
         return
@@ -335,6 +465,8 @@ export function createAudioEngine(): AudioEngine {
       }
     },
     hiss(voice) {
+      const spit = voice.file ? sample(files[voice.file]) : null
+      if (spit) return shot(spit, voice.gain * FILE_SOUND.hissLift, voice.seconds)
       burst(voice.hz, voice.seconds, voice.gain, 0)
     },
     ping() {

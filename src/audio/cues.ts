@@ -42,6 +42,8 @@ export interface HissVoice {
   /** How bright the hiss is: the filter's centre, in Hz. */
   hz: number
   seconds: number
+  /** For a quench: which recorded hiss can stand in for it, if the sound set in use has one. */
+  file?: 'hissWet' | 'hissOil'
 }
 
 /** The sound of the bar going into the quench, from how hot it is and what it goes into. */
@@ -53,6 +55,7 @@ export function hissVoice(temp: number, medium: MediumId): HissVoice {
     gain: heat * (medium === 'plates' ? k.platesGain : 1),
     hz: wet ? k.waterHz : k.oilHz,
     seconds: k.shortest + (k.longest - k.shortest) * heat,
+    file: wet ? 'hissWet' : medium === 'plates' ? undefined : 'hissOil',
   }
 }
 

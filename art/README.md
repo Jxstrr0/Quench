@@ -42,3 +42,10 @@ voice is recorded: raw takes live in `art/audio/src/elevenlabs/`, and
 take of each line to `public/assets/audio/voice/`. Change `PICKS` in that
 script to use a different take. The script sheet and the spend are in
 `docs/voice/`.
+
+The same script packs the two file-based sound sets to
+`public/assets/audio/sfx/`: `*-rec.mp3` from the CC0 recordings in
+`art/audio/src/cc0/`, and `*-gen.mp3` from the generated effects. `SHOTS` and
+`LOOPS` in the script say which source makes which file. Which set the game
+plays is the "Sound set" choice in the Assists card
+(`SOUND_SETS` in `src/data/audio.ts`).

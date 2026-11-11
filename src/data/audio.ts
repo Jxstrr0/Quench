@@ -245,3 +245,43 @@ export const VOICE_SOUND = {
   /** Where the recordings live, from the page. */
   path: './assets/audio/voice/',
 } as const
+
+/**
+ * Where the fire, the quench, the sea and the grinder get their sound: made
+ * in code, CC0 recordings, or effects generated with ElevenLabs. A set uses
+ * the code-made sound for anything it has no file for. Files are under
+ * `public/assets/audio/sfx/`, packed by `art/audio/build.py`.
+ */
+export interface SoundFiles {
+  fire?: string
+  /** The fire under full blast; the engine fades from `fire` to this as the bellows work. */
+  blast?: string
+  sea?: string
+  hissWet?: string
+  hissOil?: string
+  belt?: string
+}
+
+export const SOUND_SETS = {
+  made: {},
+  recorded: { fire: 'fire-rec', sea: 'sea-rec', hissWet: 'hiss-rec', hissOil: 'hiss-rec' },
+  generated: { fire: 'fire-gen', blast: 'blast-gen', sea: 'sea-gen', hissWet: 'hiss-water-gen', hissOil: 'hiss-oil-gen', belt: 'belt-gen' },
+} as const satisfies Record<string, SoundFiles>
+
+export type SoundSet = keyof typeof SOUND_SETS
+
+export const FILE_SOUND = {
+  path: './assets/audio/sfx/',
+  /** A loop skips this much at each end of its file, in seconds: MP3s carry a little silence there. */
+  inset: 0.06,
+  /** A file plays this many times louder than the code-made sound's loudness figure. */
+  fireLift: 3,
+  seaLift: 4,
+  beltLift: 2.5,
+  hissLift: 1.6,
+  /** A file is dulled through a low-pass filter set this many times above the code-made sound's own pitch. */
+  open: 8,
+  beltOpen: 4,
+  /** A hiss cut short fades out over this long, in seconds. */
+  fade: 0.2,
+} as const
