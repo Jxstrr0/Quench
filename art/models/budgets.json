@@ -27,5 +27,13 @@
   "vice": {
     "triangles": 1000,
     "bytes": 60000
+  },
+  "peg": {
+    "triangles": 500,
+    "bytes": 30000
+  },
+  "matstand": {
+    "triangles": 500,
+    "bytes": 30000
   }
 }

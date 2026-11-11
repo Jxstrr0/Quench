@@ -420,7 +420,47 @@ def vice():
     return finish("vice", bm, [cast_iron(), worn_steel(), steel()], bevel=0.002)
 
 
-MODELS = {"anvil": anvil, "forge": forge, "trench": trench, "tank": tank, "bench": bench, "tongs": tongs, "vice": vice}
+def peg():
+    """
+    The flex test's peg: a timber block on the table with an iron stop bolted
+    to its end, braced behind. The sword's tip stands on the table in front of
+    the stop. Its origin is on the table top, where the tip rests.
+    """
+    top = DIMS["pegTop"] * MM
+    bm = bmesh.new()
+    # The block, behind the tip.
+    box(bm, -0.055, -0.005, -0.05, 0.05, 0.0, top)
+    # The stop: an iron plate standing proud of the block, with a foot on the table.
+    box(bm, 0.005, 0.019, -0.05, 0.05, 0.0, top + 0.05, mat=1)
+    box(bm, 0.019, 0.05, -0.05, 0.05, 0.0, 0.008, mat=1)
+    # A brace from the foot up the back of the stop.
+    frustum(bm, 0.019, 0.05, -0.006, 0.006, 0.008, 0.019, 0.023, -0.006, 0.006, top + 0.03, mat=1)
+    for y in (-0.034, 0.034):
+        box(bm, 0.03, 0.042, y - 0.006, y + 0.006, 0.008, 0.013, mat=2)
+    return finish("peg", bm, [timber(), cast_iron(), steel()], bevel=0.002)
+
+
+def matstand():
+    """
+    The stand for the rolled mat: two crossed timber feet, a post, and a round
+    plate the mat sits on. Its origin is on the table top under the mat.
+    """
+    top = DIMS["matFoot"] * MM
+    half = DIMS["matStandWidth"] * MM / 2
+    bm = bmesh.new()
+    box(bm, -half, half, -0.022, 0.022, 0.0, 0.03, mat=1)
+    box(bm, -0.022, 0.022, -half, half, 0.0, 0.03, mat=1)
+    frustum(bm, -0.034, 0.034, -0.034, 0.034, 0.03, -0.026, 0.026, -0.026, 0.026, top - 0.01)
+
+    def disc(r, z):
+        return [(r * math.cos(a), r * math.sin(a), z) for a in (math.radians(15 + 30 * i) for i in range(12))]
+
+    loft(bm, [disc(0.05, top - 0.01), disc(0.05, top)], mat=2)
+    return finish("matstand", bm, [timber(), dark_timber(), steel()], bevel=0.002)
+
+
+MODELS = {"anvil": anvil, "forge": forge, "trench": trench, "tank": tank, "bench": bench, "tongs": tongs, "vice": vice,
+          "peg": peg, "matstand": matstand}
 
 
 def export(name):

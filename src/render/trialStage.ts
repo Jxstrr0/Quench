@@ -8,7 +8,7 @@
  */
 import { BoxGeometry, CylinderGeometry, Group, Mesh, MeshStandardMaterial, PlaneGeometry, PointLight, Vector3 } from 'three'
 import type { TrialId } from '../data/trials'
-import { VICE } from '../data/tuning'
+import { SWORD_PROPS, VICE } from '../data/tuning'
 import type { Outcome } from '../sim/trials'
 import { swapIn } from './models'
 
@@ -165,27 +165,34 @@ export function createTrialStage(): TrialStage {
   const shard = prop(new BoxGeometry(1, 1, 1), 0x6f757d, 0.6, 0.6)
 
   // The peg the sword's tip is set against for the flex: a post on the table with a notch block.
-  const pegTop = 0.06
+  const pegTop = SWORD_PROPS.pegTop * MM
   const pegX = -0.12
   const peg = new Group()
   const pegPost = prop(new BoxGeometry(0.05, pegTop, 0.1), 0x5a626c, 0.6, 0.5)
   pegPost.position.set(pegX - 0.03, pegTop / 2, 0)
   const pegStop = prop(new BoxGeometry(0.014, pegTop + 0.05, 0.1), 0x454c55, 0.6, 0.5)
   pegStop.position.set(pegX + 0.012, (pegTop + 0.05) / 2, 0)
-  peg.add(pegPost, pegStop)
+  const pegBox = new Group()
+  pegBox.add(pegPost, pegStop)
+  peg.add(pegBox)
+  // The modelled peg's origin is on the table top, where the sword's tip rests.
+  swapIn('peg', pegBox, (model) => model.position.set(pegX, 0, 0))
 
   // The rolled mat stands on a spike stand, in two lengths so the top can slide off the cut.
   const matR = 0.045
-  const matFoot = 0.12
+  const matFoot = SWORD_PROPS.matFoot * MM
   const matTop = 0.72
   const matMat = new MeshStandardMaterial({ color: 0xb9a468, roughness: 1 })
   const matLow = new Mesh(new CylinderGeometry(matR, matR, 1, 18), matMat)
   const matHigh = new Mesh(new CylinderGeometry(matR, matR, 1, 18), matMat)
-  const matStand = prop(new BoxGeometry(0.16, matFoot, 0.16), 0x3d3328, 0.95)
+  const matWide = SWORD_PROPS.matStandWidth * MM
+  const matStand = prop(new BoxGeometry(matWide, matFoot, matWide), 0x3d3328, 0.95)
   matStand.position.set(0, matFoot / 2, 0)
   const mat = new Group()
   mat.position.set(spotX, 0, 0)
   mat.add(matStand, matLow, matHigh)
+  // The modelled stand's origin is on the table top under the mat.
+  swapIn('matstand', matStand, () => {})
 
   group.add(rope, timber, brass, vice, pad, shard, peg, mat)
 

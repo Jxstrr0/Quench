@@ -4,6 +4,7 @@ The plan is `docs/QUENCH-PLAN.md`. Newest line first.
 
 | Version | PR | What changed |
 | --- | --- | --- |
+| 0.9.7.0 | PR 9h: The sword test props | The **flex peg** is now a timber block with a braced iron stop, and the **mat stand** is two crossed timber feet, a post and a round plate. Their sizes moved into the tuning table so the models and the game share them. |
 | 0.9.6.0 | PR 9g: Graphics tiers | **Lite, Full and Ultra**, with **Auto** as the default. Lite draws fewer pixels with no bloom; Full blooms the glow; Ultra is Full drawn sharper. Auto starts on Full on a phone and steps down by itself if the forge runs under 45 frames a second for a few seconds, and remembers where it ended up. The choice is one button at the bottom of the Assists card. `?tier=lite` in the address still pins a tier for one visit. 7 new tests (330 in total). |
 | 0.9.5.0 | PR 9f: The vice | The bend test's **vice** is now a model: two castings with hard jaw plates, a foot bolted to the table, the screw and its tommy bar. Its sizes moved into the tuning table so the model and the game share them. |
 | 0.9.4.0 | PR 9e: The tongs | The **tongs** are now a model: flat bits that grip the bar above and below, a riveted boss, and two reins that part toward the hand. One half is modelled and used twice. |
@@ -46,7 +47,7 @@ The plan is `docs/QUENCH-PLAN.md`. Newest line first.
 
 Pages is on and the custom domain is set: https://quench.longlight.games/. Each merge to `main` publishes there.
 
-## Questions for Kelbo after playing 0.9.6.0
+## Questions for Kelbo after playing 0.9.7.0
 
 Kelbo said to keep rolling and tune later, so these are saved up, not blocking.
 

@@ -22,5 +22,8 @@
   "tongsLength": 360,
   "viceTop": 130,
   "viceJaw": 50,
-  "viceGap": 4
+  "viceGap": 4,
+  "pegTop": 60,
+  "matFoot": 120,
+  "matStandWidth": 160
 }
