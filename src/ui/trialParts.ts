@@ -13,6 +13,7 @@ import type { Explanation, Moment } from '../sim/report'
 import { explain, fractureReport } from '../sim/report'
 import type { Break, TrialReport, TrialResult } from '../sim/trials'
 import { el } from './dom'
+import { glossed } from './gloss'
 
 export const TRIAL_NAME: Record<TrialId, StringKey> = {
   fit: 'trial.fit',
@@ -69,7 +70,7 @@ function momentText(m: Moment): string {
   return m.note ? `${text}: ${t(`remark.${m.note}`)}` : text
 }
 
-export const note = (text: string, cls = 'sheet-note'): HTMLElement => el('p', cls, text)
+export const note = (text: string, cls = 'sheet-note'): HTMLElement => glossed('p', cls, text)
 
 function resultBox(r: TrialResult): HTMLElement {
   const box = el('div', 'trial')
@@ -77,7 +78,7 @@ function resultBox(r: TrialResult): HTMLElement {
   head.append(el('span', 'trial-name', t(TRIAL_NAME[r.id])))
   head.append(el('span', r.passed ? 'trial-mark' : 'trial-mark trial-fail', `${r.passed ? '✓' : '✗'} ${t(r.passed ? 'trial.passed' : 'trial.failed')}`))
   box.append(head)
-  box.append(el('p', 'trial-what', r.cause ? `${outcomeText(r)} ${t(`why.${r.cause}`)}` : outcomeText(r)))
+  box.append(glossed('p', 'trial-what', r.cause ? `${outcomeText(r)} ${t(`why.${r.cause}`)}` : outcomeText(r)))
   return box
 }
 

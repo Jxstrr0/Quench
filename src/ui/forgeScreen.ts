@@ -58,6 +58,7 @@ import { createGrindBench } from './grindBench'
 import { MAGNET_KEY, createInspectSheet, createTemperSheet } from './treatSheets'
 import { createTrialPlayback } from './trialPlayback'
 import type { Kept } from './trialSheet'
+import { createGlossarySheet } from './gloss'
 import { createTrialSheet } from './trialSheet'
 
 const BLOW_TYPES: BlowType[] = ['flat', 'edge', 'peen', 'point']
@@ -161,7 +162,9 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   const head = el('div', 'hud-head')
   const rackBtn = button('btn hud-rack')
   const careerBtn = button('btn hud-rack')
-  head.append(mode, rackBtn, careerBtn)
+  const helpBtn = button('btn hud-rack hud-help', 'gloss.help')
+  helpBtn.setAttribute('aria-label', t('gloss.help.label'))
+  head.append(mode, rackBtn, careerBtn, helpBtn)
   // The pattern in use, with a small button to change it (Free forge only).
   const shapeRow = el('div', 'hud-shape-row')
   const patternBtn = button('btn hud-rack', 'btn.pattern')
@@ -680,6 +683,9 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
     },
   })
   careerBtn.addEventListener('click', () => careerSheet.open())
+  // Made last, so a word tapped on any card opens over that card.
+  const glossary = createGlossarySheet(app)
+  helpBtn.addEventListener('click', () => glossary.show(null))
   // Save when the page is put away, and every so often while it is open.
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') saveCareer()

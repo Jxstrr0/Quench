@@ -72,6 +72,20 @@ html, body {
   font-size: 1rem;
 }
 .hud-shape { margin: 2px 0 0; font-size: 0.95rem; }
+/* A word the glossary explains: it reads as text, and taps like a button. */
+.gloss {
+  display: inline;
+  margin: 0;
+  padding: 2px 0;
+  border: 0;
+  border-bottom: 2px dotted currentColor;
+  border-radius: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.hud-help { margin-left: auto; min-width: 44px; }
 .hud-coach {
   margin: 8px 0 0;
   padding: 8px 10px;
