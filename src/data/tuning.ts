@@ -167,3 +167,6 @@ export const WORKBENCH = { length: 1100, wide: 340, top: -21 } as const
 
 /** The tongs, in mm: how long they are from the bite to the end of the reins. The tongs model is built to the same length. */
 export const TONGS = { length: 360 } as const
+
+/** The bend test's vice, in mm: how high its jaws stand off the table, how wide each jaw is, and the gap from the blade's middle to each jaw. The vice model is built to the same sizes. */
+export const VICE = { top: 130, jaw: 50, gap: 4 } as const

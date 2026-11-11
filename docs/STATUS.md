@@ -4,6 +4,7 @@ The plan is `docs/QUENCH-PLAN.md`. Newest line first.
 
 | Version | PR | What changed |
 | --- | --- | --- |
+| 0.9.5.0 | PR 9f: The vice | The bend test's **vice** is now a model: two castings with hard jaw plates, a foot bolted to the table, the screw and its tommy bar. Its sizes moved into the tuning table so the model and the game share them. |
 | 0.9.4.0 | PR 9e: The tongs | The **tongs** are now a model: flat bits that grip the bar above and below, a riveted boss, and two reins that part toward the hand. One half is modelled and used twice. |
 | 0.9.3.0 | PR 9d: The grinding bench | The **grinding bench** is now a model: four thick planks on a trestle frame. The belt, the sharpening stone and the sparks are still drawn live. The bench's sizes moved into the tuning table so the model and the game share them. |
 | 0.9.2.0 | PR 9c: The quench tank | The **quench tank** is now a model: a welded plate trough with a rolled lip, a strap handle at each end, standing on two skids. The liquid and the quench plates are still drawn live. The tank's sizes moved into the tuning table so the model and the game share them. |
@@ -44,7 +45,7 @@ The plan is `docs/QUENCH-PLAN.md`. Newest line first.
 
 Pages is on and the custom domain is set: https://quench.longlight.games/. Each merge to `main` publishes there.
 
-## Questions for Kelbo after playing 0.9.4.0
+## Questions for Kelbo after playing 0.9.5.0
 
 Kelbo said to keep rolling and tune later, so these are saved up, not blocking.
 

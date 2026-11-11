@@ -8,7 +8,9 @@
  */
 import { BoxGeometry, CylinderGeometry, Group, Mesh, MeshStandardMaterial, PlaneGeometry, PointLight, Vector3 } from 'three'
 import type { TrialId } from '../data/trials'
+import { VICE } from '../data/tuning'
 import type { Outcome } from '../sim/trials'
+import { swapIn } from './models'
 
 /** One moment of one test's playback. */
 export interface TrialShow {
@@ -79,6 +81,7 @@ const BOW = 35
 const SET_SHOWN = 1.5
 
 const DEG = Math.PI / 180
+const MM = 0.001
 const GRAVITY = 9.8
 const clamp01 = (x: number): number => (x < 0 ? 0 : x > 1 ? 1 : x)
 /** 0 to 1 across the stretch of `t` from `a` to `b`, eased. */
@@ -135,10 +138,10 @@ export function createTrialStage(): TrialStage {
   brass.add(block, rod)
 
   // The vice, seen along the blade's edge: a jaw on each flat, and its body in front.
-  const viceTop = 0.13
+  const viceTop = VICE.top * MM
   const viceX = -0.12
-  const jawWide = 0.05
-  const jawGap = 0.004
+  const jawWide = VICE.jaw * MM
+  const jawGap = VICE.gap * MM
   const vice = new Group()
   const jawLeft = prop(new BoxGeometry(jawWide, viceTop, 0.1), 0x5a626c, 0.6, 0.5)
   jawLeft.position.set(viceX - jawGap - jawWide / 2, viceTop / 2, 0)
@@ -146,7 +149,11 @@ export function createTrialStage(): TrialStage {
   jawRight.position.set(viceX + jawGap + jawWide / 2, viceTop / 2, 0)
   const viceBody = prop(new BoxGeometry(jawWide * 2 + jawGap * 2, viceTop - 0.025, 0.02), 0x454c55, 0.6, 0.5)
   viceBody.position.set(viceX, (viceTop - 0.025) / 2, 0.06)
-  vice.add(jawLeft, jawRight, viceBody)
+  const viceBox = new Group()
+  viceBox.add(jawLeft, jawRight, viceBody)
+  vice.add(viceBox)
+  // The modelled vice's origin is on the table top, in the middle of the gap between its jaws.
+  swapIn('vice', viceBox, (model) => model.position.set(viceX, 0, 0))
 
   // A hair to shave: a few fine strands standing on a pad.
   const pad = new Group()
