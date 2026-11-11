@@ -163,6 +163,8 @@ html, body {
   width: 230px;
 }
 #app.wide .controls-row { grid-template-columns: repeat(2, 1fr); }
+/* Two rows of blows here, so the shared slot is taller. */
+#app.wide .controls-anvil, #app.wide .btn-bellows { height: 126px; }
 #app.wide .hud-hint { bottom: calc(40px + var(--safe-b)); right: 250px; }
 
 /* Sheets: reports and settings are printed on paper cards. */
