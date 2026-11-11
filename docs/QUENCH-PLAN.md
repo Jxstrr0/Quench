@@ -584,6 +584,9 @@ Kelbo has asked for Quench to be added to the studio site, so this plan allows
 | Q16 | Pattern and steel in Free forge: tap through, or a list? | **A list card** for each, with a line about every choice. |
 | Q17 | How do billets come into the Career (PR 11)? | **Smith's choice.** On any commission the smith may start from a billet instead of a plain bar. It costs a little more and takes more bench time. Collectors pay extra for an etched layered or san-mai blade, and a couple of collector commissions ask for one outright. |
 | Q18 | From which Guild rating are billets offered? | **Journeyman**, the same point as the long fire. |
+| Q19 | Daily commission: how many tries a day (PR 12)? | **One bar a day.** One bar, one score. A broken blade still gets a (low) score. |
+| Q20 | What can a player share from the daily? | **A line of text and the blade's card.** There is no server: scores are compared by sharing. |
+| Q21 | Is the daily tied to the Career? | **Its own mode.** No money, no bench hours, and the same tools for everyone (no pyrometer or tester), so scores are fair. |
 
 Working rules agreed the same day:
 

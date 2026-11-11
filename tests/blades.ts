@@ -5,6 +5,7 @@ import type { HandleId } from '../src/data/grind'
 import type { BlowType } from '../src/data/hammer'
 import type { PatternId } from '../src/data/patterns'
 import { PATTERNS } from '../src/data/patterns'
+import type { SteelId } from '../src/data/steels'
 import { steel } from '../src/data/steels'
 import type { Bar, Segment } from '../src/sim/bar'
 import { barLength, cloneBar, createBar, edgeThickness, segmentCentres } from '../src/sim/bar'
@@ -90,6 +91,8 @@ export interface Made {
   seed?: number
   /** Which sides are ground. Both, unless this says otherwise. */
   sides?: Side[]
+  /** The steel, when it is not the pattern's own. */
+  steel?: SteelId
   /** What it was built from. A billet comes out welded sound, unless `prep` says otherwise. */
   billet?: BilletId
   /** Something done to the bar once it has its shape, before it is ground. */
@@ -99,10 +102,10 @@ export interface Made {
 /** A blade of any pattern made the quick way: forged by fiat, then ground, hardened, tempered, sharpened and handled by the sim. */
 export function makeBlade(id: PatternId, how: Made = {}): Bar {
   const p = PATTERNS[id]
-  const st = steel(p.steel)
+  const st = steel(how.steel ?? p.steel)
   const length = patternLength(p)
   const blade = length * p.bladeShare
-  const bar = createBar(p.steel, { length, width: 30, thickness: 4 }, 48, how.seed ?? 5, how.billet ?? 'plain')
+  const bar = createBar(st.id, { length, width: 30, thickness: 4 }, 48, how.seed ?? 5, how.billet ?? 'plain')
   for (const s of bar.segments) s.weld = 1
   let x = 0
   for (const s of bar.segments) {
