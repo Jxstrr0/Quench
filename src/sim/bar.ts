@@ -20,6 +20,10 @@ export interface Segment {
   /** Carbon at the surface and in the core, weight percent. Scale and decarb eat the surface. */
   carbonSurface: number
   carbonCore: number
+  /** Crack damage from hammering too cold. At 1 the bar has cracked here. */
+  damage: number
+  /** Burn damage from too much heat. At 1 the steel has crumbled here. */
+  burnt: number
 }
 
 export interface Bar {
@@ -31,6 +35,8 @@ export interface Bar {
   carry: number
   /** Steel lost to scale so far, cubic mm. */
   scaleLost: number
+  /** How many hammer blows it has taken. */
+  blows: number
 }
 
 export interface StockSize {
@@ -52,9 +58,11 @@ export function createBar(steelId: SteelId, size: StockSize, count: number = SIM
       temp: SHOP.airTemp,
       carbonSurface: carbon,
       carbonCore: carbon,
+      damage: 0,
+      burnt: 0,
     })
   }
-  return { steel: steelId, segments, clock: 0, carry: 0, scaleLost: 0 }
+  return { steel: steelId, segments, clock: 0, carry: 0, scaleLost: 0, blows: 0 }
 }
 
 export function cloneBar(bar: Bar): Bar {

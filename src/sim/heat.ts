@@ -7,6 +7,8 @@
  *
  * Built from + - * / only, so every phone gets the same bar.
  */
+import { HAMMER } from '../data/hammer'
+import { steel } from '../data/steels'
 import { FORGE, KELVIN, SCALE, SHOP, SIGMA, SIM, STEEL_PHYSICS } from '../data/tuning'
 import type { Bar, Segment } from './bar'
 import { segmentCentres } from './bar'
@@ -118,6 +120,7 @@ export function stepHeat(bar: Bar, placement: Placement): void {
   const total = (centres[centres.length - 1] as number) + (segs[segs.length - 1] as Segment).length / 2
   const conduction = conductionWatts(bar)
   const next = new Array<number>(segs.length)
+  const burnTemp = steel(bar.steel).burn
 
   for (let i = 0; i < segs.length; i++) {
     const s = segs[i] as Segment
@@ -149,6 +152,7 @@ export function stepHeat(bar: Bar, placement: Placement): void {
   for (let i = 0; i < segs.length; i++) {
     const s = segs[i] as Segment
     s.temp = next[i] as number
+    if (s.temp > burnTemp) s.burnt += HAMMER.burnRate * (1 + (s.temp - burnTemp) / HAMMER.burnStep) * dt
     bar.scaleLost += scaleStep(s, dt)
   }
   bar.clock += dt
