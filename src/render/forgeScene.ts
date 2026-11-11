@@ -49,6 +49,7 @@ import { barLength, nearestSegment, segmentCentres } from '../sim/bar'
 import { patternLength } from '../sim/shape'
 import { glowAt } from '../sim/glow'
 import { bentPoint, createBarMesh } from './barMesh'
+import type { ModelName } from './models'
 import { swapIn } from './models'
 import type { BladeDims, TrialShow } from './trialStage'
 import { createTrialStage } from './trialStage'
@@ -130,9 +131,11 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
   // The forge: the short fire, and the long trench forge that takes its place for long blades.
   const coalMat = new MeshBasicMaterial({ color: 0xe2571e })
   const coreMat = new MeshBasicMaterial({ color: 0xf59a23 })
-  const buildForge = (fire: { coreStart: number; coreEnd: number; depth: number }): Group => {
+  const buildForge = (fire: { coreStart: number; coreEnd: number; depth: number }, model: ModelName): Group => {
     const depth = fire.depth * MM
     const forge = new Group()
+    // The masonry, as grey boxes until its model loads.
+    const walls = new Group()
     const wall = 0.03
     const trough = 0.2
     const bed = box(depth + wall, 0.08, trough + wall * 2, 0x24282d)
@@ -148,7 +151,10 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
     sideA.position.set(-depth / 2, 0.025, trough / 2 + wall / 2)
     const sideB = sideA.clone()
     sideB.position.z = -sideA.position.z
-    forge.add(bed, back, backB, sideA, sideB)
+    walls.add(bed, back, backB, sideA, sideB)
+    forge.add(walls)
+    // The model's origin is the forge mouth, on the rail's line, at the height of the anvil's face.
+    swapIn(model, walls, () => {})
 
     // The coals: an unlit glowing bed, brightest over the fire's core.
     const coals = new Mesh(new PlaneGeometry(depth, trough), coalMat)
@@ -161,8 +167,8 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
     forge.add(coals, core)
     return forge
   }
-  const forge = buildForge(FORGE)
-  const trench = buildForge(TRENCH)
+  const forge = buildForge(FORGE, 'forge')
+  const trench = buildForge(TRENCH, 'trench')
   trench.visible = false
   const fireLight = new PointLight(0xf59a23, 0.4, 1.6, 2)
   fireLight.position.set(-FORGE.depth * MM * 0.5, 0.12, 0)

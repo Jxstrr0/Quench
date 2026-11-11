@@ -21,6 +21,7 @@ The blade is never a model. The game builds it from the sim.
 import json
 import math
 import os
+import random
 import sys
 
 import bpy  # first: it puts Blender's own modules, bmesh among them, on the path
@@ -58,6 +59,14 @@ def steel():
 def worn_steel():
     """The anvil's face: brighter where the work polishes it."""
     return material("wornSteel", (0.13, 0.14, 0.155), 0.38, 0.85)
+
+
+def stone():
+    return material("stone", (0.042, 0.047, 0.056), 0.95, 0.0)
+
+
+def dark_stone():
+    return material("darkStone", (0.02, 0.023, 0.029), 0.95, 0.0)
 
 
 def dark():
@@ -161,7 +170,81 @@ def anvil():
     return finish("anvil", bm, [steel(), worn_steel(), dark()], bevel=0.0025)
 
 
-MODELS = {"anvil": anvil}
+def course(bm, rnd, along, a0, a1, b0, b1, z0, z1, block, shift, mat=0):
+    """
+    One course of a dry-stone wall: blocks laid end to end from a0 to a1 along
+    the axis `along` ("x" or "y"), filling b0..b1 on the other axis. `shift`
+    staggers the joints against the course below. Each block sits a hair off
+    true, so the wall looks laid by hand.
+    """
+    gap = 0.0025
+    at = a0
+    first = True
+    while at < a1 - 0.004:
+        size = block * (shift if first else 1.0) * rnd.uniform(0.9, 1.1)
+        end = min(a1, at + size)
+        if a1 - end < block * 0.35:
+            end = a1
+        lift = rnd.uniform(-0.002, 0.002)
+        out = rnd.uniform(-0.0015, 0.0015)
+        lo, hi = at + (0 if first else gap / 2), end - (0 if end == a1 else gap / 2)
+        if along == "x":
+            box(bm, lo, hi, b0 + out, b1 + out, z0, z1 + lift, mat)
+        else:
+            box(bm, b0 + out, b1 + out, lo, hi, z0, z1 + lift, mat)
+        at = end
+        first = False
+
+
+def hearth(name, depth_mm, core_from_mm, core_to_mm):
+    """
+    A stone forge trough on a plinth. The mouth is at x = 0 and the fire runs
+    back along -x; the game lays its glowing coals inside. The back wall has
+    a port, open at the top, for a long blade to pass through. An iron tuyere
+    brings the bellows' air in through the side wall, at the middle of the core.
+    """
+    depth = depth_mm * MM
+    wall = DIMS["forgeWall"] * MM
+    half = DIMS["forgeTrough"] * MM / 2
+    port = DIMS["forgePort"] * MM / 2
+    floor = -DIMS["floorDrop"] * MM
+    out = half + wall
+    rnd = random.Random(depth_mm)
+    bm = bmesh.new()
+
+    # Plinth and bed.
+    box(bm, -depth - wall - 0.012, 0.004, -out - 0.012, out + 0.012, floor, floor + 0.022, mat=1)
+    box(bm, -depth - wall, 0.0, -out, out, floor + 0.022, -0.03, mat=1)
+    # Two courses of wall down each side and across the back, either side of the port.
+    mid, top = 0.026, 0.08
+    for z0, z1, shift in ((-0.03, mid, 1.0), (mid + 0.0025, top, 0.55)):
+        for side in (1, -1):
+            course(bm, rnd, "x", -depth, 0.0, side * half if side > 0 else -out, side * out if side > 0 else -half, z0, z1, 0.07, shift)
+            course(bm, rnd, "y", port if side > 0 else -out, out if side > 0 else -port, -depth - wall, -depth, z0, z1, 0.06, shift)
+    # An iron lip across the mouth.
+    box(bm, -0.004, 0.006, -out, out, -0.05, -0.026, mat=2)
+    # The tuyere: an iron pipe through the side wall away from the quench tank, with a flange.
+    x = -(core_from_mm + core_to_mm) / 2 * MM
+    z = -0.004
+
+    def ring(y, r):
+        return [(x + r * math.cos(a), y, z + r * math.sin(a)) for a in (math.radians(22.5 + 45 * i) for i in range(8))]
+
+    loft(bm, [ring(-half + 0.004, 0.012), ring(-out - 0.004, 0.012), ring(-out - 0.004, 0.02), ring(-out - 0.012, 0.02),
+              ring(-out - 0.012, 0.013), ring(-out - 0.07, 0.016)], mat=2)
+    return finish(name, bm, [stone(), dark_stone(), steel()], bevel=0.003)
+
+
+def forge():
+    return hearth("forge", DIMS["forgeDepth"], DIMS["forgeCoreStart"], DIMS["forgeCoreEnd"])
+
+
+def trench():
+    """The long fire, bought in the Career: the same hearth, longer."""
+    return hearth("trench", DIMS["trenchDepth"], DIMS["trenchCoreStart"], DIMS["trenchCoreEnd"])
+
+
+MODELS = {"anvil": anvil, "forge": forge, "trench": trench}
 
 
 def export(name):

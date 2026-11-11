@@ -1,7 +1,7 @@
 // The room's models: their shared sizes match the game's, and every file is inside its budget.
 import { readFileSync, readdirSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { BENCH } from '../src/data/tuning'
+import { BENCH, FORGE, TRENCH } from '../src/data/tuning'
 
 const DIR = 'public/assets/models'
 const dims = JSON.parse(readFileSync('art/models/dims.json', 'utf8')) as Record<string, number>
@@ -24,6 +24,8 @@ const files = readdirSync(DIR).filter((f) => f.endsWith('.glb'))
 describe('the room models', () => {
   it('are built to the sizes the game uses', () => {
     expect(dims.anvilLength).toBe(BENCH.anvilLength)
+    expect([dims.forgeDepth, dims.forgeCoreStart, dims.forgeCoreEnd]).toEqual([FORGE.depth, FORGE.coreStart, FORGE.coreEnd])
+    expect([dims.trenchDepth, dims.trenchCoreStart, dims.trenchCoreEnd]).toEqual([TRENCH.depth, TRENCH.coreStart, TRENCH.coreEnd])
   })
   it('each have a budget, and keep to it', () => {
     expect(files.length).toBeGreaterThan(0)
@@ -36,6 +38,24 @@ describe('the room models', () => {
       for (const mesh of doc.meshes ?? []) for (const p of mesh.primitives) tris += Math.floor((doc.accessors[p.indices ?? p.attributes.POSITION] as { count: number }).count / 3)
       expect(tris, `${name} triangles`).toBeLessThanOrEqual(budget!.triangles)
       expect(bytes, `${name} bytes`).toBeLessThanOrEqual(budget!.bytes)
+    }
+  })
+  it('each forge is as deep as its fire, with its mouth at the origin', () => {
+    for (const [file, fire] of [['forge.glb', FORGE], ['trench.glb', TRENCH]] as const) {
+      const { doc } = read(file)
+      let from = Infinity
+      let to = -Infinity
+      for (const mesh of doc.meshes ?? []) {
+        for (const p of mesh.primitives) {
+          const a = doc.accessors[p.attributes.POSITION] as { min: number[]; max: number[] }
+          from = Math.min(from, a.min[0] as number)
+          to = Math.max(to, a.max[0] as number)
+        }
+      }
+      // The back wall and plinth lie just behind the fire; the lip just in front of the mouth.
+      expect(-from).toBeGreaterThan(fire.depth / 1000)
+      expect(-from).toBeLessThan(fire.depth / 1000 + 0.06)
+      expect(to).toBeLessThan(0.02)
     }
   })
   it('the anvil is the right size, and nothing stands above its face', () => {
