@@ -11,6 +11,7 @@ import { steel } from '../data/steels'
 import type { Bar, CrackCause, Segment } from './bar'
 import { fitBevels, isGround, segmentCentres } from './bar'
 import { detExp, detLog } from './det'
+import { recordBlow } from './history'
 
 export interface Blow {
   type: BlowType
@@ -140,6 +141,7 @@ export function strike(bar: Bar, blow: Blow): BlowResult {
     if (strain > result.moved) result.moved = strain
   }
   bar.blows++
+  recordBlow(bar, result.cold)
   return result
 }
 

@@ -6,6 +6,7 @@
  * Units: millimetres and degrees Celsius.
  */
 import type { HandleId } from '../data/grind'
+import type { MediumId } from '../data/media'
 import type { SteelId } from '../data/steels'
 import { steel } from '../data/steels'
 import { STOCK_STATE } from '../data/treat'
@@ -71,6 +72,64 @@ export interface QuenchCrack {
   cause: CrackCause
 }
 
+/** A trip to the fire, and what was done with that heat. */
+export interface HeatEvent {
+  kind: 'heat'
+  /** The bar's clock when it went in. */
+  clock: number
+  /** The clock when it last left the fire; null while it is in. */
+  left: number | null
+  /** Seconds spent in the fire. */
+  seconds: number
+  /** The hottest any part got. */
+  peak: number
+  /** The coarsest grain in the part hot enough to harden, when it left the fire. 0 if no part was. */
+  grain: number
+  /** Hammer blows on this heat, and how many of them landed on steel too cold to forge. */
+  blows: number
+  coldBlows: number
+  /** It was left to cool slowly, out of the quench, until it was past changing. */
+  cooled: boolean
+}
+
+/** A quench from hardening heat. */
+export interface QuenchEvent {
+  kind: 'quench'
+  clock: number
+  medium: MediumId
+  /** The hottest part as it went in. */
+  from: number
+  /** How far the hot part of the bar had turned to austenite, 0 to 1: under 1, it was not up to heat all through. */
+  soak: number
+  /** The first and last segments that went in hot. */
+  first: number
+  last: number
+  /** How much of that stretch is martensite afterwards, 0 to 1. */
+  hard: number
+  crack: CrackCause | null
+}
+
+/** A cycle in the tempering oven. */
+export interface TemperEvent {
+  kind: 'temper'
+  clock: number
+  temp: number
+  minutes: number
+}
+
+/** A spell at the belt grinder. */
+export interface GrindEvent {
+  kind: 'grind'
+  clock: number
+  /** The steel under the belt was hardened. */
+  hard: boolean
+  /** The hottest the edge got. */
+  edgePeak: number
+}
+
+/** One thing that happened to the bar, kept for the report's timeline. */
+export type HistoryEvent = HeatEvent | QuenchEvent | TemperEvent | GrindEvent
+
 export interface Bar {
   steel: SteelId
   segments: Segment[]
@@ -101,6 +160,8 @@ export interface Bar {
   etched: boolean
   /** The handle on the tang, if one is fitted. */
   handle: HandleId | null
+  /** What has happened to it, oldest first (see `history.ts`). */
+  history: HistoryEvent[]
 }
 
 export interface StockSize {
@@ -161,11 +222,12 @@ export function createBar(steelId: SteelId, size: StockSize, count: number = SIM
     edgeAngle: 0,
     etched: false,
     handle: null,
+    history: [],
   }
 }
 
 export function cloneBar(bar: Bar): Bar {
-  return { ...bar, segments: bar.segments.map((s) => ({ ...s })) }
+  return { ...bar, segments: bar.segments.map((s) => ({ ...s })), history: bar.history.map((e) => ({ ...e })) }
 }
 
 /** Cubic mm of the segment's outline: width by thickness, as if it had no bevels. Hammering keeps this. */

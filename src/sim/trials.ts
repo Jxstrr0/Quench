@@ -68,6 +68,7 @@ export type TrialCause =
   | 'tooHeavy'
   // soft steel
   | 'notHardened'
+  | 'partHardened'
   | 'edgeOverheated'
   | 'lostCarbon'
   | 'temperedSoft'
@@ -198,6 +199,7 @@ export function massAndBalance(bar: Bar, bladeShare: number): { mass: number; fo
 /** Why this steel is softer than it should be. */
 function whySoft(s: Segment, st: Steel): TrialCause {
   if (s.martensite < INSPECT.hardenedFrom) return 'notHardened'
+  if (s.martensite < WHY.partHard) return 'partHardened'
   if (hardness(s, st) - edgeHardness(s, st) >= INSPECT.edgeSoftBy) return 'edgeOverheated'
   if (s.carbonCore - s.carbonSurface >= WHY.lostCarbon) return 'lostCarbon'
   return 'temperedSoft'
