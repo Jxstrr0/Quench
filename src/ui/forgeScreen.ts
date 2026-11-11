@@ -24,6 +24,7 @@ import { STEELS } from '../data/steels'
 import type { StringKey } from '../data/strings'
 import { t } from '../data/strings'
 import { BENCH } from '../data/tuning'
+import { applySave, backupDue } from '../persist/backup'
 import { loadActive, loadSlot, loadSlots, saveActive, saveSlot } from '../persist/career'
 import type { KeptBlade } from '../persist/collection'
 import { COLLECTION_MAX, keepBlade, loadCollection, removeBlade } from '../persist/collection'
@@ -44,6 +45,7 @@ import { advance } from '../sim/heat'
 import { magnetTest } from '../sim/inspect'
 import { shapeScore } from '../sim/shape'
 import type { TrialReport, TrialResult } from '../sim/trials'
+import { createBackupSheet } from './backupSheet'
 import { createCareerSheet } from './careerSheet'
 import { money } from './careerWords'
 import { createCollectionSheet } from './collectionSheet'
@@ -553,6 +555,23 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
     play: playCareer,
     leave: leaveCareer,
     changed: careerChanged,
+    openBackup: () => backupSheet.open(),
+    backupDue: () => backupDue(Date.now()),
+  })
+  const backupSheet = createBackupSheet(app, {
+    flush: saveCareer,
+    restore: (save) => {
+      // Let go of the career in play first, so nothing saves over what comes in.
+      const was = career
+      career = null
+      if (!applySave(save)) {
+        career = was
+        return false
+      }
+      saveActive(0)
+      location.reload()
+      return true
+    },
   })
   careerBtn.addEventListener('click', () => careerSheet.open())
   // Save when the page is put away, and every so often while it is open.
@@ -694,6 +713,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
       temperSheet.close()
       inspectSheet.close()
       careerSheet.close()
+      backupSheet.close()
     }
     else if (e.key >= '1' && e.key <= '4') pickBlow(BLOW_TYPES[Number(e.key) - 1] as BlowType)
   })
@@ -711,6 +731,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   // Carry on the career that was in play last time, if there was one.
   const lastSlot = loadActive()
   if (lastSlot && loadSlot(lastSlot)) playCareer(lastSlot, false)
+  if (backupDue(Date.now())) say(t('note.backupDue'), 8000)
   layout()
 
   // --- The loop -------------------------------------------------------------
