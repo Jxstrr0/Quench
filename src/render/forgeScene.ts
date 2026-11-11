@@ -34,6 +34,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js'
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js'
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import type { BlowType } from '../data/hammer'
+import type { MediumId } from '../data/media'
 import type { Pattern } from '../data/patterns'
 import { BENCH, FORGE } from '../data/tuning'
 import type { Bar, Segment } from '../sim/bar'
@@ -50,8 +51,17 @@ export interface ForgeView {
   setInsets(bottomPx: number, rightPx: number): void
   /** Show this bar. Rebuilds the mesh shape. */
   setBar(bar: Bar): void
-  /** Draw one frame. `tipDepth` is the rail position in mm; `blast` is the bellows, 0 to 1. */
-  render(bar: Bar, tipDepth: number, blast: number): void
+  /**
+   * Draw one frame. `tipDepth` is the rail position in mm; `blast` is the
+   * bellows, 0 to 1; `lane` is 0 on the rail and 1 in the quench tank.
+   */
+  render(bar: Bar, tipDepth: number, blast: number, lane: number): void
+  /** Fill the tank with this medium. */
+  setMedium(medium: MediumId): void
+  /** Mark a crack across the bar `at` mm from the tip, or pass null for none. */
+  setCrack(bar: Bar, at: number | null): void
+  /** How many pixels of a drag by (dx, dy) go toward the tank. */
+  towardTank(dx: number, dy: number): number
   /** Draw this pattern as a faint outline over the bar, or pass null for none. */
   setTarget(pattern: Pattern | null): void
   /** Where a screen point falls on the bar's plane: mm from the tip, and mm across from the bar's middle line. */
@@ -121,6 +131,43 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
   anvil.position.set(BENCH.anvilGap * MM + anvilLen / 2, -0.05, 0)
   scene.add(anvil)
 
+  // --- The quench tank: a trough beside the rail ----------------------------
+  const tankZ = -BENCH.tankOffset * MM
+  const tankFrom = -0.01
+  const tankTo = 0.47
+  const tankLen = tankTo - tankFrom
+  const tankWide = 0.1
+  const rim = 0.03
+  const tank = new Group()
+  const tankFloor = box(tankLen + 0.02, 0.02, tankWide + 0.02, 0x1f2327, 0.8, 0.4)
+  tankFloor.position.set((tankFrom + tankTo) / 2, -0.07, tankZ)
+  const tankSideA = box(tankLen + 0.02, 0.1, 0.01, 0x2a2f35, 0.7, 0.5)
+  tankSideA.position.set((tankFrom + tankTo) / 2, rim - 0.05, tankZ + tankWide / 2 + 0.005)
+  const tankSideB = tankSideA.clone()
+  tankSideB.position.z = tankZ - tankWide / 2 - 0.005
+  const tankEndA = box(0.01, 0.1, tankWide, 0x2a2f35, 0.7, 0.5)
+  tankEndA.position.set(tankFrom - 0.005, rim - 0.05, tankZ)
+  const tankEndB = tankEndA.clone()
+  tankEndB.position.x = tankTo + 0.005
+  const liquidMat = new MeshStandardMaterial({ color: 0x4a3a1c, roughness: 0.25, metalness: 0.1, transparent: true, opacity: 0.82 })
+  const liquid = new Mesh(new PlaneGeometry(tankLen, tankWide), liquidMat)
+  liquid.rotation.x = -Math.PI / 2
+  liquid.position.set((tankFrom + tankTo) / 2, 0.012, tankZ)
+  liquid.renderOrder = 1
+  // Quench plates: one lies in the trough, the other closes over the spine side of the blade.
+  const plateLow = box(tankLen - 0.02, 0.016, tankWide - 0.01, 0xa9afb6, 0.4, 0.85)
+  plateLow.position.set((tankFrom + tankTo) / 2, -0.012, tankZ)
+  const plateTop = box(tankLen - 0.02, 0.016, tankWide * 0.45, 0xb8bec5, 0.4, 0.85)
+  plateTop.position.set((tankFrom + tankTo) / 2, 0.02, tankZ - tankWide * 0.24)
+  plateLow.visible = false
+  plateTop.visible = false
+  tank.add(tankFloor, tankSideA, tankSideB, tankEndA, tankEndB, liquid, plateLow, plateTop)
+  scene.add(tank)
+  const LIQUIDS: Record<MediumId, number> = { brine: 0x6f9aa6, water: 0x3d7ea6, fastOil: 0x5a431c, slowOil: 0x2c2210, plates: 0xa9afb6 }
+  let plates = false
+  /** Where the bar's middle sits once it is in the tank, in metres above the anvil face. */
+  const sunk = -0.022
+
   // --- The bar and tongs --------------------------------------------------
   const holder = new Group()
   scene.add(holder)
@@ -142,6 +189,11 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
   let hasTarget = false
   /** The bar's straight back sits this far from its middle line, in mm. */
   const spine = BENCH.stock.width / 2
+
+  // A crack: a dark line across the bar.
+  const crackMark = new Mesh(new BoxGeometry(0.0012, 0.002, 1), new MeshBasicMaterial({ color: 0x050505 }))
+  crackMark.visible = false
+  holder.add(crackMark)
 
   // The hammer head: seen for a moment at each blow.
   const hammer = box(0.05, 0.04, 0.036, 0x1c1f23, 0.5, 0.8)
@@ -184,9 +236,11 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
   // The rail and everything on it: from the back of the fire to the far end of the anvil.
   const railFrom = -depth - 0.05
   const railTo = BENCH.anvilGap * MM + anvilLen + 0.03
-  /** How wide a strip the camera keeps in view across the rail: the whole bench, and the close view of the anvil. */
-  const acrossWide = 0.34
+  /** How wide a strip the camera keeps in view across the rail: the whole bench with the tank, and the close view of the anvil. */
+  const acrossWide = 0.48
   const acrossClose = 0.2
+  /** The middle of that strip: the wide view leans toward the tank. */
+  const acrossMidWide = -0.07
   /** Room kept clear for the heading at the top of a portrait screen. */
   const insetTop = 112
   /** 0 is the whole bench; 1 is the close view for hammering. Eases toward 1 while the bar is on the anvil. */
@@ -218,17 +272,18 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
     const distance = viewHeight / (2 * TAN_HALF_FOV)
     mmPerPixel = scale * 1000
     const mid = (from + to) / 2
+    const zMid = acrossMidWide * (1 - focus)
     const tilt = 0.32
     if (vertical) {
       // Fire at the top of the screen; shift the scene up, clear of the bottom controls.
       const tx = mid + ((insetBottom - insetTop) / 2) * scale
       camera.up.set(-1, 0, 0)
-      camera.position.set(tx + distance * tilt, distance, 0)
-      camera.lookAt(tx, 0, 0)
+      camera.position.set(tx + distance * tilt, distance, zMid)
+      camera.lookAt(tx, 0, zMid)
     } else {
       // Fire on the left; shift the scene left, clear of the right-hand controls.
       const tx = mid + (insetRight / 2) * scale
-      const tz = (insetBottom / 2) * scale
+      const tz = zMid + (insetBottom / 2) * scale
       camera.up.set(0, 1, 0)
       camera.position.set(tx, distance, tz + distance * tilt)
       camera.lookAt(tx, 0, tz)
@@ -300,7 +355,29 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
       const k = (holder.position.y - ray.ray.origin.y) / dir.y
       const x = ray.ray.origin.x + dir.x * k
       const z = ray.ray.origin.z + dir.z * k
-      return { at: (x - holder.position.x) / MM, across: z / MM }
+      return { at: (x - holder.position.x) / MM, across: (z - holder.position.z) / MM }
+    },
+    setMedium(medium) {
+      plates = medium === 'plates'
+      liquid.visible = !plates
+      plateLow.visible = plates
+      liquidMat.color.setHex(LIQUIDS[medium])
+    },
+    setCrack(bar, at) {
+      crackMark.visible = at !== null
+      if (at === null) return
+      const centres = segmentCentres(bar)
+      let near = 0
+      for (let i = 1; i < centres.length; i++) {
+        if (Math.abs((centres[i] as number) - at) < Math.abs((centres[near] as number) - at)) near = i
+      }
+      const s = bar.segments[near] as Segment
+      crackMark.scale.set(1, 1, (s.width + 1) * MM)
+      crackMark.position.set(at * MM, (s.thickness / 2) * MM + 0.0006, (s.width / 2 - spine) * MM)
+    },
+    towardTank(dx, dy) {
+      // The tank is to the right of the rail in portrait, and behind it (up the screen) in landscape.
+      return vertical ? dx : -dy
     },
     showStrike(type, at, force) {
       strikeAt = performance.now()
@@ -316,10 +393,10 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
     setBrightnessOnly(on) {
       brightnessOnly = on
     },
-    render(bar, tipDepth, blast) {
-      // Ease the camera in for hammering and back out for the fire.
+    render(bar, tipDepth, blast, lane) {
+      // Ease the camera in for hammering and back out for the fire and the tank.
       const now = performance.now()
-      const want = tipDepth <= BENCH.anvilFrom ? 1 : 0
+      const want = tipDepth <= BENCH.anvilFrom && lane <= BENCH.laneRail ? 1 : 0
       if (focus !== want) {
         const step = Math.min(0.25, (now - lastFrame) / 1000) / 0.45
         focus = want > focus ? Math.min(1, focus + step) : Math.max(0, focus - step)
@@ -328,10 +405,16 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
       lastFrame = now
 
       const first = bar.segments[0] as Segment
-      holder.position.set(-tipDepth * MM, (first.thickness / 2) * MM, 0)
+      // Crossing to the tank, the bar lifts over the rim and then sinks in.
+      const rest = (first.thickness / 2) * MM
+      const sink = Math.min(1, Math.max(0, (lane - 0.8) / 0.2))
+      const into = plates ? rest - 0.004 : sunk
+      const y = rest + (into - rest) * sink * sink * (3 - 2 * sink) + Math.sin(Math.PI * Math.min(1, Math.max(0, lane))) * 0.07
+      holder.position.set(-tipDepth * MM, y, lane * tankZ)
+      plateTop.visible = plates && lane >= 1
       barMesh.updateGlow(bar, brightnessOnly)
       barTop = (first.thickness / 2) * MM
-      outline.visible = hasTarget && tipDepth <= 0
+      outline.visible = hasTarget && tipDepth <= 0 && lane <= BENCH.laneRail
       outline.position.y = barTop + 0.001
 
       // The hammer lifts away over a fifth of a second, and the blow flashes on the steel.

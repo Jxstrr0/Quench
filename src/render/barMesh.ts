@@ -13,6 +13,8 @@ import type { Bar, Segment } from '../sim/bar'
 import { glowAt } from '../sim/glow'
 
 const MM = 0.001
+/** A warp of a millimetre or two would not show at this scale, so it is drawn this many times larger. */
+const WARP_SHOWN = 3
 
 export interface BarMesh {
   mesh: Mesh
@@ -63,6 +65,7 @@ export function createBarMesh(segmentCount: number): BarMesh {
   mesh.frustumCulled = false
 
   const ringX = new Float32Array(rings)
+  const ringZ = new Float32Array(rings)
   const ringW = new Float32Array(rings)
   const ringT = new Float32Array(rings)
   const colour = new Color()
@@ -87,10 +90,17 @@ export function createBarMesh(segmentCount: number): BarMesh {
         ringT[i] = ((before.thickness + after.thickness) / 4) * MM
         if (i < segmentCount) x += (segs[i] as Segment).length
       }
+      // A warped blade bows to one side, most in the middle.
+      const total = ringX[rings - 1] as number
+      for (let i = 0; i < rings; i++) {
+        const u = total > 0 ? (ringX[i] as number) / total : 0
+        ringZ[i] = back + bar.warp * WARP_SHOWN * MM * 4 * u * (1 - u)
+      }
       for (let i = 0; i < rings; i++) {
         const px = ringX[i] as number
         const w = ringW[i] as number
         const t = ringT[i] as number
+        const back = ringZ[i] as number
         const row = i * 2
         // top (+y), bottom (-y), near edge (+z), far edge (-z)
         const edge = back + 2 * w
@@ -110,6 +120,7 @@ export function createBarMesh(segmentCount: number): BarMesh {
         const px = ringX[i] as number
         const w = ringW[i] as number
         const t = ringT[i] as number
+        const back = ringZ[i] as number
         const v = caps + e * 4
         put(v, px, t, back + 2 * w)
         put(v + 1, px, t, back)

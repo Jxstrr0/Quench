@@ -24,3 +24,21 @@ export const HAMMER_SOUND = {
   /** The quietest blow is this loud; a full blow is 1. */
   gainFloor: 0.35,
 } as const
+
+/** The hiss of hot steel going into the quench, and the ping of a crack. */
+export const QUENCH_SOUND = {
+  /** Steel cooler than this goes in silently; at `fullTemp` the hiss is at its loudest. */
+  quietTemp: 150,
+  fullTemp: 800,
+  /** The hiss lasts from the shortest to the longest of these, in seconds, by how hot the steel was. */
+  shortest: 0.4,
+  longest: 2.6,
+  /** Water and brine spit and crackle (bright); oil hisses lower. Filter centre in Hz. */
+  waterHz: 5200,
+  oilHz: 2400,
+  /** Plates only clank. */
+  platesGain: 0.25,
+  /** The crack: one clear high note. */
+  pingHz: 3100,
+  pingSeconds: 0.7,
+} as const

@@ -4,6 +4,7 @@ The plan is `docs/QUENCH-PLAN.md`. Newest line first.
 
 | Version | PR | What changed |
 | --- | --- | --- |
+| 0.4.0.0 | PR 4b: Heat treatment on screen | A quench tank beside the rail: drag the bar sideways into it, slide it to stir, drag it out. Five media on the Tank button. A Magnet button. "Let it cool" in the air (hold) for normalizing. A tempering oven with two dials. An Inspect card: file test, toughness, grain, straightness and what to do next. The quench hisses, a crack pings and shows as a dark line with its cause, and a warp bends the blade. |
 | 0.3.1.0 | PR 4a: Heat treatment (sim only) | Nothing new on screen. Steel now changes inside: it turns to austenite past critical, and how it cools decides what it becomes (hard martensite, soft pearlite, or a mix). Five quench media (brine, water, fast oil, slow oil, plates), stirring, grain that grows with overheating and shrinks with each normalizing cycle, the magnet point, quench cracks from a seeded roll with a named cause, warps from uneven heat, and tempering with its one bad band. Hardness and toughness are read from the steel, never stored. 43 new tests (119 in total), with four fixed-seed "known blades". PR 4b puts it on screen. |
 | 0.3.0.0 | PR 3b: Hammering on screen | Tap the glowing bar on the anvil to strike it. Four blow buttons, the rhythm meter, the camp knife outline in chalk with a live "% to shape", a hammer head and flash at each blow, the hammer sound made from the bar's heat and thickness, vibration, and a plain message when a bar cracks or burns. The bar now draws with a straight back, like a knife. Hammering runs in real time; heating is still sped up. |
 | 0.2.1.0 | PR 3a: Hammering (sim only) | Nothing new on screen. The four blows (flat, edge, peen, point) that move steel and keep its volume exactly, softness by heat, crack damage from cold blows, burning from too much heat, blow force from rhythm, the first pattern (a camp knife) and the shape score. 72 tests. PR 3b puts it on screen with sound. |
@@ -15,13 +16,17 @@ The plan is `docs/QUENCH-PLAN.md`. Newest line first.
 
 Pages is on and the custom domain is set: https://quench.longlight.games/. Each merge to `main` publishes there.
 
-## Questions for Kelbo after playing 0.3.0.0
+## Questions for Kelbo after playing 0.4.0.0
 
-- **Does the hammer feel good?** This is the plan's biggest risk (section 16). Too weak, too strong, too slow?
-- Rhythm: full force comes from tapping every 0.45 to 0.8 seconds. Is that a comfortable beat?
-- A heat lasts about 14 seconds on the anvil before the steel is too cold. Long enough?
-- Can you forge something that looks like the chalk outline in under 5 minutes?
-- Does the sound help you hear a bar going cold? (iPhones do not vibrate from a web page; Android phones do.)
+Kelbo said to keep rolling and tune later, so these are saved up, not blocking.
+
+- **Hammer feel** (from 0.3.0.0, still the plan's biggest risk): too weak, too strong, too slow? Is the rhythm window (0.45 to 0.8 seconds) a comfortable beat?
+- Cracking from cold blows takes about 50 slow blows on dull-red steel. Too forgiving?
+- **The tank.** Is dragging sideways into it clear? Does sliding to stir feel like stirring?
+- **Water against oil.** Water cracks a sound 1084 blade about 4 times in 10, and warps it. Fast oil never cracks it. Right balance?
+- **Normalizing** is three heats with "Let it cool" held. Too much waiting, even sped up 20 times?
+- The Inspect card shows grain and a hardness number in Free forge. In the Career those would be tools you buy (as with the heat number). Agreed?
+- The room looks dark in screenshots even with the lights up. Is it on your phone?
 - Still open from 0.2.0.0: heating speed (1.5 times real speed), reading colour with the assists off, bar size.
 
 ## Art wanted (no generation done)
