@@ -35,5 +35,9 @@
   "matstand": {
     "triangles": 500,
     "bytes": 30000
+  },
+  "floor": {
+    "triangles": 300,
+    "bytes": 20000
   }
 }
