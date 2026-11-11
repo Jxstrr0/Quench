@@ -11,5 +11,9 @@
   "trench": {
     "triangles": 4500,
     "bytes": 200000
+  },
+  "tank": {
+    "triangles": 1000,
+    "bytes": 60000
   }
 }

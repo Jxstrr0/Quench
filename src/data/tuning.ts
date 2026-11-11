@@ -150,3 +150,10 @@ export const BENCH = {
   /** The grinder's hint goes once the player has had steel on the belt for this many seconds. */
   hintGrindSeconds: 2,
 } as const
+
+/**
+ * The quench tank's trough, in mm: where it starts and ends along the rail,
+ * how wide it is inside, and how far its rim stands above the anvil's face.
+ * The tank model (art/models/dims.json) is built to the same sizes.
+ */
+export const TANK = { from: -10, to: 470, wide: 100, rim: 30 } as const

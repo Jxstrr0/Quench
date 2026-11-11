@@ -11,5 +11,9 @@
   "trenchCoreEnd": 510,
   "forgeWall": 30,
   "forgeTrough": 200,
-  "forgePort": 70
+  "forgePort": 70,
+  "tankFrom": -10,
+  "tankTo": 470,
+  "tankWide": 100,
+  "tankRim": 30
 }
