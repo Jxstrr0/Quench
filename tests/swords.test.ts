@@ -3,11 +3,11 @@ import { PATTERNS } from '../src/data/patterns'
 import { steel } from '../src/data/steels'
 import { BENCH } from '../src/data/tuning'
 import type { Bar, Segment } from '../src/sim/bar'
-import { createBar, edgeThickness } from '../src/sim/bar'
+import { createBar, edgeThickness, segmentCentres } from '../src/sim/bar'
 import { fitHandle, strokeStone } from '../src/sim/finish'
 import { stepGrind } from '../src/sim/grind'
 import { advance, coolToRoom, stepHeat } from '../src/sim/heat'
-import { patternAt, patternLength, patternVolume } from '../src/sim/shape'
+import { patternAt, patternLength, patternVolume, railReach } from '../src/sim/shape'
 import { temperInOven } from '../src/sim/temper'
 import type { TrialReport } from '../src/sim/trials'
 import { runTrials } from '../src/sim/trials'
@@ -141,5 +141,38 @@ describe('the sword tests', () => {
   })
   it('give the same report every time', () => {
     expect(runTrials(sword(), P, SHARE)).toEqual(runTrials(sword(), P, SHARE))
+  })
+})
+
+describe('heating a sword in a fire shorter than its blade', () => {
+  /** The coolest and hottest steel in the working stretch of the blade. */
+  const stretch = (bar: Bar): [number, number] => {
+    const c = segmentCentres(bar)
+    const temps = bar.segments.filter((_, i) => (c[i] as number) >= 450 * 0.3 && (c[i] as number) <= 450 * 0.8).map((x) => x.temp)
+    return [Math.min(...temps), Math.max(...temps)]
+  }
+  it('lets the tip out through the back, far enough to bring the heel into the core', () => {
+    expect(railReach(P)).toBe(510)
+    expect(railReach(PATTERNS.campKnife)).toBe(BENCH.railMax)
+  })
+  it('cannot be done by holding the blade still', () => {
+    const bar = forged()
+    for (let n = 0; n < 20 * 200; n++) stepHeat(bar, { where: 'fire', depth: railReach(P), blast: 0.5 })
+    // The part pushed out through the back is in the air, and stays too cool to harden.
+    expect(stretch(bar)[0]).toBeLessThan(ST.austenitize)
+  })
+  it('can be done by sliding the blade back and forth through the fire', () => {
+    const bar = forged()
+    const far = railReach(P)
+    for (let n = 0; n < 20 * 200; n++) {
+      const phase = ((n / 20) % 6) / 6
+      const swing = phase < 0.5 ? phase * 2 : 2 - phase * 2
+      stepHeat(bar, { where: 'fire', depth: 150 + (far - 150) * swing, blast: 0.5 })
+    }
+    const [coolest, hottest] = stretch(bar)
+    expect(coolest).toBeGreaterThan(ST.austenitize)
+    expect(hottest).toBeLessThan(ST.burn)
+    // But not evenly: that is what makes a sword hard to heat.
+    expect(hottest - coolest).toBeGreaterThan(100)
   })
 })

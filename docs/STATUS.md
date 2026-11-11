@@ -4,6 +4,7 @@ The plan is `docs/QUENCH-PLAN.md`. Newest line first.
 
 | Version | PR | What changed |
 | --- | --- | --- |
+| 0.7.4.0 | PR 7g: The short sword in Free forge | A small **Change pattern** button beside the "% to shape" line swaps between the camp knife and the short sword in Free forge (it starts a new bar, in the pattern's steel). The sword's bar is 320 mm and draws out to 600 mm. The forge has a port in its back wall: a blade longer than the fire is pushed through and out, and steel outside the fire cools in the air, so a sword has to be slid back and forth to heat it (Kelbo's choice, 11 November 2026; a long trench forge comes as a bought tool). The view widens to keep a long bar in sight and the quench trough is longer for a sword. The trial card runs the sword's three tests; their playbacks are still a blade on the table (next PR). Blade length is now read from the pattern everywhere. 3 new tests (276 in total). |
 | 0.7.3.0 | PR 7f: The short sword (sim only) | Nothing new on screen. The second pattern: a **short sword**, a 450 mm single-edged blade in 5160 spring steel on a long tang, forged from a 320 mm bar. Two sword tests. **Flex and spring back**: the blade is bowed over a peg; a brittle one snaps (with its cause), a soft one comes back bent, and the bend then spoils its cut. **Rolled mat cut**: sharpness, sharpening angle, a straight blade and even bevels all count. A sword faces fit and finish, the flex and the mat. 10 new tests (273 in total). PR 7g puts the sword on screen with its commissions. |
 | 0.7.2.0 | PR 7e: Save code and backup | The Career card gains **Save code and backup**. Copy the whole game (three careers, the collection, the settings) as one code starting `QNC1:`, or download it as `quench-backup-YYYY-MM-DD.txt`. Paste a code or choose a backup file on any phone to bring it back: the first tap reads it and says what is inside, the second replaces what is on the device. The game asks the browser to keep its saves, and reminds you on the Career card (and once when the game opens) when the last backup is two weeks old. |
 | 0.7.1.0 | PR 7d: The Proving and the tools | The Career card gains two parts. **The Proving**: when the next one is, what the set piece must pass, the fee, and what still stands in the way. Once you may enter, the trial card of a tested blade shows "Enter it at the Proving" (two taps): the calendar moves to the day, the fee is paid, and a pass raises your Guild rating. **Tools**: a pyrometer, a hardness tester and a loupe to buy. In a career the blade card shows the file test in words only, and no grain, until you own the tester and the loupe; the pyrometer shows the heat number. Free forge is unchanged. |
@@ -31,7 +32,7 @@ The plan is `docs/QUENCH-PLAN.md`. Newest line first.
 
 Pages is on and the custom domain is set: https://quench.longlight.games/. Each merge to `main` publishes there.
 
-## Questions for Kelbo after playing 0.7.2.0
+## Questions for Kelbo after playing 0.7.4.0
 
 Kelbo said to keep rolling and tune later, so these are saved up, not blocking.
 
@@ -51,6 +52,7 @@ Kelbo said to keep rolling and tune later, so these are saved up, not blocking.
 - **The Career card.** Is the board readable on your phone? Is it clear that the day-and-money button at the top is the way back to it? Should finishing a commission open the board by itself?
 - **Career numbers**: start with kr 600; a knife costs about kr 150 to make and pays kr 700 to 1,700; one knife is one day; the Proving every 14 days, entered without waiting (the calendar jumps to it); Journeyman after 4 deliveries. All easy to change.
 - **Tools.** In the Career the blade card no longer shows the hardness number or the grain until you buy the hardness tester (kr 1,500) or the loupe (kr 350); the pyrometer (kr 900) shows the heat number. The heat number assist still works in the Career for anyone who needs it. Prices right? Is hiding the grain too hard on a new smith?
+- **The sword in the fire.** About a minute and a half of sliding with some bellows brings the middle of the blade to hardening heat, and unevenly (the hottest part runs 200° over). Too slow, too fiddly, or the right step up? Is the scene too small on your phone when the sword is pushed right through?
 - **The save code.** Does Copy work on your phone, and does the code survive being pasted into Notes or a message and back? Does the backup file land somewhere you can find?
 - **The Proving.** A blade that passes is kept by the Guild, so it cannot also go to a customer; one that fails comes back to you and the fee is spent. Right?
 - The room looks dark in screenshots even with the lights up. Is it on your phone?

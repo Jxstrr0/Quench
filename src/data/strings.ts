@@ -460,6 +460,7 @@ const STRINGS = {
   'settings.haptics': 'Vibration',
   'settings.haptics.note': 'A short buzz with each blow, on phones that allow it.',
   'steel.label': 'Steel',
+  'btn.pattern': 'Change pattern',
   'assists.title': 'Reading the heat',
   'assists.note': 'Colour is how a smith reads steel. These help if colour is hard to see. Free forge never marks you down for using them.',
   'assists.words': 'Heat words',

@@ -6,6 +6,7 @@
  * The card is Quench's own paper card. Its foot is a studio piece, so it uses
  * the Longlight logo file, colours and Space Grotesk.
  */
+import { pattern } from '../data/patterns'
 import { t } from '../data/strings'
 import type { KeptBlade } from '../persist/collection'
 import { drawBlade } from './bladeDrawing'
@@ -100,7 +101,7 @@ export async function renderShareCard(blade: KeptBlade): Promise<HTMLCanvasEleme
   picture.width = wide
   picture.height = 250
   const panel = picture.height + 50
-  drawBlade(picture, blade.bar)
+  drawBlade(picture, blade.bar, pattern(blade.pattern).bladeShare)
   ctx.fillStyle = PANEL
   ctx.fillRect(SIDE, 226, wide, panel)
   ctx.drawImage(picture, SIDE, 226)

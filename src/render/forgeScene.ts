@@ -46,6 +46,7 @@ import { HANDLE_LOOK } from '../data/look'
 import { BENCH, FORGE } from '../data/tuning'
 import type { Bar, Segment } from '../sim/bar'
 import { barLength, nearestSegment, segmentCentres } from '../sim/bar'
+import { patternLength } from '../sim/shape'
 import { glowAt } from '../sim/glow'
 import { bentPoint, createBarMesh } from './barMesh'
 import type { BladeDims, TrialShow } from './trialStage'
@@ -129,13 +130,18 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
   const trough = 0.2
   const bed = box(depth + wall, 0.08, trough + wall * 2, 0x24282d)
   bed.position.set(-(depth + wall) / 2, -0.07, 0)
-  const back = box(wall, 0.11, trough + wall * 2, 0x2a2f35)
-  back.position.set(-depth - wall / 2, 0.025, 0)
+  // The back wall has a port in it: a long blade is pushed through the fire and out.
+  const port = 0.07
+  const backWide = (trough + wall * 2 - port) / 2
+  const back = box(wall, 0.11, backWide, 0x2a2f35)
+  back.position.set(-depth - wall / 2, 0.025, (port + backWide) / 2)
+  const backB = back.clone()
+  backB.position.z = -back.position.z
   const sideA = box(depth, 0.11, wall, 0x2a2f35)
   sideA.position.set(-depth / 2, 0.025, trough / 2 + wall / 2)
   const sideB = sideA.clone()
   sideB.position.z = -sideA.position.z
-  forge.add(bed, back, sideA, sideB)
+  forge.add(bed, back, backB, sideA, sideB)
 
   // The coals: an unlit glowing bed, brightest over the fire's core.
   const coalMat = new MeshBasicMaterial({ color: 0xe2571e })
@@ -202,8 +208,8 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
   /** The top of the belt, in metres above the anvil face. */
   const beltTop = 0.004
   const beltWide = GRIND.contact * MM
-  const benchTop = box(0.9, 0.05, 0.34, 0x33291f, 0.95)
-  benchTop.position.set(benchX + 0.12, -0.046, benchZ)
+  const benchTop = box(1.1, 0.05, 0.34, 0x33291f, 0.95)
+  benchTop.position.set(benchX + 0.22, -0.046, benchZ)
   scene.add(benchTop)
   // The belt and its platen follow the grinding spot: the camera stays with the blade.
   const grinder = new Group()
@@ -343,6 +349,11 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
   // The rail and everything on it: from the back of the fire to the far end of the anvil.
   const railFrom = -depth - 0.05
   const railTo = BENCH.anvilGap * MM + anvilLen + 0.03
+  /** The wide view grows to keep a long bar in sight: out past the back of the fire, or past the end of the anvil. */
+  let wideFrom = railFrom
+  let wideTo = railTo
+  /** The share of the bar that is blade, by the pattern in use. */
+  let bladeShare: number = BENCH.tangShare
   /** How wide a strip the camera keeps in view across the rail: the whole bench with the tank, and the close view of the anvil. */
   const acrossWide = 0.48
   const acrossClose = 0.2
@@ -386,8 +397,8 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
     const closeTo = -BENCH.railMin * MM + barLen + 0.03
     // At the grinder the same close view frames the blade on the bench.
     const near = Math.max(focus, atBench)
-    const from = railFrom + (closeFrom - railFrom) * near
-    const to = railTo + (closeTo - railTo) * near
+    const from = wideFrom + (closeFrom - wideFrom) * near
+    const to = wideTo + (closeTo - wideTo) * near
     const span = to - from
     const acrossSpan = acrossWide + (acrossClose - acrossWide) * near
     const usableW = Math.max(120, w - insetRight)
@@ -462,7 +473,7 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
       // The grip covers the tang: everything past the blade.
       grip.visible = bar.handle !== null
       if (bar.handle) {
-        const from = length * BENCH.tangShare
+        const from = length * bladeShare
         gripMat.color.setHex(HANDLE_LOOK[bar.handle])
         grip.scale.set(length - from + 0.012, (last.thickness + 12) * MM, (last.width + 6) * MM)
         grip.position.set((from + length + 0.012) / 2, 0, (last.width / 2 - spine) * MM)
@@ -470,7 +481,7 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
       gripX = grip.position.x
       grip.rotation.z = 0
       // Where a hand, a test and a vice would each take hold of it.
-      const bladeLen = length * BENCH.tangShare
+      const bladeLen = length * bladeShare
       const widthAt = (x: number): number => nearestSegment(bar, x / MM).width
       dims.gripX = (bladeLen + length) / 2
       dims.workX = bladeLen * 0.55
@@ -485,6 +496,9 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
     setTarget(pattern) {
       hasTarget = pattern !== null
       if (!pattern) return
+      bladeShare = pattern.bladeShare
+      // A long pattern needs a longer trough.
+      tank.scale.x = Math.max(1, (-BENCH.tankTipMin * MM + patternLength(pattern) * MM + 0.02) / tankTo)
       // Along the straight back from the tang end to the tip, then back down the edge.
       const st = pattern.stations
       const end = (st[st.length - 1] as { at: number }).at
@@ -562,7 +576,17 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
       const want = tipDepth <= BENCH.anvilFrom && lane <= BENCH.laneRail ? 1 : 0
       const dt = Math.min(0.25, (now - lastFrame) / 1000)
       const wantBench = pose ? 1 : 0
-      if (focus !== want || atBench !== wantBench) {
+      const tipX = -tipDepth * MM
+      const wantFrom = Math.min(railFrom, tipX - 0.05)
+      const wantTo = Math.max(railTo, tipX + barLen + 0.03)
+      const moved = wantFrom !== wideFrom || wantTo !== wideTo
+      if (moved) {
+        // Close on where it should be, and land on it once it is within a millimetre.
+        const k = Math.min(1, dt * 6)
+        wideFrom = Math.abs(wantFrom - wideFrom) < 0.001 ? wantFrom : wideFrom + (wantFrom - wideFrom) * k
+        wideTo = Math.abs(wantTo - wideTo) < 0.001 ? wantTo : wideTo + (wantTo - wideTo) * k
+      }
+      if (focus !== want || atBench !== wantBench || moved) {
         const step = dt / 0.45
         focus = want > focus ? Math.min(1, focus + step) : Math.max(0, focus - step)
         atBench = wantBench > atBench ? Math.min(1, atBench + step) : Math.max(0, atBench - step)

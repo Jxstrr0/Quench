@@ -5,6 +5,7 @@
  */
 import { SCORE } from '../data/hammer'
 import type { Pattern, Station } from '../data/patterns'
+import { BENCH, FORGE } from '../data/tuning'
 import type { Bar, Segment } from './bar'
 
 export interface Size {
@@ -14,6 +15,17 @@ export interface Size {
 
 export function patternLength(p: Pattern): number {
   return (p.stations[p.stations.length - 1] as Station).at
+}
+
+/**
+ * How far past the forge mouth the tip of this pattern's bar may be pushed, in
+ * mm. A blade that fits in the fire stops short of the back wall. A blade
+ * longer than the fire goes out through the back, far enough to bring its
+ * heel into the hot core.
+ */
+export function railReach(p: Pattern): number {
+  const blade = patternLength(p) * p.bladeShare
+  return blade > FORGE.depth ? blade + FORGE.coreStart : BENCH.railMax
 }
 
 /** The pattern's width and thickness at `x` mm from the tip, or null past its end. */

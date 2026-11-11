@@ -5,7 +5,7 @@
 import type { StringKey } from '../data/strings'
 import { t } from '../data/strings'
 import { CRACK, INSPECT, OVEN } from '../data/treat'
-import { BENCH } from '../data/tuning'
+import type { Pattern } from '../data/patterns'
 import type { Bar } from '../sim/bar'
 import { coolToRoom } from '../sim/heat'
 import type { FileWord, GrainWord, MagnetWord, NextStep, ToughWord } from '../sim/inspect'
@@ -16,8 +16,9 @@ import { button, createSheet, el } from './dom'
 import { FIT_KEY, HANDLE_KEY, KEEN_KEY } from './grindBench'
 
 export interface TreatHost {
-  /** The bar on the bench right now. */
+  /** The bar on the bench right now, and the pattern it is being made to. */
   bar(): Bar
+  pattern(): Pattern
   /** The shape score as a whole percent. */
   shapePercent(): number
   /** The sheets changed the bar (cooled it, tempered it): redraw it and put it back on the anvil. */
@@ -110,9 +111,9 @@ export function createTemperSheet(host: HTMLElement, forge: TreatHost): Sheet {
     }
     // The oven takes a cold blade: whatever heat is left goes first.
     coolToRoom(bar)
-    const before = inspect(bar, BENCH.tangShare)
+    const before = inspect(bar, forge.pattern().bladeShare)
     temperInOven(bar, temp(), minutes())
-    const after = inspect(bar, BENCH.tangShare)
+    const after = inspect(bar, forge.pattern().bladeShare)
     result.textContent = !before.hardened
       ? t('temper.soft')
       : !forge.sees().hardness
@@ -141,11 +142,11 @@ export function createInspectSheet(host: HTMLElement, forge: TreatHost): Sheet {
   const fill = () => {
     body.replaceChildren()
     const bar = forge.bar()
-    const look = inspect(bar, BENCH.tangShare)
+    const look = inspect(bar, forge.pattern().bladeShare)
     const sees = forge.sees()
     if (look.tooHot) {
       body.append(el('p', 'sheet-note', t('inspect.hot', { n: Math.round(look.temp / 5) * 5 })))
-      row('inspect.magnet', capital(t(MAGNET_KEY[magnetTest(bar, BENCH.tangShare)])))
+      row('inspect.magnet', capital(t(MAGNET_KEY[magnetTest(bar, forge.pattern().bladeShare)])))
       const cool = button('btn btn-wide', 'inspect.cool')
       cool.addEventListener('click', () => {
         coolToRoom(bar)

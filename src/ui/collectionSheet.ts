@@ -2,6 +2,7 @@
  * The collection: the blades the player has kept, each shown from its saved
  * parameters as a drawing with its trial report.
  */
+import { pattern } from '../data/patterns'
 import { t } from '../data/strings'
 import type { KeptBlade } from '../persist/collection'
 import { COLLECTION_MAX } from '../persist/collection'
@@ -28,7 +29,7 @@ function picture(blade: KeptBlade, size: { width: number; height: number }, cls:
   canvas.height = size.height
   canvas.setAttribute('role', 'img')
   canvas.setAttribute('aria-label', t('collection.picture', { pattern: t(`pattern.${blade.pattern}`).toLowerCase() }))
-  drawBlade(canvas, blade.bar)
+  drawBlade(canvas, blade.bar, pattern(blade.pattern).bladeShare)
   return canvas
 }
 
