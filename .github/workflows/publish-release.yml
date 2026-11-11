@@ -8,8 +8,9 @@
 #
 # How: on every push to main it reads the version from the VERSION file. If
 # there is no release called v<version> yet, it makes one, titled from the
-# commit that shipped it ("x.y.z.w: summary", or "summary (x.y.z.w)"). A
-# push that doesn't change the version does nothing.
+# commit that shipped it: here that is the merge's title, "PR 12d: summary
+# — v<version> (#68)" (scripts/release-title.mjs reads it, and has a test).
+# A push that doesn't change the version does nothing.
 #
 # Free, and it uses no keys (only GitHub's own built-in token). It does not
 # touch the game or its deploy, and the tag it makes starts no other
@@ -44,13 +45,10 @@ jobs:
             echo "Release v$V already exists. Nothing to do."
             exit 0
           fi
-          # The oldest recent commit titled "<version>: summary" is the merge
-          # that shipped this version; failing that, one ending "(<version>)".
-          # Its summary becomes the release title.
-          SUMMARY=$(git log -50 --format=%s | awk -v v="$V" '
-            index($0, v ": ") == 1 { a = substr($0, length(v) + 3) }
-            index($0, "(" v ")") { s = $0; sub(/ *\(#[0-9]+\)$/, "", s); sub(/ *\([0-9.]+\)$/, "", s); b = s }
-            END { print (a != "" ? a : b) }')
+          # The oldest recent commit whose title names this version is the
+          # merge that shipped it. Its summary becomes the release title, and
+          # the studio site shows that as the game's "what's new" line.
+          SUMMARY=$(git log -50 --format=%s | node scripts/release-title.mjs "$V")
           gh release create "v$V" --target "$GITHUB_SHA" \
             --title "v$V - ${SUMMARY:-update}" \
             --notes "${SUMMARY:-Update}."
