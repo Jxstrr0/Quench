@@ -13,7 +13,7 @@ export interface Station {
   thickness: number
 }
 
-export type PatternId = 'campKnife' | 'cooksKnife' | 'cleaver' | 'shortSword' | 'fullSword'
+export type PatternId = 'campKnife' | 'cooksKnife' | 'cleaver' | 'cuttingKnife' | 'shortSword' | 'fullSword'
 
 export interface Pattern {
   id: PatternId
@@ -86,6 +86,28 @@ export const PATTERNS: Record<PatternId, Pattern> = {
       { at: 300, width: 20, thickness: 6 },
     ],
     trials: ['fit', 'chop', 'shave'],
+  },
+  /**
+   * A sport cutting knife: the big chopper the cutting clubs compete with. A
+   * 250 mm blade, deep and thick in the back, in a tough steel. It is a camp
+   * knife with twice the steel in it, and it faces the same tests harder: it
+   * is swung with both arms.
+   */
+  cuttingKnife: {
+    id: 'cuttingKnife',
+    steel: '80CrV2',
+    stock: { length: 280, width: 40, thickness: 8 },
+    bladeShare: 250 / 380,
+    stations: [
+      { at: 0, width: 30, thickness: 3.6 },
+      { at: 25, width: 46, thickness: 4.4 },
+      { at: 120, width: 52, thickness: 5.2 },
+      { at: 235, width: 50, thickness: 5.8 },
+      { at: 250, width: 46, thickness: 6 },
+      { at: 260, width: 26, thickness: 6.5 },
+      { at: 380, width: 22, thickness: 6.5 },
+    ],
+    trials: ['fit', 'rope', 'brass', 'chop', 'shave'],
   },
   /**
    * A short sword for sport cutting and for collectors: a straight blade of

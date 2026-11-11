@@ -1,16 +1,18 @@
 // Blades made the quick way, for tests: forged to shape by fiat, then ground, hardened and tempered by the sim.
 import type { MediumId } from '../src/data/media'
 import type { HandleId } from '../src/data/grind'
+import type { BlowType } from '../src/data/hammer'
 import type { PatternId } from '../src/data/patterns'
 import { PATTERNS } from '../src/data/patterns'
 import { steel } from '../src/data/steels'
 import type { Bar, Segment } from '../src/sim/bar'
-import { createBar, edgeThickness, segmentCentres } from '../src/sim/bar'
+import { barLength, cloneBar, createBar, edgeThickness, segmentCentres } from '../src/sim/bar'
 import { fitHandle, strokeStone } from '../src/sim/finish'
 import type { Side } from '../src/sim/grind'
 import { stepGrind } from '../src/sim/grind'
+import { strike } from '../src/sim/hammer'
 import { advance, coolToRoom, stepHeat } from '../src/sim/heat'
-import { patternAt, patternLength } from '../src/sim/shape'
+import { patternAt, patternLength, shapeScore } from '../src/sim/shape'
 import { temperInOven } from '../src/sim/temper'
 
 /** The first 65% of the bar is the blade; the rest is tang. */
@@ -81,6 +83,8 @@ export interface Made {
   tilt?: number
   angle?: number
   medium?: MediumId
+  /** Oven temperature for the two tempers, in °C. */
+  temper?: number
   handle?: HandleId
   seed?: number
 }
@@ -115,11 +119,42 @@ export function makeBlade(id: PatternId, how: Made = {}): Bar {
   }
   advance(bar, { where: 'quench', medium: how.medium ?? 'fastOil', agitation: 1 }, 60)
   coolToRoom(bar)
-  temperInOven(bar, 200, 60)
-  temperInOven(bar, 200, 60)
+  temperInOven(bar, how.temper ?? 200, 60)
+  temperInOven(bar, how.temper ?? 200, 60)
   grind(how.thin ?? 0.3, 0.4)
   coolToRoom(bar)
   for (let pass = 0; pass < 8; pass++) for (let at = 10; at <= blade - 5; at += 10) strokeStone(bar, { at, angle: how.angle ?? 20, pressure: 1 })
   fitHandle(bar, how.handle ?? 'ash')
   return bar
+}
+
+/** A smith with no plan: every blow is the one that helps the shape most right now. */
+export function forge(id: PatternId, most: number): { score: number; blows: number } {
+  const p = PATTERNS[id]
+  const types: BlowType[] = ['flat', 'edge', 'peen', 'point']
+  let bar = createBar(p.steel, p.stock)
+  bar.segments.forEach((s) => (s.temp = 1050))
+  let score = shapeScore(bar, p).score
+  let blows = 0
+  while (blows < most) {
+    let best: Bar | null = null
+    const length = barLength(bar)
+    for (const type of types) {
+      for (let k = 0; k <= 24; k++) {
+        for (const force of [1, 0.5]) {
+          const next = cloneBar(bar)
+          strike(next, { type, at: (length * k) / 24, force })
+          const s = shapeScore(next, p).score
+          if (s > score + 1e-6) {
+            score = s
+            best = next
+          }
+        }
+      }
+    }
+    if (!best) break
+    bar = best
+    blows++
+  }
+  return { score, blows }
 }

@@ -42,6 +42,7 @@ export const EFFORT: Record<PatternId, number> = {
   campKnife: 1,
   cooksKnife: 1,
   cleaver: 1,
+  cuttingKnife: 1,
   shortSword: 2,
   fullSword: 3,
 }
@@ -119,6 +120,7 @@ export type BriefKind =
   | 'clubKnife'
   | 'prepKnife'
   | 'blockCleaver'
+  | 'clubChopper'
   | 'collectorSword'
   | 'clubSword'
   | 'masterSword'
@@ -165,6 +167,8 @@ export const BRIEFS: Record<BriefKind, BriefTemplate> = {
   prepKnife: { customer: 'marsk', pattern: 'cooksKnife', needs: ['board'], fine: false, pay: [1100, 1400], days: [5, 8], rating: 'apprentice' },
   /** The smokehouse's cleaver for the block: bone all morning, and still keen. */
   blockCleaver: { customer: 'orrin', pattern: 'cleaver', needs: ['chop', 'shave'], fine: false, pay: [1100, 1400], days: [5, 8], rating: 'apprentice' },
+  /** The cutting club's big chopper for the season: every test, swung with both arms. */
+  clubChopper: { customer: 'cuttingClub', pattern: 'cuttingKnife', needs: ['rope', 'brass', 'chop', 'shave'], fine: false, pay: [1900, 2400], days: [7, 11], rating: 'journeyman' },
   /** A collector's short sword: it must be a true spring, and finely finished. */
   collectorSword: { customer: 'leith', pattern: 'shortSword', needs: ['flex'], fine: true, pay: [3200, 4000], days: [9, 13], rating: 'journeyman' },
   /** The cutting club's short sword for the mats: it must spring true and cut. */
