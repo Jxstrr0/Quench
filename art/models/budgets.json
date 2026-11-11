@@ -15,5 +15,9 @@
   "tank": {
     "triangles": 1000,
     "bytes": 60000
+  },
+  "bench": {
+    "triangles": 800,
+    "bytes": 50000
   }
 }

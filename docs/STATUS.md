@@ -4,6 +4,7 @@ The plan is `docs/QUENCH-PLAN.md`. Newest line first.
 
 | Version | PR | What changed |
 | --- | --- | --- |
+| 0.9.3.0 | PR 9d: The grinding bench | The **grinding bench** is now a model: four thick planks on a trestle frame. The belt, the sharpening stone and the sparks are still drawn live. The bench's sizes moved into the tuning table so the model and the game share them. |
 | 0.9.2.0 | PR 9c: The quench tank | The **quench tank** is now a model: a welded plate trough with a rolled lip, a strap handle at each end, standing on two skids. The liquid and the quench plates are still drawn live. The tank's sizes moved into the tuning table so the model and the game share them. |
 | 0.9.1.0 | PR 9b: The forge | The **forge** is now a model: a stone trough of hand-laid blocks on a plinth, with an iron lip at the mouth, the port in the back wall, and a tuyere pipe through the side where the bellows blow. The **trench forge** is the same hearth, longer. The glowing coals are still drawn live by the game. 1 new test (323 in total). |
 | 0.9.0.0 | PR 9a: Model pipeline and the anvil | The start of the art pass. Models are now **written as Python and built by headless Blender** (`art/models/build.py`), either on a work branch from the GitHub app (Actions, **models**, Run workflow) or by Claude in a session. The first model is the **anvil**: a squat London-pattern anvil with a worn face, a horn and its two holes (516 triangles, 31 KiB). The game loads it over the grey box and keeps the box if the file is missing. Each model has a triangle and size budget that the tests enforce. 3 new tests (322 in total). |
@@ -42,7 +43,7 @@ The plan is `docs/QUENCH-PLAN.md`. Newest line first.
 
 Pages is on and the custom domain is set: https://quench.longlight.games/. Each merge to `main` publishes there.
 
-## Questions for Kelbo after playing 0.9.2.0
+## Questions for Kelbo after playing 0.9.3.0
 
 Kelbo said to keep rolling and tune later, so these are saved up, not blocking.
 

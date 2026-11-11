@@ -43,7 +43,7 @@ import type { MediumId } from '../data/media'
 import type { Pattern } from '../data/patterns'
 import { GRIND, SHARPEN } from '../data/grind'
 import { HANDLE_LOOK } from '../data/look'
-import { BENCH, FORGE, TANK, TRENCH } from '../data/tuning'
+import { BENCH, FORGE, TANK, TRENCH, WORKBENCH } from '../data/tuning'
 import type { Bar, Segment } from '../sim/bar'
 import { barLength, nearestSegment, segmentCentres } from '../sim/bar'
 import { patternLength } from '../sim/shape'
@@ -229,9 +229,11 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
   /** The top of the belt, in metres above the anvil face. */
   const beltTop = 0.004
   const beltWide = GRIND.contact * MM
-  const benchTop = box(1.1, 0.05, 0.34, 0x33291f, 0.95)
-  benchTop.position.set(benchX + 0.22, -0.046, benchZ)
+  const benchTop = box(WORKBENCH.length * MM, 0.05, WORKBENCH.wide * MM, 0x33291f, 0.95)
+  benchTop.position.set(benchX + 0.22, WORKBENCH.top * MM - 0.025, benchZ)
   scene.add(benchTop)
+  // The modelled bench's origin is the middle of its top, at the height of the anvil's face.
+  swapIn('bench', benchTop, (model) => model.position.set(benchX + 0.22, 0, benchZ))
   // The belt and its platen follow the grinding spot: the camera stays with the blade.
   const grinder = new Group()
   const platen = box(beltWide + 0.02, 0.022, 0.25, 0x3a4047, 0.5, 0.8)

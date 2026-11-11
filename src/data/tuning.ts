@@ -157,3 +157,10 @@ export const BENCH = {
  * The tank model (art/models/dims.json) is built to the same sizes.
  */
 export const TANK = { from: -10, to: 470, wide: 100, rim: 30 } as const
+
+/**
+ * The grinding bench, in mm: how long and wide its top is, and where the top
+ * lies against the anvil's face (negative is below). The bench model is built
+ * to the same sizes.
+ */
+export const WORKBENCH = { length: 1100, wide: 340, top: -21 } as const
