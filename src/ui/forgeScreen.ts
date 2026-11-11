@@ -25,7 +25,7 @@ import { MEDIUM_ORDER } from '../data/media'
 import type { PatternId } from '../data/patterns'
 import { PATTERNS, pattern } from '../data/patterns'
 import type { SteelId } from '../data/steels'
-import { STEELS } from '../data/steels'
+import { STEEL_ORDER, STEELS } from '../data/steels'
 import type { StringKey } from '../data/strings'
 import { t } from '../data/strings'
 import { BENCH } from '../data/tuning'
@@ -595,10 +595,10 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
     freshBar()
   })
   steelBtn.addEventListener('click', () => {
-    const ids = Object.keys(STEELS) as SteelId[]
-    steelId = ids[(ids.indexOf(steelId) + 1) % ids.length] as SteelId
+    steelId = STEEL_ORDER[(STEEL_ORDER.indexOf(steelId) + 1) % STEEL_ORDER.length] as SteelId
     applySteel()
     freshBar()
+    say(`${STEELS[steelId].name}. ${STEELS[steelId].note}`, 6000)
   })
   /** Lay the bar cold on the anvil end of the rail and show it. */
   const placeBar = () => {
