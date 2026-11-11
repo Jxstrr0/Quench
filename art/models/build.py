@@ -459,8 +459,48 @@ def matstand():
     return finish("matstand", bm, [timber(), dark_timber(), steel()], bevel=0.002)
 
 
+def flag(k):
+    """Three tints of floor stone, so the flags do not read as one sheet."""
+    tint = ((0.021, 0.024, 0.029), (0.026, 0.029, 0.034), (0.018, 0.02, 0.025))[k]
+    return material(f"flag{k}", tint, 1.0, 0.0)
+
+
+def floor():
+    """
+    The smithy floor round the work: flagstones in rows of uneven depth, each
+    flag a hair off level, with dark joints between (the game's plain floor
+    shows through them). Only the tops are modelled; nothing looks at the sides.
+    The origin is the forge mouth; z = 0 is the anvil's face, so the flags lie
+    at the floor drop.
+    """
+    z = -DIMS["floorDrop"] * MM + 0.002
+    x0, x1 = DIMS["floorFrom"] * MM, DIMS["floorTo"] * MM
+    y0, y1 = -DIMS["floorNear"] * MM, DIMS["floorFar"] * MM
+    rnd = random.Random(11)
+    joint = 0.008
+    bm = bmesh.new()
+    y = y0
+    while y < y1 - 0.02:
+        deep = min(y1 - y, rnd.uniform(0.24, 0.38))
+        if y1 - y - deep < 0.12:
+            deep = y1 - y
+        x = x0 - rnd.uniform(0, 0.25)
+        while x < x1 - 0.02:
+            wide = rnd.uniform(0.3, 0.55)
+            a, b = max(x0, x), min(x1, x + wide)
+            if b - a > 0.05:
+                lift = rnd.uniform(0, 0.003)
+                tilt = rnd.uniform(-0.0015, 0.0015)
+                quad = [(a + joint / 2, y + joint / 2, z + lift), (b - joint / 2, y + joint / 2, z + lift + tilt),
+                        (b - joint / 2, y + deep - joint / 2, z + lift + tilt), (a + joint / 2, y + deep - joint / 2, z + lift)]
+                bm.faces.new([bm.verts.new(p) for p in quad]).material_index = rnd.randrange(3)
+            x += wide
+        y += deep
+    return finish("floor", bm, [flag(0), flag(1), flag(2)])
+
+
 MODELS = {"anvil": anvil, "forge": forge, "trench": trench, "tank": tank, "bench": bench, "tongs": tongs, "vice": vice,
-          "peg": peg, "matstand": matstand}
+          "peg": peg, "matstand": matstand, "floor": floor}
 
 
 def export(name):

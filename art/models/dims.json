@@ -25,5 +25,9 @@
   "viceGap": 4,
   "pegTop": 60,
   "matFoot": 120,
-  "matStandWidth": 160
+  "matStandWidth": 160,
+  "floorFrom": -1300,
+  "floorTo": 1700,
+  "floorNear": 1200,
+  "floorFar": 1000
 }

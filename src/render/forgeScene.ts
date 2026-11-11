@@ -1,5 +1,5 @@
 /**
- * The forge scene, grey box. A stone floor, a forge trough with a bed of
+ * The forge scene. Each piece starts as a plain box and is swapped for its model (art/models) once that loads. A stone floor, a forge trough with a bed of
  * coals, an anvil, and the bar on a rail between them. Hot steel is the
  * brightest thing in the room.
  *
@@ -132,6 +132,12 @@ export function createForgeView(host: HTMLElement, start: TierSettings): ForgeVi
   floor.rotation.x = -Math.PI / 2
   floor.position.y = -0.12
   scene.add(floor)
+  // Flagstones lie over the plain floor round the work; the plain floor shows in their joints and beyond them.
+  loadModel('floor')
+    .then((flags) => scene.add(flags))
+    .catch(() => {
+      // No model: the plain floor is the floor.
+    })
 
   // The forge: the short fire, and the long trench forge that takes its place for long blades.
   const coalMat = new MeshBasicMaterial({ color: 0xe2571e })
