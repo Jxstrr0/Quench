@@ -265,7 +265,7 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
   stage.group.visible = false
   scene.add(stage.group)
   let trial: TrialShow | null = null
-  const dims: BladeDims = { gripX: 0, workX: 0, clampX: 0, gripZ: 0, edgeZ: 0, midZ: 0 }
+  const dims: BladeDims = { gripX: 0, workX: 0, clampX: 0, gripZ: 0, edgeZ: 0, midZ: 0, length: 0 }
   const swung = new Vector3()
   /** The handle's place along the straight blade, and where a bend has taken it. */
   let gripX = 0
@@ -375,7 +375,7 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
     const top = vertical ? 96 : 64
     const bottom = vertical ? 96 : 20
     const usableH = Math.max(120, h - bottom - top)
-    const see = stage.view(trial?.id ?? 'fit')
+    const see = stage.view(trial?.id ?? 'fit', dims)
     const scale = Math.max(see.spanX / w, see.spanY / usableH)
     const distance = (scale * h) / (2 * TAN_HALF_FOV)
     const tx = stageX + see.x
@@ -483,6 +483,7 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
       // Where a hand, a test and a vice would each take hold of it.
       const bladeLen = length * bladeShare
       const widthAt = (x: number): number => nearestSegment(bar, x / MM).width
+      dims.length = length
       dims.gripX = (bladeLen + length) / 2
       dims.workX = bladeLen * 0.55
       dims.clampX = Math.min(bladeLen * 0.3, 0.1)
@@ -531,6 +532,8 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
       trial = show
       if (!moved) return
       stage.group.visible = show !== null
+      // The long trough for a sword would reach into a wide view of the stand.
+      tank.visible = show === null
       if (changed) applyLight()
       place()
     },
