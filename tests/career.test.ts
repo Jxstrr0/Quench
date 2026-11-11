@@ -12,6 +12,7 @@ import {
   deliver,
   drop,
   fillBoard,
+  fundBlade,
   newCareer,
   oddJob,
   provingBar,
@@ -187,6 +188,18 @@ describe('money', () => {
     expect(days).toBeLessThanOrEqual(2)
     expect(c.day).toBe(1 + days)
     expect(c.money).toBeGreaterThanOrEqual(0)
+  })
+
+  it('a bar is always to be had: odd jobs are done first when the money is short', () => {
+    const c = newCareer(1)
+    expect(fundBlade(c, 'campKnife')).toBe(0)
+    expect(c.day).toBe(1)
+    c.money = 0
+    const days = fundBlade(c, 'campKnife')
+    expect(days).toBe(Math.ceil(bladeCost('campKnife') / MONEY.oddJob))
+    expect(c.day).toBe(1 + days)
+    expect(c.money).toBe(days * MONEY.oddJob - bladeCost('campKnife'))
+    expect(c.bars).toBe(2)
   })
 
   it('tools are bought once, when the money is there', () => {

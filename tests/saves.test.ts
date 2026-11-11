@@ -4,7 +4,7 @@ import { BENCH } from '../src/data/tuning'
 import type { GameSave } from '../src/persist/backup'
 import { REMIND_DAYS, applySave, backupDue, backupName, gatherSave, hasProgress, makeCode, markBackup, readCode, soundGame } from '../src/persist/backup'
 import type { CareerSave } from '../src/persist/career'
-import { SLOTS, clearSlot, loadSlot, loadSlots, packSave, parseSave, saveSlot, soundCareer } from '../src/persist/career'
+import { SLOTS, clearSlot, loadActive, loadSlot, loadSlots, packSave, parseSave, saveActive, saveSlot, soundCareer } from '../src/persist/career'
 import type { KeptBlade } from '../src/persist/collection'
 import { COLLECTION_KEY, packCollection } from '../src/persist/collection'
 import { SAVE_PREFIX, decodeSave, encodeSave } from '../src/persist/saveCode'
@@ -40,7 +40,7 @@ function midCareer(): CareerSave {
   accept(career, (career.board[0] as { id: number }).id)
   startBlade(career, 'campKnife')
   benchWork(career, 'forge')
-  return { v: 1, career, bar: finished(), saved: NOW }
+  return { v: 1, career, bar: finished(), stages: ['forge'], saved: NOW }
 }
 
 describe('the save code', () => {
@@ -94,7 +94,7 @@ describe('career slots', () => {
 
   it('a career read back plays on exactly as the one saved would have', () => {
     const a = midCareer().career
-    const b = (parseSave(packSave({ v: 1, career: a, bar: null, saved: NOW })) as CareerSave).career
+    const b = (parseSave(packSave({ v: 1, career: a, bar: null, stages: [], saved: NOW })) as CareerSave).career
     for (const c of [a, b]) {
       for (let n = 0; n < 12; n++) benchWork(c, 'forge')
       c.board.length = 0
@@ -114,6 +114,18 @@ describe('career slots', () => {
     expect(saveSlot(0, midCareer(), d)).toBe(false)
     expect(saveSlot(SLOTS + 1, midCareer(), d)).toBe(false)
     expect(loadSlot(9, d)).toBeNull()
+  })
+
+  it('remembers which slot was in play', () => {
+    const d = device()
+    expect(loadActive(d)).toBe(0)
+    saveActive(2, d)
+    expect(loadActive(d)).toBe(2)
+    saveActive(7, d)
+    expect(loadActive(d)).toBe(0)
+    d.setItem('quench.career.active', 'two')
+    expect(loadActive(d)).toBe(0)
+    expect(loadActive(null)).toBe(0)
   })
 
   it('says so when there is nowhere to save', () => {
@@ -156,7 +168,9 @@ describe('career slots', () => {
     }
     expect(parseSave('not json')).toBeNull()
     expect(parseSave(null)).toBeNull()
-    expect(parseSave(JSON.stringify({ v: 1, career: good, bar: { steel: 'unobtainium' }, saved: 1 }))).toBeNull()
+    expect(parseSave(JSON.stringify({ v: 1, career: good, bar: null, stages: ['nap'], saved: 1 }))).toBeNull()
+    expect(parseSave(JSON.stringify({ v: 1, career: good, bar: null, stages: [], saved: 1 }))).not.toBeNull()
+    expect(parseSave(JSON.stringify({ v: 1, career: good, bar: { steel: 'unobtainium' }, stages: [], saved: 1 }))).toBeNull()
   })
 })
 
@@ -177,7 +191,7 @@ describe('moving to another device', () => {
       deliver(career, { ...pass, results: pass.results.map((r) => (r.id === 'fit' ? { ...r, outcome: 'fine' as const } : r)) })
     }
     expect(career.rating).toBe('journeyman')
-    saveSlot(1, { v: 1, career, bar, saved: NOW }, phone)
+    saveSlot(1, { v: 1, career, bar, stages: ['forge', 'treat'], saved: NOW }, phone)
     phone.setItem(COLLECTION_KEY, packCollection([kept('a'), kept('b')]))
     phone.setItem(SETTINGS_KEY, JSON.stringify({ ...DEFAULT_SETTINGS, heatWords: true, sound: false }))
     const code = makeCode(phone)

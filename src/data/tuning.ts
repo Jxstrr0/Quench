@@ -85,6 +85,8 @@ export const SCALE = {
 
 /** The forge bench: how the bar travels between the fire and the anvil. */
 export const BENCH = {
+  /** A career in play is saved this often, in seconds, as well as when the page is put away. */
+  careerSaveSeconds: 15,
   /** The rail measures how far the tip is past the forge mouth (negative is outside). */
   railMin: -85,
   railMax: 225,
