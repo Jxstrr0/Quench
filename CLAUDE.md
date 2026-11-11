@@ -74,6 +74,9 @@ docs/         the plan, NAMES.md, STATUS.md
 - It shows in the corner as `v0.1.0.0 · <sha> · <date>` so a fresh deploy is easy to spot.
 - Bump `VERSION` in the PR that makes the change, and add a line to `docs/STATUS.md`.
 - `package.json` keeps its own three-part number; players never see it.
+- `.github/workflows/publish-release.yml` publishes a GitHub Release (`v<version>`)
+  whenever `VERSION` changes on `main`; the studio site reads it for this game's
+  version number and "what's new" line. Free, no keys, and it doesn't touch the deploy.
 
 ## Storage
 
