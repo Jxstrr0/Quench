@@ -22,11 +22,16 @@ export const TRIAL_NAME: Record<TrialId, StringKey> = {
   shave: 'trial.shave',
   board: 'trial.board',
   bend: 'trial.bend.name',
+  flex: 'trial.flex',
+  mat: 'trial.mat',
 }
 
 /** What happened in a test, as a sentence. */
 export function outcomeText(r: TrialResult): string {
   if (r.id === 'bend' && r.outcome === 'snapped') return t('out.bendSnapped', { n: Math.round(r.value ?? 0) })
+  if (r.id === 'flex' && r.outcome === 'snapped') return t('out.flexSnapped', { n: Math.round(r.value ?? 0) })
+  if (r.outcome === 'takesSet') return t('out.takesSet', { n: (r.value ?? 0).toFixed(1) })
+  if (r.id === 'mat' && (r.outcome === 'clean' || r.outcome === 'cut' || r.outcome === 'partCut' || r.outcome === 'bounced')) return t(`out.mat.${r.outcome}`)
   return t(`out.${r.outcome}`)
 }
 
