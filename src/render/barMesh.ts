@@ -9,8 +9,9 @@
  * a forged bar reads as a knife (straight back, curved edge), not a dagger.
  * The sim's "left" flat is the top one (+y).
  */
-import { BufferAttribute, BufferGeometry, Color, Mesh, MeshStandardMaterial } from 'three'
-import { STEEL_LOOK } from '../data/look'
+import { BufferAttribute, BufferGeometry, Color, Mesh, MeshStandardMaterial, Vector4 } from 'three'
+import { BILLETS } from '../data/billets'
+import { BILLET_LOOK, STEEL_LOOK } from '../data/look'
 import { CLAY } from '../data/treat'
 import { steel } from '../data/steels'
 import type { Bar, Segment } from '../sim/bar'
@@ -31,6 +32,40 @@ const ETCH_PALE = new Color(STEEL_LOOK.etchPale)
 const CLAY_COLOUR = new Color(STEEL_LOOK.clay)
 /** An edge this many HRC softer than the blade behind it shows fully blue. */
 const BLUE_AT = 6
+
+/**
+ * How a welded billet shows in the etch. Every vertex carries how deep it lies
+ * through the bar's thickness (0 on the top flat, 1 on the bottom one), so a
+ * bevel, which cuts down through the layers, shows them as lines.
+ */
+const BILLET_DECLARE = /* glsl */ `
+varying float vDepth;
+varying vec3 vAt;
+// x: layers (0 for none); y: how strongly they show; z: how far they wander, in layers; w: where the wander starts.
+uniform vec4 uLayers;
+// x: how deep a san-mai blade's soft side goes, as a share of its thickness (0 for none).
+uniform vec4 uCore;
+uniform vec3 uBright;
+uniform vec3 uJacket;
+`
+const BILLET_PAINT = /* glsl */ `
+// A slow, uneven drift along and across the blade, so the layers flow and do not repeat.
+float wander = 0.6 * sin(vAt.x * 47.0 + 2.0 * sin(vAt.z * 83.0 + uLayers.w)) + 0.5 * sin(vAt.x * 19.0 - vAt.z * 71.0 + uLayers.w * 0.6) + 0.3 * sin(vAt.x * 113.0 + vAt.z * 37.0 + uLayers.w * 2.1);
+if (uLayers.x > 0.5) {
+  // Every other layer is the bright steel. Layers too fine to tell apart blur to an even sheen.
+  float layer = vDepth * uLayers.x + uLayers.z * wander;
+  float soft = max(fwidth(layer), 0.001);
+  float bright = smoothstep(0.5 - soft, 0.5 + soft, abs(fract(layer * 0.5) - 0.5) * 2.0);
+  diffuseColor.rgb = mix(diffuseColor.rgb, uBright, bright * uLayers.y);
+}
+if (uCore.x > 0.0) {
+  // Soft sides over a hard core: the core shows only where the grind has cut down to it.
+  float deep = min(vDepth, 1.0 - vDepth) + 0.012 * wander;
+  float soft = max(fwidth(deep), 0.0005);
+  diffuseColor.rgb = mix(uJacket, diffuseColor.rgb, smoothstep(uCore.x - soft, uCore.x + soft, deep));
+  diffuseColor.rgb = mix(diffuseColor.rgb, uBright, 0.8 * (1.0 - smoothstep(soft, soft * 2.5, abs(deep - uCore.x))));
+}
+`
 
 export interface BarMesh {
   mesh: Mesh
@@ -91,6 +126,8 @@ export function createBarMesh(segmentCount: number): BarMesh {
   const point = { x: 0, y: 0, turn: 0 }
   const colours = new Float32Array(vertexCount * 3)
   const glow = new Float32Array(vertexCount * 3)
+  /** How deep each vertex lies through the bar's thickness: 0 on the top flat, 1 on the bottom one. */
+  const depth = new Float32Array(vertexCount)
   const index: number[] = []
 
   for (let s = 0; s < STRIPS; s++) {
@@ -110,16 +147,25 @@ export function createBarMesh(segmentCount: number): BarMesh {
   geometry.setAttribute('position', new BufferAttribute(positions, 3))
   geometry.setAttribute('color', new BufferAttribute(colours, 3))
   geometry.setAttribute('glow', new BufferAttribute(glow, 3))
+  geometry.setAttribute('depth', new BufferAttribute(depth, 1))
   geometry.setIndex(index)
 
   // Steel that adds its own heat glow on top of the room's light. The colour comes from the vertices.
   const material = new MeshStandardMaterial({ color: 0xffffff, vertexColors: true, metalness: 0.55, roughness: 0.66 })
+  const billet = {
+    uLayers: { value: new Vector4() },
+    uCore: { value: new Vector4() },
+    uBright: { value: new Color(BILLET_LOOK.bright) },
+    uJacket: { value: new Color(BILLET_LOOK.jacket) },
+  }
   material.onBeforeCompile = (shader) => {
+    Object.assign(shader.uniforms, billet)
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nattribute vec3 glow;\nvarying vec3 vGlow;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvGlow = glow;')
+      .replace('#include <common>', '#include <common>\nattribute vec3 glow;\nvarying vec3 vGlow;\nattribute float depth;\nvarying float vDepth;\nvarying vec3 vAt;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvGlow = glow;\nvDepth = depth;\nvAt = position;')
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vGlow;')
+      .replace('#include <common>', `#include <common>\nvarying vec3 vGlow;${BILLET_DECLARE}`)
+      .replace('#include <color_fragment>', `#include <color_fragment>${BILLET_PAINT}`)
       .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += vGlow;')
   }
 
@@ -154,6 +200,17 @@ export function createBarMesh(segmentCount: number): BarMesh {
     updateShape(bar, spine) {
       const segs = bar.segments
       const st = steel(bar.steel)
+      // What the etch shows of a billet: its layers, or its core.
+      const built = BILLETS[bar.billet]
+      const folds = Math.max(0, Math.round(Math.log2(bar.layers / built.layers)))
+      const layered = bar.etched && built.folds
+      billet.uLayers.value.set(
+        layered ? bar.layers : 0,
+        BILLET_LOOK.sheen,
+        Math.min(BILLET_LOOK.wanderMax, BILLET_LOOK.wander + BILLET_LOOK.wanderPerFold * folds),
+        (bar.seed % 6283) / 1000,
+      )
+      billet.uCore.value.set(bar.etched ? built.jacket / 2 : 0, 0, 0, 0)
       let x = 0
       for (let i = 0; i < rings; i++) {
         ringX[i] = x * MM
@@ -194,6 +251,13 @@ export function createBarMesh(segmentCount: number): BarMesh {
         put(at(EDGE) + 1, px, t - cutTop, edge)
         put(at(SPINE), px, t, back)
         put(at(SPINE) + 1, px, -t, back)
+        // How deep through the thickness each of those lies. Only the edge of a bevel is below the surface.
+        const deepTop = t > 0 ? cutTop / (2 * t) : 0
+        const deepBottom = t > 0 ? 1 - cutBottom / (2 * t) : 1
+        depth[at(TOP_FLAT)] = depth[at(TOP_FLAT) + 1] = depth[at(TOP_BEVEL) + 1] = depth[at(SPINE)] = 0
+        depth[at(BOTTOM_FLAT)] = depth[at(BOTTOM_FLAT) + 1] = depth[at(BOTTOM_BEVEL)] = depth[at(SPINE) + 1] = 1
+        depth[at(TOP_BEVEL)] = depth[at(EDGE) + 1] = deepTop
+        depth[at(BOTTOM_BEVEL) + 1] = depth[at(EDGE)] = deepBottom
 
         // Scaled steel on the flats, bright steel on the bevels, blue where the belt drew the edge's temper.
         const drawn = (edgeDrawn(a, st) + edgeDrawn(b, st)) / 2
@@ -248,12 +312,17 @@ export function createBarMesh(segmentCount: number): BarMesh {
           put(v + 4, px, -t, shoulderBottom)
           put(v + 5, px, -t, back)
           for (let k = 0; k < CAP; k++) paint(colours, v + k, flatColour)
+          depth[v] = depth[v + 1] = 0
+          depth[v + 2] = deepTop
+          depth[v + 3] = deepBottom
+          depth[v + 4] = depth[v + 5] = 1
         }
       }
       straight.set(positions)
       bent = false
       geometry.attributes.position!.needsUpdate = true
       geometry.attributes.color!.needsUpdate = true
+      geometry.attributes.depth!.needsUpdate = true
       geometry.computeVertexNormals()
       geometry.computeBoundingSphere()
     },

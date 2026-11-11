@@ -35,4 +35,14 @@ export const BILLET_LOOK = {
   /** The layers wander along the blade: the length of one wave, in mm, and how far a line strays, as a share of the gap between lines. */
   wave: 38,
   stray: 0.4,
+  /**
+   * On the 3D blade the layers wander too, by this many layers: a little on a
+   * fresh billet, more with each fold, up to a limit. This is what puts
+   * bands on the flats, where the surface would otherwise be one layer.
+   */
+  wander: 0.7,
+  wanderPerFold: 0.3,
+  wanderMax: 2.2,
+  /** How strongly the bright layers show on the 3D blade, under the forge's light (0 to 1). */
+  sheen: 0.7,
 } as const
