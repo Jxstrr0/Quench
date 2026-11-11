@@ -3,11 +3,17 @@ import { pattern } from '../data/patterns'
 import { STEELS } from '../data/steels'
 import { t } from '../data/strings'
 import type { KeptBlade } from '../persist/collection'
+import type { Bar } from '../sim/bar'
 import { barLength } from '../sim/bar'
 import { massAndBalance } from '../sim/trials'
 
+/** Its steel, and what it was welded up from if it was a billet. */
+export function steelWords(bar: Bar): string {
+  const steel = STEELS[bar.steel].name
+  return bar.billet === 'plain' ? steel : t(`kept.steel.${bar.billet}`, { steel, n: bar.layers })
+}
 /** What it is: its pattern and steel. */
-export const keptTitle = (blade: KeptBlade): string => `${t(`pattern.${blade.pattern}`)} · ${STEELS[blade.bar.steel].name}`
+export const keptTitle = (blade: KeptBlade): string => `${t(`pattern.${blade.pattern}`)} · ${steelWords(blade.bar)}`
 /** The day it was kept, the way this device writes dates. */
 export const keptDay = (blade: KeptBlade): string => new Date(blade.kept).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
 

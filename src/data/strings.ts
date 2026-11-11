@@ -401,6 +401,8 @@ export const STRINGS = {
   'collection.broke': '{n} of {of} passed, then it broke.',
   'collection.keptOn': 'Kept on {date}.',
   'collection.picture': 'A drawing of this {pattern}, seen from the side.',
+  'kept.steel.sanMai': '{steel} san-mai',
+  'kept.steel.layered': '{steel}, {n} layers',
   'collection.length': '{n} mm blade',
   'collection.mass': '{n} g',
   'collection.edge': 'edge at {n}° each side',

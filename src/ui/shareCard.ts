@@ -88,8 +88,12 @@ export async function renderShareCard(blade: KeptBlade): Promise<HTMLCanvasEleme
   ctx.fillStyle = INK
   ctx.font = `600 84px ${HEAD}`
   ctx.fillText(t('title'), SIDE, 122)
-  ctx.font = `600 46px ${HEAD}`
-  ctx.fillText(keptTitle(blade), SIDE, 190)
+  // The blade's name, a little smaller if a long one (a sword from a folded billet) would not fit.
+  const name = keptTitle(blade)
+  let size = 46
+  ctx.font = `600 ${size}px ${HEAD}`
+  while (size > 30 && ctx.measureText(name).width > wide) ctx.font = `600 ${--size}px ${HEAD}`
+  ctx.fillText(name, SIDE, 190)
   ctx.font = `400 28px ${UI}`
   ctx.fillStyle = FAINT
   ctx.textAlign = 'right'
