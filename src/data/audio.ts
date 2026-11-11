@@ -193,3 +193,14 @@ export const NOISE_SOUND = {
   /** A burst has died away to this share of its loudest by its end. */
   tail: 0.1,
 } as const
+
+/** Aldersay harbour, heard through the window: slow waves on the quay wall. */
+export const SEA_SOUND = {
+  /** At the forge it is nearly lost under the fire; at the trial stand, by the window, it is plain. */
+  forgeGain: 0.02,
+  windowGain: 0.07,
+  hz: 520,
+  /** One wave about every eight seconds, and how far each one swells. */
+  waveHz: 0.12,
+  swell: 0.7,
+} as const
