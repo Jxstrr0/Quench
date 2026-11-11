@@ -11,6 +11,7 @@ import { COLLECTION_MAX } from '../persist/collection'
 import type { Bar } from '../sim/bar'
 import type { Delivery, ProvingResult } from '../sim/career'
 import { coolToRoom } from '../sim/heat'
+import type { FixStage } from '../sim/report'
 import type { TrialReport, TrialResult } from '../sim/trials'
 import { runTrials } from '../sim/trials'
 import type { Sheet } from './dom'
@@ -42,6 +43,8 @@ export interface TrialHost {
   proving(): { rating: Rating; fee: number; day: number; late: boolean } | null
   /** Enter the blade at the Proving. */
   sitProving(report: TrialReport): ProvingResult | null
+  /** Take the blade to the stage that would put a failed test right. */
+  fix(stage: FixStage): void
 }
 
 export function createTrialSheet(host: HTMLElement, forge: TrialHost): Sheet {
@@ -72,7 +75,13 @@ export function createTrialSheet(host: HTMLElement, forge: TrialHost): Sheet {
   }
 
   const tell = (bar: Bar, report: TrialReport, bendOnly: boolean) => {
-    body.replaceChildren(...reportParts(bar, report, !bendOnly && !bar.crack))
+    // A blade still in one piece can go straight to the stage that would put a failure right.
+    const live = !bendOnly && !report.broke && !bar.crack
+    const fix = (stage: FixStage) => {
+      sheet.close()
+      forge.fix(stage)
+    }
+    body.replaceChildren(...reportParts(bar, report, !bendOnly && !bar.crack, live ? fix : undefined))
     if (bendOnly && total) {
       // The bend goes on the end of what the blade has already faced.
       total = { results: [...total.results, ...report.results], passed: total.passed + report.passed, broke: report.broke ?? total.broke }

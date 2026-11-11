@@ -92,6 +92,34 @@ export type Lesson =
   /** The harm was done in the chop: look there. */
   | 'seeChop'
 
+/** Where a blade that is still in one piece can be put right. */
+export type FixStage = 'fire' | 'temper' | 'grinder' | 'stone' | 'handle'
+
+const FIX: Partial<Record<Lesson, FixStage>> = {
+  harden: 'fire',
+  quenchHotter: 'fire',
+  quenchFaster: 'fire',
+  temper: 'temper',
+  temperHotter: 'temper',
+  grind: 'grinder',
+  grindThinner: 'grinder',
+  thinBehindEdge: 'grinder',
+  evenBevels: 'grinder',
+  sharpen: 'stone',
+  finerAngle: 'stone',
+  stouterAngle: 'stone',
+  fitHandle: 'handle',
+}
+
+/**
+ * Where this lesson can still be acted on, on the blade that taught it, or
+ * null when it is one for the next bar (steel cannot be un-burnt, un-ground
+ * or un-tempered).
+ */
+export function fixFor(lesson: Lesson): FixStage | null {
+  return FIX[lesson] ?? null
+}
+
 export interface Explanation {
   cause: TrialCause
   moments: Moment[]

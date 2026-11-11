@@ -48,6 +48,7 @@ import type { Placement } from '../sim/heat'
 import { advance } from '../sim/heat'
 import { magnetTest } from '../sim/inspect'
 import { railReach, shapeScore, wantsLongFire } from '../sim/shape'
+import type { FixStage } from '../sim/report'
 import type { TrialReport, TrialResult } from '../sim/trials'
 import { createBackupSheet } from './backupSheet'
 import { createCareerSheet } from './careerSheet'
@@ -368,6 +369,12 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
       playback.start(results, done)
     },
     job: () => career?.job?.kind ?? null,
+    fix: (stage: FixStage) => {
+      if (stage === 'temper') return temperSheet.open()
+      if (stage === 'fire') return say(t('fix.fire.note'), 7000)
+      enterBench()
+      if (bench.active) bench.useStone(stage === 'stone')
+    },
     deliver: (report: TrialReport) => {
       if (!career) return null
       const first = career.job?.kind === FIRST_JOB
