@@ -18,5 +18,6 @@
   "tankRim": 30,
   "benchLength": 1100,
   "benchWidth": 340,
-  "benchTop": -21
+  "benchTop": -21,
+  "tongsLength": 360
 }

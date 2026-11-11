@@ -43,14 +43,14 @@ import type { MediumId } from '../data/media'
 import type { Pattern } from '../data/patterns'
 import { GRIND, SHARPEN } from '../data/grind'
 import { HANDLE_LOOK } from '../data/look'
-import { BENCH, FORGE, TANK, TRENCH, WORKBENCH } from '../data/tuning'
+import { BENCH, FORGE, TANK, TONGS, TRENCH, WORKBENCH } from '../data/tuning'
 import type { Bar, Segment } from '../sim/bar'
 import { barLength, nearestSegment, segmentCentres } from '../sim/bar'
 import { patternLength } from '../sim/shape'
 import { glowAt } from '../sim/glow'
 import { bentPoint, createBarMesh } from './barMesh'
 import type { ModelName } from './models'
-import { swapIn } from './models'
+import { loadModel, swapIn } from './models'
 import type { BladeDims, TrialShow } from './trialStage'
 import { createTrialStage } from './trialStage'
 
@@ -303,10 +303,28 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
   let segmentCount = -1
   const tongs = new Group()
   const jawMat = new MeshStandardMaterial({ color: 0x15171a, roughness: 0.7, metalness: 0.5 })
-  const jawA = new Mesh(new BoxGeometry(0.36, 0.006, 0.012), jawMat)
-  const jawB = jawA.clone()
+  const tongsLen = TONGS.length * MM
+  // Each jaw is a group: a plain strip until the model arrives. The lower jaw is the upper one turned over.
+  const jawA = new Group()
+  const jawB = new Group()
+  jawB.rotation.x = Math.PI
+  const strips = [jawA, jawB].map((jaw) => {
+    const strip = new Mesh(new BoxGeometry(tongsLen, 0.006, 0.012), jawMat)
+    strip.position.y = 0.003
+    jaw.add(strip)
+    return strip
+  })
   tongs.add(jawA, jawB)
   holder.add(tongs)
+  loadModel('tongs')
+    .then((model) => {
+      jawA.add(model)
+      jawB.add(model.clone())
+      for (const strip of strips) strip.visible = false
+    })
+    .catch(() => {
+      // No model: the plain strips stay.
+    })
 
   // The handle: a plain grip over the tang, once one is fitted.
   const gripMat = new MeshStandardMaterial({ color: 0xc8ae84, roughness: 0.85 })
@@ -513,7 +531,7 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
       dims.gripZ = (last.width / 2 - spine) * MM
       dims.edgeZ = (widthAt(dims.workX) - spine) * MM
       dims.midZ = (widthAt(dims.clampX) / 2 - spine) * MM
-      tongs.position.set(length - 0.025 + 0.18, 0, (last.width / 2 - spine) * MM)
+      tongs.position.set(length - 0.025 + tongsLen / 2, 0, (last.width / 2 - spine) * MM)
       jawA.position.y = half
       jawB.position.y = -half
     },

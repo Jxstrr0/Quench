@@ -164,3 +164,6 @@ export const TANK = { from: -10, to: 470, wide: 100, rim: 30 } as const
  * to the same sizes.
  */
 export const WORKBENCH = { length: 1100, wide: 340, top: -21 } as const
+
+/** The tongs, in mm: how long they are from the bite to the end of the reins. The tongs model is built to the same length. */
+export const TONGS = { length: 360 } as const

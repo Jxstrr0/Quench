@@ -19,5 +19,9 @@
   "bench": {
     "triangles": 800,
     "bytes": 50000
+  },
+  "tongs": {
+    "triangles": 500,
+    "bytes": 30000
   }
 }
