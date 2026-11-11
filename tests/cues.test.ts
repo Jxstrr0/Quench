@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hammerVoice } from '../src/audio/cues'
+import { beltVoice, hammerVoice } from '../src/audio/cues'
 
 describe('the sound of a blow', () => {
   it('hot, thick steel gives a dull thud with no ring', () => {
@@ -32,5 +32,19 @@ describe('the sound of a blow', () => {
         expect(v.ringSeconds).toBeGreaterThan(0)
       }
     }
+  })
+})
+
+describe('the sound of the belt', () => {
+  it('runs quietly when free and louder and brighter with steel pressed to it', () => {
+    const free = beltVoice(0)
+    const light = beltVoice(0.35)
+    const hard = beltVoice(1)
+    expect(free.gain).toBeGreaterThan(0)
+    expect(light.gain).toBeGreaterThan(free.gain)
+    expect(hard.gain).toBeGreaterThan(light.gain)
+    expect(hard.hz).toBeGreaterThan(free.hz)
+    expect(beltVoice(5)).toEqual(hard)
+    expect(beltVoice(-1)).toEqual(free)
   })
 })

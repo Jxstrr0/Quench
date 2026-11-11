@@ -133,4 +133,6 @@ export const BENCH = {
   stirSpeed: 160,
   /** ...and the stirring dies away over this many seconds once it stops. */
   stirFade: 0.5,
+  /** The grinder's hint goes once the player has had steel on the belt for this many seconds. */
+  hintGrindSeconds: 2,
 } as const

@@ -4,7 +4,7 @@
  */
 import type { StringKey } from '../data/strings'
 import { t } from '../data/strings'
-import { OVEN } from '../data/treat'
+import { CRACK, INSPECT, OVEN } from '../data/treat'
 import { BENCH } from '../data/tuning'
 import type { Bar } from '../sim/bar'
 import { coolToRoom } from '../sim/heat'
@@ -146,11 +146,18 @@ export function createInspectSheet(host: HTMLElement, forge: TreatHost): Sheet {
     row('inspect.tough', t(TOUGH_KEY[look.tough]))
     row('inspect.grain', t(GRAIN_KEY[look.grain]))
     row('inspect.straight', look.straight ? t('straight.yes') : t('straight.no', { n: look.warp.toFixed(1) }))
+    row('inspect.edge', look.ground ? t('edge.value', { n: look.edge.toFixed(1), min: look.edgeMin.toFixed(1) }) : t('edge.unground'))
+    if (look.lopsided) body.append(el('p', 'sheet-note', t('inspect.lopsided')))
+    if (look.edgeSoft) body.append(el('p', 'sheet-note', t('inspect.edgeSoft')))
     row('inspect.tempers', look.tempers === 0 ? t('tempers.none') : look.tempers === 1 ? t('tempers.once') : t('tempers.n', { n: look.tempers }))
     row('inspect.shape', t('inspect.shape.value', { n: forge.shapePercent() }))
     body.append(el('p', 'sheet-note sheet-small', t('inspect.grain.note')))
     if (look.next === 'harden' && look.grain !== 'fine') body.append(el('p', 'sheet-note sheet-next', t('next.normalize')))
-    body.append(el('p', 'sheet-note sheet-next', t(NEXT_KEY[look.next])))
+    if (look.next === 'harden' && !look.ground) body.append(el('p', 'sheet-note sheet-next', t('next.rough')))
+    if (look.next === 'harden' && look.ground && look.edgeMin < CRACK.edgeSafe) {
+      body.append(el('p', 'sheet-note sheet-next', t('next.thinEdge', { n: CRACK.edgeSafe })))
+    }
+    body.append(el('p', 'sheet-note sheet-next', t(NEXT_KEY[look.next], { n: INSPECT.edgeWanted })))
   }
   const sheet = createSheet(host, 'inspect.title', fill)
   sheet.card.append(body)

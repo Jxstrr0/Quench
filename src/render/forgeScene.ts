@@ -9,8 +9,10 @@
  */
 import {
   ACESFilmicToneMapping,
+  AdditiveBlending,
   AmbientLight,
   BoxGeometry,
+  BufferAttribute,
   BufferGeometry,
   Color,
   DirectionalLight,
@@ -24,6 +26,8 @@ import {
   PerspectiveCamera,
   PlaneGeometry,
   PointLight,
+  Points,
+  PointsMaterial,
   Raycaster,
   Scene,
   Vector2,
@@ -36,6 +40,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import type { BlowType } from '../data/hammer'
 import type { MediumId } from '../data/media'
 import type { Pattern } from '../data/patterns'
+import { GRIND } from '../data/grind'
 import { BENCH, FORGE } from '../data/tuning'
 import type { Bar, Segment } from '../sim/bar'
 import { barLength, segmentCentres } from '../sim/bar'
@@ -45,6 +50,18 @@ import { createBarMesh } from './barMesh'
 const MM = 0.001
 const FOV = 40
 const TAN_HALF_FOV = Math.tan((FOV / 2) * (Math.PI / 180))
+
+/** The blade at the grinder: where the belt meets it, which flat is up, the tilt, and how hard it is being ground (0 is not at all). */
+export interface BenchPose {
+  /** Where the middle of the belt meets the blade, in mm from the tip. */
+  at: number
+  /** True when the blade has been turned over. */
+  flipped: boolean
+  /** Degrees between the flat and the belt. */
+  tilt: number
+  /** How hard the steel is being ground, 0 to 1. Drives the sparks. */
+  sparks: number
+}
 
 export interface ForgeView {
   /** How much of the screen the controls cover, so the scene can sit clear of them. */
@@ -56,6 +73,8 @@ export interface ForgeView {
    * bellows, 0 to 1; `lane` is 0 on the rail and 1 in the quench tank.
    */
   render(bar: Bar, tipDepth: number, blast: number, lane: number): void
+  /** Carry the blade to the grinder and show it there, or pass null to bring it back to the forge. Call before `render`. */
+  setBench(pose: BenchPose | null): void
   /** Fill the tank with this medium. */
   setMedium(medium: MediumId): void
   /** Mark a crack across the bar `at` mm from the tip, or pass null for none. */
@@ -168,6 +187,58 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
   /** Where the bar's middle sits once it is in the tank, in metres above the anvil face. */
   const sunk = -0.022
 
+  // --- The grinder: a bench on the other side of the rail from the tank -----
+  const benchZ = 0.62
+  /** Where the blade's tip lies on the bench. */
+  const benchX = -BENCH.railMin * MM
+  /** The top of the belt, in metres above the anvil face. */
+  const beltTop = 0.004
+  const beltWide = GRIND.contact * MM
+  const benchTop = box(0.9, 0.05, 0.34, 0x33291f, 0.95)
+  benchTop.position.set(benchX + 0.12, -0.046, benchZ)
+  scene.add(benchTop)
+  // The belt and its platen follow the grinding spot: the camera stays with the blade.
+  const grinder = new Group()
+  const platen = box(beltWide + 0.02, 0.022, 0.25, 0x3a4047, 0.5, 0.8)
+  platen.position.y = beltTop - 0.013
+  const belt = box(beltWide, 0.002, 0.26, 0x4a3524, 1)
+  belt.position.y = beltTop - 0.001
+  grinder.add(platen, belt)
+  // Lines of grit run along the belt so it reads as moving.
+  const gritMat = new MeshBasicMaterial({ color: 0x8a6a48 })
+  const grit: Mesh[] = []
+  const gritGap = 0.26 / 8
+  for (let i = 0; i < 8; i++) {
+    const line = new Mesh(new BoxGeometry(beltWide, 0.0004, 0.004), gritMat)
+    line.position.y = beltTop + 0.0002
+    grit.push(line)
+    grinder.add(line)
+  }
+  grinder.position.set(benchX, 0, benchZ)
+  scene.add(grinder)
+  // Sparks: a small pool of points, thrown off the edge while steel is on the belt.
+  const SPARKS = 90
+  const sparkPos = new Float32Array(SPARKS * 3)
+  const sparkVel = new Float32Array(SPARKS * 3)
+  const sparkLife = new Float32Array(SPARKS)
+  // A dead spark is parked far under the floor.
+  for (let i = 0; i < SPARKS; i++) sparkPos[i * 3 + 1] = -10
+  const sparkGeo = new BufferGeometry()
+  sparkGeo.setAttribute('position', new BufferAttribute(sparkPos, 3))
+  const sparkMat = new PointsMaterial({ color: new Color(3.2, 1.9, 0.7), size: 0.005, blending: AdditiveBlending, depthWrite: false, transparent: true })
+  const sparks = new Points(sparkGeo, sparkMat)
+  sparks.frustumCulled = false
+  sparks.visible = false
+  scene.add(sparks)
+  let sparkNext = 0
+  let sparkDue = 0
+  let pose: BenchPose | null = null
+  /** 0 at the forge, 1 at the grinder: eases as the blade is carried across. */
+  let atBench = 0
+  /** The blade's turn about its own length, in radians. */
+  let turn = 0
+  let beltRun = 0
+
   // --- The bar and tongs --------------------------------------------------
   const holder = new Group()
   scene.add(holder)
@@ -218,8 +289,10 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
   let dim = false
   let brightnessOnly = false
   const applyLight = () => {
-    ambient.intensity = dim ? 0.06 : 1.5
-    lamp.intensity = dim ? 0.08 : 1.9
+    // Cold steel on the belt needs the lights up, whatever the forge is set to.
+    const dark = dim && !pose
+    ambient.intensity = dark ? 0.06 : 1.5
+    lamp.intensity = dark ? 0.08 : 1.9
   }
   applyLight()
 
@@ -257,10 +330,12 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
     // The close view runs from just before the bar's tip, as it lies on the anvil, to just past its tang.
     const closeFrom = -BENCH.railMin * MM - 0.03
     const closeTo = -BENCH.railMin * MM + barLen + 0.03
-    const from = railFrom + (closeFrom - railFrom) * focus
-    const to = railTo + (closeTo - railTo) * focus
+    // At the grinder the same close view frames the blade on the bench.
+    const near = Math.max(focus, atBench)
+    const from = railFrom + (closeFrom - railFrom) * near
+    const to = railTo + (closeTo - railTo) * near
     const span = to - from
-    const acrossSpan = acrossWide + (acrossClose - acrossWide) * focus
+    const acrossSpan = acrossWide + (acrossClose - acrossWide) * near
     const usableW = Math.max(120, w - insetRight)
     const usableH = Math.max(120, h - insetBottom - (vertical ? insetTop : 0))
     // Screen pixels available along the rail and across it.
@@ -272,7 +347,7 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
     const distance = viewHeight / (2 * TAN_HALF_FOV)
     mmPerPixel = scale * 1000
     const mid = (from + to) / 2
-    const zMid = acrossMidWide * (1 - focus)
+    const zMid = acrossMidWide * (1 - near) + benchZ * atBench
     const tilt = 0.32
     if (vertical) {
       // Fire at the top of the screen; shift the scene up, clear of the bottom controls.
@@ -357,6 +432,11 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
       const z = ray.ray.origin.z + dir.z * k
       return { at: (x - holder.position.x) / MM, across: (z - holder.position.z) / MM }
     },
+    setBench(next) {
+      const changed = (pose === null) !== (next === null)
+      pose = next
+      if (changed) applyLight()
+    },
     setMedium(medium) {
       plates = medium === 'plates'
       liquid.visible = !plates
@@ -397,9 +477,12 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
       // Ease the camera in for hammering and back out for the fire and the tank.
       const now = performance.now()
       const want = tipDepth <= BENCH.anvilFrom && lane <= BENCH.laneRail ? 1 : 0
-      if (focus !== want) {
-        const step = Math.min(0.25, (now - lastFrame) / 1000) / 0.45
+      const dt = Math.min(0.25, (now - lastFrame) / 1000)
+      const wantBench = pose ? 1 : 0
+      if (focus !== want || atBench !== wantBench) {
+        const step = dt / 0.45
         focus = want > focus ? Math.min(1, focus + step) : Math.max(0, focus - step)
+        atBench = wantBench > atBench ? Math.min(1, atBench + step) : Math.max(0, atBench - step)
         place()
       }
       lastFrame = now
@@ -411,10 +494,63 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
       const into = plates ? rest - 0.004 : sunk
       const y = rest + (into - rest) * sink * sink * (3 - 2 * sink) + Math.sin(Math.PI * Math.min(1, Math.max(0, lane))) * 0.07
       holder.position.set(-tipDepth * MM, y, lane * tankZ)
+      // At the grinder the blade lies on the belt, edge down by the tilt, and turns over when it is flipped.
+      const ease = atBench * atBench * (3 - 2 * atBench)
+      const wantTurn = pose ? (pose.flipped ? Math.PI - (pose.tilt * Math.PI) / 180 : (pose.tilt * Math.PI) / 180) : 0
+      const turnStep = dt * 14
+      turn = wantTurn > turn ? Math.min(wantTurn, turn + turnStep) : Math.max(wantTurn, turn - turnStep)
+      holder.rotation.x = turn
+      if (atBench > 0) {
+        const lift = beltTop + rest + 0.018 * Math.abs(Math.sin(turn)) + Math.sin(Math.PI * atBench) * 0.07
+        holder.position.x += (benchX - holder.position.x) * ease
+        holder.position.y += (lift - holder.position.y) * ease
+        holder.position.z += (benchZ - holder.position.z) * ease
+      }
+      tongs.visible = atBench < 0.5
+      if (pose) {
+        grinder.position.x = benchX + pose.at * MM
+        beltRun = (beltRun + dt * 0.9) % gritGap
+        for (let i = 0; i < grit.length; i++) (grit[i] as Mesh).position.z = -0.13 + beltRun + i * gritGap
+      }
+      // Sparks fly off the edge, the way the belt runs.
+      const side = pose?.flipped ? -1 : 1
+      if (pose && pose.sparks > 0) {
+        sparkDue += dt * (60 + 240 * pose.sparks)
+        while (sparkDue >= 1) {
+          sparkDue -= 1
+          const n = sparkNext
+          const v = n * 3
+          sparkNext = (sparkNext + 1) % SPARKS
+          sparkPos[v] = grinder.position.x + (Math.random() - 0.5) * beltWide * 0.8
+          sparkPos[v + 1] = beltTop + 0.003
+          sparkPos[v + 2] = benchZ + side * (0.012 + Math.random() * 0.006)
+          sparkVel[v] = (Math.random() - 0.5) * 0.25
+          sparkVel[v + 1] = 0.1 + Math.random() * 0.45
+          sparkVel[v + 2] = side * (0.5 + Math.random() * 0.9)
+          sparkLife[n] = 0.18 + Math.random() * 0.3
+        }
+      }
+      let alive = false
+      for (let i = 0; i < SPARKS; i++) {
+        const v = i * 3
+        if ((sparkLife[i] as number) <= 0) continue
+        sparkLife[i] = (sparkLife[i] as number) - dt
+        if ((sparkLife[i] as number) <= 0) {
+          sparkPos[v + 1] = -10
+          continue
+        }
+        alive = true
+        sparkVel[v + 1] = (sparkVel[v + 1] as number) - 3 * dt
+        sparkPos[v] = (sparkPos[v] as number) + (sparkVel[v] as number) * dt
+        sparkPos[v + 1] = (sparkPos[v + 1] as number) + (sparkVel[v + 1] as number) * dt
+        sparkPos[v + 2] = (sparkPos[v + 2] as number) + (sparkVel[v + 2] as number) * dt
+      }
+      sparks.visible = alive
+      if (alive) sparkGeo.attributes.position!.needsUpdate = true
       plateTop.visible = plates && lane >= 1
       barMesh.updateGlow(bar, brightnessOnly)
       barTop = (first.thickness / 2) * MM
-      outline.visible = hasTarget && tipDepth <= 0 && lane <= BENCH.laneRail
+      outline.visible = hasTarget && tipDepth <= 0 && lane <= BENCH.laneRail && atBench === 0
       outline.position.y = barTop + 0.001
 
       // The hammer lifts away over a fifth of a second, and the blow flashes on the steel.
