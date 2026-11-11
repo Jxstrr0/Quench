@@ -4,7 +4,9 @@
  * every vertex glows by its segment's temperature.
  *
  * Local space, in metres: the tip is at x = 0 and the bar runs along +x;
- * width is along z; thickness is along y, centred on y = 0.
+ * width is along z; thickness is along y, centred on y = 0. The spine is a
+ * straight line at z = -spine, and all the width grows from it toward +z, so
+ * a forged bar reads as a knife (straight back, curved edge), not a dagger.
  */
 import { BufferAttribute, BufferGeometry, Color, Mesh, MeshStandardMaterial } from 'three'
 import type { Bar, Segment } from '../sim/bar'
@@ -14,8 +16,8 @@ const MM = 0.001
 
 export interface BarMesh {
   mesh: Mesh
-  /** Rebuild the shape. Call only when the bar's geometry has changed. */
-  updateShape(bar: Bar): void
+  /** Rebuild the shape. Call only when the bar's geometry has changed. `spine` is in mm. */
+  updateShape(bar: Bar, spine: number): void
   /** Refresh the glow from the segments' temperatures. Cheap; call every frame. */
   updateGlow(bar: Bar, brightnessOnly: boolean): void
 }
@@ -73,7 +75,8 @@ export function createBarMesh(segmentCount: number): BarMesh {
 
   return {
     mesh,
-    updateShape(bar) {
+    updateShape(bar, spine) {
+      const back = -spine * MM
       const segs = bar.segments
       let x = 0
       for (let i = 0; i < rings; i++) {
@@ -90,14 +93,15 @@ export function createBarMesh(segmentCount: number): BarMesh {
         const t = ringT[i] as number
         const row = i * 2
         // top (+y), bottom (-y), near edge (+z), far edge (-z)
-        put(row, px, t, w)
-        put(row + 1, px, t, -w)
-        put(rings * 2 + row, px, -t, -w)
-        put(rings * 2 + row + 1, px, -t, w)
-        put(rings * 4 + row, px, -t, w)
-        put(rings * 4 + row + 1, px, t, w)
-        put(rings * 6 + row, px, t, -w)
-        put(rings * 6 + row + 1, px, -t, -w)
+        const edge = back + 2 * w
+        put(row, px, t, edge)
+        put(row + 1, px, t, back)
+        put(rings * 2 + row, px, -t, back)
+        put(rings * 2 + row + 1, px, -t, edge)
+        put(rings * 4 + row, px, -t, edge)
+        put(rings * 4 + row + 1, px, t, edge)
+        put(rings * 6 + row, px, t, back)
+        put(rings * 6 + row + 1, px, -t, back)
       }
       const last = rings - 1
       const ends = [0, last]
@@ -107,10 +111,10 @@ export function createBarMesh(segmentCount: number): BarMesh {
         const w = ringW[i] as number
         const t = ringT[i] as number
         const v = caps + e * 4
-        put(v, px, t, w)
-        put(v + 1, px, t, -w)
-        put(v + 2, px, -t, w)
-        put(v + 3, px, -t, -w)
+        put(v, px, t, back + 2 * w)
+        put(v + 1, px, t, back)
+        put(v + 2, px, -t, back + 2 * w)
+        put(v + 3, px, -t, back)
       }
       geometry.attributes.position!.needsUpdate = true
       geometry.computeVertexNormals()

@@ -1,10 +1,16 @@
 /**
- * The Free forge screen, PR 2: heat a bar and read its colour.
- * Drag anywhere on the scene to slide the bar along the rail between the fire
- * and the anvil. Hold Bellows for more heat. The controls sit at the bottom,
- * under the thumbs.
+ * The Free forge screen: heat a bar, read its colour, hammer it to shape.
+ * Drag on the scene to slide the bar along the rail between the fire and the
+ * anvil. Hold Bellows for more heat. On the anvil, tap the bar to strike it;
+ * the blow buttons pick the kind of blow and the rhythm sets its force. The
+ * controls sit at the bottom, under the thumbs.
  */
+import { hammerVoice } from '../audio/cues'
+import { createAudioEngine } from '../audio/engine'
+import type { BlowType } from '../data/hammer'
+import { RHYTHM } from '../data/hammer'
 import type { HeatWord } from '../data/heatRamp'
+import { pattern } from '../data/patterns'
 import type { SteelId } from '../data/steels'
 import { STEELS } from '../data/steels'
 import type { StringKey } from '../data/strings'
@@ -14,10 +20,21 @@ import type { Settings } from '../persist/settings'
 import { loadSettings, saveSettings } from '../persist/settings'
 import type { ForgeView } from '../render/forgeScene'
 import type { Bar } from '../sim/bar'
-import { createBar, hottest } from '../sim/bar'
+import { barLength, createBar, hottest } from '../sim/bar'
 import { heatWord } from '../sim/glow'
+import type { Fault } from '../sim/hammer'
+import { barFault, blowForce, strike } from '../sim/hammer'
 import type { Placement } from '../sim/heat'
 import { advance } from '../sim/heat'
+import { shapeScore } from '../sim/shape'
+
+const BLOW_TYPES: BlowType[] = ['flat', 'edge', 'peen', 'point']
+const BLOW_KEY: Record<BlowType, [StringKey, StringKey]> = {
+  flat: ['blow.flat', 'blow.flat.note'],
+  edge: ['blow.edge', 'blow.edge.note'],
+  peen: ['blow.peen', 'blow.peen.note'],
+  point: ['blow.point', 'blow.point.note'],
+}
 
 const WORD_KEY: Record<HeatWord, StringKey> = {
   none: 'heat.none',
@@ -43,8 +60,19 @@ function placementFor(tipDepth: number, blast: number): Placement {
 
 export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   const settings: Settings = loadSettings()
-  let steelId: SteelId = '1084'
-  let bar: Bar = createBar(steelId, BENCH.stock)
+  const audio = createAudioEngine()
+  const target = pattern('campKnife')
+  let steelId: SteelId = target.steel
+  let bar: Bar = createBar(steelId, target.stock)
+  let blowType: BlowType = 'flat'
+  /** When the last blow landed, in ms, or -1 before the first. */
+  let lastBlowAt = -1
+  let strikes = 0
+  let fault: Fault | null = null
+  /** The plain stock's score, so the readout starts at 0%. */
+  let baseScore = 0
+  let note = ''
+  let noteUntil = 0
   let tipDepth: number = BENCH.railMin
   let blast = 0
   let bellowsHeld = false
@@ -56,7 +84,11 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   const place = el('p', 'hud-place')
   const readout = el('p', 'hud-heat')
   readout.setAttribute('aria-live', 'polite')
-  top.append(mode, place, readout)
+  const shape = el('p', 'hud-shape')
+  const faultLine = el('p', 'hud-fault')
+  faultLine.setAttribute('role', 'alert')
+  faultLine.hidden = true
+  top.append(mode, place, shape, readout, faultLine)
 
   const hint = el('p', 'hud-hint', t('hint.drag'))
 
@@ -75,14 +107,44 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   const newBar = el('button', 'btn', t('btn.newBar'))
   newBar.type = 'button'
   row.append(lights, assists, steelBtn, newBar)
-  controls.append(bellows, row)
+  // The rhythm meter: a mark sweeps right after each blow; land the next one in the bright band.
+  const meter = el('div', 'meter')
+  meter.setAttribute('role', 'img')
+  meter.setAttribute('aria-label', t('meter.label'))
+  const sweet = el('div', 'meter-sweet')
+  sweet.style.left = `${(RHYTHM.sweetFrom / RHYTHM.lostAfter) * 100}%`
+  sweet.style.width = `${((RHYTHM.sweetTo - RHYTHM.sweetFrom) / RHYTHM.lostAfter) * 100}%`
+  const mark = el('div', 'meter-mark')
+  meter.append(sweet, mark)
+
+  const blows = el('div', 'controls-row blows')
+  blows.setAttribute('role', 'group')
+  blows.setAttribute('aria-label', t('blow.label'))
+  const blowButtons = BLOW_TYPES.map((type) => {
+    const b = el('button', 'btn btn-blow')
+    b.type = 'button'
+    b.append(el('span', 'blow-name', t(BLOW_KEY[type][0])), el('span', 'btn-sub', t(BLOW_KEY[type][1])))
+    b.addEventListener('click', () => pickBlow(type))
+    blows.append(b)
+    return b
+  })
+  const pickBlow = (type: BlowType) => {
+    blowType = type
+    blowButtons.forEach((b, i) => b.setAttribute('aria-pressed', String(BLOW_TYPES[i] === type)))
+  }
+  pickBlow(blowType)
+  // The anvil's controls and the fire's controls share one slot: only one set is any use at a time.
+  const anvilSet = el('div', 'controls-anvil')
+  anvilSet.append(meter, blows)
+  anvilSet.hidden = true
+  controls.append(anvilSet, bellows, row)
 
   // --- Assists sheet --------------------------------------------------------
   const sheet = el('div', 'sheet')
   sheet.hidden = true
   const card = el('div', 'sheet-card')
   card.append(el('h2', 'sheet-title', t('assists.title')), el('p', 'sheet-note', t('assists.note')))
-  const toggle = (key: 'heatWords' | 'brightnessOnly' | 'heatNumber', label: StringKey, note: StringKey) => {
+  const toggle = (key: Exclude<keyof Settings, 'dimLights'>, label: StringKey, note: StringKey) => {
     const line = el('label', 'toggle')
     const input = el('input')
     input.type = 'checkbox'
@@ -100,6 +162,8 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   toggle('heatWords', 'assists.words', 'assists.words.note')
   toggle('brightnessOnly', 'assists.bright', 'assists.bright.note')
   toggle('heatNumber', 'assists.number', 'assists.number.note')
+  toggle('sound', 'settings.sound', 'settings.sound.note')
+  toggle('haptics', 'settings.haptics', 'settings.haptics.note')
   const close = el('button', 'btn btn-wide', t('btn.close'))
   close.type = 'button'
   card.append(close)
@@ -117,6 +181,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   const applySettings = () => {
     view.setDim(settings.dimLights)
     view.setBrightnessOnly(settings.brightnessOnly)
+    audio.setEnabled(settings.sound)
     lights.textContent = settings.dimLights ? t('btn.lights.up') : t('btn.lights.dim')
     lights.setAttribute('aria-pressed', String(settings.dimLights))
     readout.hidden = !(settings.heatWords || settings.heatNumber)
@@ -129,6 +194,40 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
     app.classList.toggle('wide', wide)
     const box = controls.getBoundingClientRect()
     view.setInsets(wide ? 0 : box.height + 34, wide ? box.width + 16 : 0)
+    hint.style.bottom = wide ? '' : `${box.height + 56}px`
+  }
+  const refreshShape = () => {
+    const raw = shapeScore(bar, target).score
+    const pct = baseScore < 1 ? Math.max(0, Math.round(((raw - baseScore) / (1 - baseScore)) * 100)) : 0
+    shape.textContent = t('shape.label', { name: t('pattern.campKnife'), n: pct })
+  }
+  const showFault = () => {
+    faultLine.hidden = fault === null
+    if (!fault) return
+    const share = fault.at / barLength(bar)
+    const where = t(share < BENCH.tipShare ? 'where.tip' : share < BENCH.tangShare ? 'where.blade' : 'where.tang')
+    faultLine.textContent = t(fault.kind === 'cracked' ? 'fault.cracked' : 'fault.burnt', { where })
+  }
+  const doStrike = (at: number) => {
+    const now = performance.now()
+    const since = lastBlowAt < 0 ? null : (now - lastBlowAt) / 1000
+    if (since !== null && since < RHYTHM.minGap) return
+    const force = blowForce(since)
+    lastBlowAt = now
+    const where = Math.min(barLength(bar), Math.max(0, at))
+    const hit = strike(bar, { type: blowType, at: where, force })
+    strikes++
+    view.setBar(bar)
+    view.showStrike(blowType, where, force)
+    audio.hammer(hammerVoice(hit.temp, hit.thickness, force))
+    if (settings.haptics && 'vibrate' in navigator) navigator.vibrate(Math.round(10 + 25 * force))
+    note = hit.burning ? t('note.burning') : hit.cold ? t('note.cold') : ''
+    noteUntil = now + 1200
+    meter.classList.toggle('full', force >= RHYTHM.fullForce)
+    fault = barFault(bar)
+    showFault()
+    refreshShape()
+    if (strikes >= 3) hint.classList.add('gone')
   }
 
   lights.addEventListener('click', () => {
@@ -148,9 +247,14 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
     freshBar()
   })
   const freshBar = () => {
-    bar = createBar(steelId, BENCH.stock)
+    bar = createBar(steelId, target.stock)
     tipDepth = BENCH.railMin
+    lastBlowAt = -1
+    fault = null
+    baseScore = shapeScore(bar, target).score
     view.setBar(bar)
+    showFault()
+    refreshShape()
   }
   newBar.addEventListener('click', freshBar)
 
@@ -177,6 +281,15 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   let lastX = 0
   let lastY = 0
   canvas?.addEventListener('pointerdown', (e) => {
+    audio.unlock()
+    // On the anvil, a touch on glowing steel is a hammer blow, not a drag.
+    if (tipDepth <= BENCH.anvilFrom && !fault && hottest(bar) >= BENCH.strikeMinTemp) {
+      const p = view.pointOnBar(e.clientX, e.clientY)
+      if (p && p.at > -BENCH.strikeAlong && p.at < barLength(bar) + BENCH.strikeAlong && Math.abs(p.across) < BENCH.strikeAcross) {
+        doStrike(p.at)
+        return
+      }
+    }
     dragId = e.pointerId
     lastX = e.clientX
     lastY = e.clientY
@@ -206,6 +319,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
     else if (e.key === 'ArrowDown' || e.key === 'ArrowRight') tipDepth = Math.max(BENCH.railMin, tipDepth - step)
     else if (e.key === 'b' || e.key === 'B') hold(true)
     else if (e.key === 'Escape') sheet.hidden = true
+    else if (e.key >= '1' && e.key <= '4') pickBlow(BLOW_TYPES[Number(e.key) - 1] as BlowType)
   })
   window.addEventListener('keyup', (e) => {
     if (e.key === 'b' || e.key === 'B') hold(false)
@@ -214,7 +328,8 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   window.addEventListener('resize', layout)
   applySettings()
   applySteel()
-  view.setBar(bar)
+  view.setTarget(target)
+  freshBar()
   layout()
 
   // --- The loop -------------------------------------------------------------
@@ -230,11 +345,30 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
 
     const placement = placementFor(tipDepth, blast)
     const volumeBefore = bar.scaleLost
-    advance(bar, placement, dt * BENCH.timeScale)
+    advance(bar, placement, dt * (placement.where === 'anvil' ? BENCH.anvilTimeScale : BENCH.timeScale))
+    if (!fault) {
+      fault = barFault(bar)
+      if (fault) showFault()
+    }
     // Scale thins the bar slowly; rebuild the mesh only once the loss is worth showing.
     if (bar.scaleLost - volumeBefore > 0 && Math.floor(bar.scaleLost / 40) !== Math.floor(volumeBefore / 40)) view.setBar(bar)
 
-    const placeText = t(placement.where === 'fire' ? 'place.fire' : placement.where === 'anvil' ? 'place.anvil' : 'place.air')
+    let placeText = t(placement.where === 'fire' ? 'place.fire' : placement.where === 'anvil' ? 'place.anvil' : 'place.air')
+    if (note && now < noteUntil) placeText += ` · ${note}`
+
+    // The rhythm mark sweeps across after each blow.
+    const onAnvil = placement.where === 'anvil'
+    if (anvilSet.hidden === onAnvil) {
+      anvilSet.hidden = !onAnvil
+      bellows.hidden = onAnvil
+      hold(false)
+    }
+    const since = lastBlowAt < 0 ? RHYTHM.lostAfter : (now - lastBlowAt) / 1000
+    mark.style.left = `${Math.min(1, since / RHYTHM.lostAfter) * 100}%`
+    if (onAnvil && strikes === 0 && dragged && hottest(bar) > 600 && hint.textContent !== t('hint.strike')) {
+      hint.textContent = t('hint.strike')
+      hint.classList.remove('gone')
+    }
     if (placeText !== shownPlace) place.textContent = shownPlace = placeText
 
     if (settings.heatWords || settings.heatNumber) {

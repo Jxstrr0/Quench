@@ -11,15 +11,20 @@ import {
   ACESFilmicToneMapping,
   AmbientLight,
   BoxGeometry,
+  BufferGeometry,
   Color,
   DirectionalLight,
+  Float32BufferAttribute,
   Group,
+  LineBasicMaterial,
+  LineLoop,
   Mesh,
   MeshBasicMaterial,
   MeshStandardMaterial,
   PerspectiveCamera,
   PlaneGeometry,
   PointLight,
+  Raycaster,
   Scene,
   Vector2,
   WebGLRenderer,
@@ -28,6 +33,8 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js'
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js'
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
+import type { BlowType } from '../data/hammer'
+import type { Pattern } from '../data/patterns'
 import { BENCH, FORGE } from '../data/tuning'
 import type { Bar, Segment } from '../sim/bar'
 import { barLength, segmentCentres } from '../sim/bar'
@@ -45,6 +52,12 @@ export interface ForgeView {
   setBar(bar: Bar): void
   /** Draw one frame. `tipDepth` is the rail position in mm; `blast` is the bellows, 0 to 1. */
   render(bar: Bar, tipDepth: number, blast: number): void
+  /** Draw this pattern as a faint outline over the bar, or pass null for none. */
+  setTarget(pattern: Pattern | null): void
+  /** Where a screen point falls on the bar's plane: mm from the tip, and mm across from the bar's middle line. */
+  pointOnBar(clientX: number, clientY: number): { at: number; across: number } | null
+  /** Show the hammer landing `at` mm from the tip. */
+  showStrike(type: BlowType, at: number, force: number): void
   setDim(dim: boolean): void
   setBrightnessOnly(on: boolean): void
   /** True when the rail runs up the screen (portrait), false when it runs across. */
@@ -120,6 +133,27 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
   tongs.add(jawA, jawB)
   holder.add(tongs)
 
+  // The target shape, drawn in chalk just above the bar.
+  const outlineGeo = new BufferGeometry()
+  const outline = new LineLoop(outlineGeo, new LineBasicMaterial({ color: 0xeceae4, transparent: true, opacity: 0.55, depthTest: false }))
+  outline.renderOrder = 2
+  outline.visible = false
+  holder.add(outline)
+  let hasTarget = false
+  /** The bar's straight back sits this far from its middle line, in mm. */
+  const spine = BENCH.stock.width / 2
+
+  // The hammer head: seen for a moment at each blow.
+  const hammer = box(0.05, 0.04, 0.036, 0x1c1f23, 0.5, 0.8)
+  hammer.visible = false
+  holder.add(hammer)
+  let strikeAt = -1
+  let strikeForce = 0
+  let barTop = 0.003
+
+  const ray = new Raycaster()
+  const pointer = new Vector2()
+
   // The bar lights the room around it.
   const barLight = new PointLight(0xffffff, 0, 1.2, 2)
   holder.add(barLight)
@@ -150,22 +184,29 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
   // The rail and everything on it: from the back of the fire to the far end of the anvil.
   const railFrom = -depth - 0.05
   const railTo = BENCH.anvilGap * MM + anvilLen + 0.03
-  const span = railTo - railFrom
-  const acrossSpan = 0.34
+  /** How wide a strip the camera keeps in view across the rail: the whole bench, and the close view of the anvil. */
+  const acrossWide = 0.34
+  const acrossClose = 0.2
   /** Room kept clear for the heading at the top of a portrait screen. */
-  const insetTop = 84
+  const insetTop = 112
+  /** 0 is the whole bench; 1 is the close view for hammering. Eases toward 1 while the bar is on the anvil. */
+  let focus = 0
+  let barLen = BENCH.stock.length * MM
   let insetBottom = 0
   let insetRight = 0
   let vertical = true
   let mmPerPixel = 1
 
-  const fit = () => {
+  const place = () => {
     const w = host.clientWidth || window.innerWidth
     const h = host.clientHeight || window.innerHeight
-    renderer.setSize(w, h, false)
-    composer?.setSize(w, h)
-    camera.aspect = w / h
-    vertical = h >= w
+    // The close view runs from just before the bar's tip, as it lies on the anvil, to just past its tang.
+    const closeFrom = -BENCH.railMin * MM - 0.03
+    const closeTo = -BENCH.railMin * MM + barLen + 0.03
+    const from = railFrom + (closeFrom - railFrom) * focus
+    const to = railTo + (closeTo - railTo) * focus
+    const span = to - from
+    const acrossSpan = acrossWide + (acrossClose - acrossWide) * focus
     const usableW = Math.max(120, w - insetRight)
     const usableH = Math.max(120, h - insetBottom - (vertical ? insetTop : 0))
     // Screen pixels available along the rail and across it.
@@ -176,7 +217,7 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
     const viewHeight = scale * h
     const distance = viewHeight / (2 * TAN_HALF_FOV)
     mmPerPixel = scale * 1000
-    const mid = (railFrom + railTo) / 2
+    const mid = (from + to) / 2
     const tilt = 0.32
     if (vertical) {
       // Fire at the top of the screen; shift the scene up, clear of the bottom controls.
@@ -194,6 +235,16 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
     }
     camera.updateProjectionMatrix()
   }
+  const fit = () => {
+    const w = host.clientWidth || window.innerWidth
+    const h = host.clientHeight || window.innerHeight
+    renderer.setSize(w, h, false)
+    composer?.setSize(w, h)
+    camera.aspect = w / h
+    vertical = h >= w
+    place()
+  }
+  let lastFrame = performance.now()
   fit()
   window.addEventListener('resize', fit)
 
@@ -219,13 +270,44 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
         segmentCount = bar.segments.length
         holder.add(barMesh.mesh)
       }
-      barMesh.updateShape(bar)
+      barMesh.updateShape(bar, spine)
       const last = bar.segments[bar.segments.length - 1] as Segment
       const length = barLength(bar) * MM
+      barLen = length
       const half = (last.thickness / 2) * MM + 0.003
-      tongs.position.set(length - 0.025 + 0.18, 0, 0)
+      tongs.position.set(length - 0.025 + 0.18, 0, (last.width / 2 - spine) * MM)
       jawA.position.y = half
       jawB.position.y = -half
+    },
+    setTarget(pattern) {
+      hasTarget = pattern !== null
+      if (!pattern) return
+      // Along the straight back from the tang end to the tip, then back down the edge.
+      const st = pattern.stations
+      const end = (st[st.length - 1] as { at: number }).at
+      const points: number[] = [end * MM, 0, -spine * MM, 0, 0, -spine * MM]
+      for (const s of st) points.push(s.at * MM, 0, (s.width - spine) * MM)
+      outlineGeo.setAttribute('position', new Float32BufferAttribute(points, 3))
+      outlineGeo.computeBoundingSphere()
+    },
+    pointOnBar(clientX, clientY) {
+      const w = host.clientWidth || window.innerWidth
+      const h = host.clientHeight || window.innerHeight
+      pointer.set((clientX / w) * 2 - 1, -(clientY / h) * 2 + 1)
+      ray.setFromCamera(pointer, camera)
+      const dir = ray.ray.direction
+      if (dir.y > -1e-6) return null
+      const k = (holder.position.y - ray.ray.origin.y) / dir.y
+      const x = ray.ray.origin.x + dir.x * k
+      const z = ray.ray.origin.z + dir.z * k
+      return { at: (x - holder.position.x) / MM, across: z / MM }
+    },
+    showStrike(type, at, force) {
+      strikeAt = performance.now()
+      strikeForce = force
+      hammer.scale.set(type === 'peen' ? 0.3 : 1, 1, type === 'flat' || type === 'peen' ? 1 : 0.6)
+      hammer.position.x = at * MM
+      hammer.visible = true
     },
     setDim(next) {
       dim = next
@@ -235,9 +317,35 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
       brightnessOnly = on
     },
     render(bar, tipDepth, blast) {
+      // Ease the camera in for hammering and back out for the fire.
+      const now = performance.now()
+      const want = tipDepth <= BENCH.anvilFrom ? 1 : 0
+      if (focus !== want) {
+        const step = Math.min(0.25, (now - lastFrame) / 1000) / 0.45
+        focus = want > focus ? Math.min(1, focus + step) : Math.max(0, focus - step)
+        place()
+      }
+      lastFrame = now
+
       const first = bar.segments[0] as Segment
       holder.position.set(-tipDepth * MM, (first.thickness / 2) * MM, 0)
       barMesh.updateGlow(bar, brightnessOnly)
+      barTop = (first.thickness / 2) * MM
+      outline.visible = hasTarget && tipDepth <= 0
+      outline.position.y = barTop + 0.001
+
+      // The hammer lifts away over a fifth of a second, and the blow flashes on the steel.
+      let flash = 0
+      if (strikeAt >= 0) {
+        const age = (performance.now() - strikeAt) / 220
+        if (age >= 1) {
+          strikeAt = -1
+          hammer.visible = false
+        } else {
+          hammer.position.y = barTop + 0.02 + age * age * 0.12
+          flash = (1 - age) * strikeForce
+        }
+      }
 
       // Put the bar's light at its hottest point.
       let hot = 0
@@ -248,7 +356,7 @@ export function createForgeView(host: HTMLElement, useBloom: boolean): ForgeView
       if (brightnessOnly) glowColour.setRGB(1, 1, 1)
       else glowColour.setRGB(g.r, g.g, g.b, 'srgb')
       barLight.color.copy(glowColour)
-      barLight.intensity = g.strength * 0.07
+      barLight.intensity = g.strength * (0.07 + 0.06 * flash)
       barLight.position.set((segmentCentres(bar)[hot] as number) * MM, 0.14, 0)
 
       // The fire brightens with the bellows.

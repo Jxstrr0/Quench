@@ -7,6 +7,8 @@ export interface Settings {
   brightnessOnly: boolean
   heatNumber: boolean
   dimLights: boolean
+  sound: boolean
+  haptics: boolean
 }
 
 const KEY = 'quench.settings'
@@ -16,6 +18,8 @@ export const DEFAULT_SETTINGS: Settings = {
   brightnessOnly: false,
   heatNumber: false,
   dimLights: false,
+  sound: true,
+  haptics: true,
 }
 
 export function loadSettings(): Settings {
