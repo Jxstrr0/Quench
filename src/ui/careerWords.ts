@@ -45,7 +45,8 @@ export function briefWhat(kind: BriefKind): string {
   return t(BRIEF_KEY[kind])
 }
 
-const testList = (ids: readonly (keyof typeof TRIAL_NAME)[]): string => ids.map((id) => t(TRIAL_NAME[id]).toLowerCase()).join(', ')
+/** "hanging rope cut, shave after the chop". */
+export const testList = (ids: readonly (keyof typeof TRIAL_NAME)[]): string => ids.map((id) => t(TRIAL_NAME[id]).toLowerCase()).join(', ')
 
 /** "Must pass: hanging rope cut, shave after the chop. Wants a fine finish." */
 export function briefNeeds(kind: BriefKind): string {

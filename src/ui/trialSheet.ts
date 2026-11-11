@@ -3,20 +3,20 @@
  * why, and see its heats laid out with the bad moment marked. A tested blade
  * can be kept in the collection.
  */
-import type { BriefKind } from '../data/career'
+import type { BriefKind, Rating } from '../data/career'
 import type { Pattern } from '../data/patterns'
 import { t } from '../data/strings'
 import type { TrialId } from '../data/trials'
 import { BENCH } from '../data/tuning'
 import { COLLECTION_MAX } from '../persist/collection'
 import type { Bar } from '../sim/bar'
-import type { Delivery } from '../sim/career'
+import type { Delivery, ProvingResult } from '../sim/career'
 import { coolToRoom } from '../sim/heat'
 import type { TrialReport, TrialResult } from '../sim/trials'
 import { runTrials } from '../sim/trials'
 import type { Sheet } from './dom'
 import { button, createSheet, el } from './dom'
-import { customerName, money, refusal } from './careerWords'
+import { customerName, money, ratingName, refusal, testList } from './careerWords'
 import { TRIAL_NAME, note, reportParts } from './trialParts'
 
 /** What came of asking to keep a blade: its place in the collection, or why not. */
@@ -39,6 +39,10 @@ export interface TrialHost {
   deliver(report: TrialReport): Delivery | null
   /** What the next bar will cost, in a career; 0 in Free forge. */
   barCost(): number
+  /** In a career, when the smith may enter the next Proving: what it is. Null otherwise. */
+  proving(): { rating: Rating; fee: number; day: number; late: boolean } | null
+  /** Enter the blade at the Proving. */
+  sitProving(report: TrialReport): ProvingResult | null
 }
 
 export function createTrialSheet(host: HTMLElement, forge: TrialHost): Sheet {
@@ -82,6 +86,7 @@ export function createTrialSheet(host: HTMLElement, forge: TrialHost): Sheet {
     if (bendOnly || (report.broke && report.broke.how !== 'quench')) ended = true
     addKeep(total)
     if (!ended && !bar.crack && !report.broke) addDeliver(total)
+    if (!ended && !bar.crack && !report.broke) addProving(total)
     if (ended) {
       body.append(note(t('trial.ended'), 'sheet-note sheet-small'))
     } else if (!bar.crack) {
@@ -142,6 +147,41 @@ export function createTrialSheet(host: HTMLElement, forge: TrialHost): Sheet {
       sheet.card.scrollTop = 0
     })
     body.append(hand, said)
+  }
+
+  /** In a career, with the way to the next Proving clear: offer to enter the blade. */
+  const addProving = (report: TrialReport) => {
+    const offer = forge.proving()
+    if (!offer) return
+    const enter = button('btn btn-wide')
+    enter.textContent = t('proving.btn', { money: money(offer.fee) })
+    const said = note('', 'sheet-note')
+    said.setAttribute('role', 'status')
+    said.hidden = true
+    let armed = false
+    enter.addEventListener('click', () => {
+      if (!armed) {
+        armed = true
+        enter.textContent = t(offer.late ? 'proving.sureLate' : 'proving.sure', { day: offer.day })
+        return
+      }
+      const r = forge.sitProving(report)
+      if (!r) return
+      if (!r.passed) {
+        said.textContent = t('proving.failed', { day: r.day, list: testList(r.failed) })
+        said.hidden = false
+        enter.remove()
+        return
+      }
+      // The Guild keeps the proof piece.
+      ended = true
+      body.replaceChildren(
+        note(t('proving.passed', { day: r.day, rating: ratingName(r.rating) })),
+        note(t('proving.next', { money: money(forge.barCost()) }), 'sheet-note sheet-small'),
+      )
+      sheet.card.scrollTop = 0
+    })
+    body.append(enter, said)
   }
 
   const addBend = () => {

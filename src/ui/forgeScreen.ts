@@ -12,6 +12,7 @@
 import { hammerVoice, hissVoice } from '../audio/cues'
 import { createAudioEngine } from '../audio/engine'
 import type { StageId } from '../data/career'
+import { PROVINGS } from '../data/career'
 import type { BlowType } from '../data/hammer'
 import { RHYTHM } from '../data/hammer'
 import type { HeatWord } from '../data/heatRamp'
@@ -32,7 +33,7 @@ import type { ForgeView } from '../render/forgeScene'
 import type { Bar } from '../sim/bar'
 import { barLength, cloneBar, createBar, hottest } from '../sim/bar'
 import type { CareerState } from '../sim/career'
-import { benchWork, bladeCost, deliver, fundBlade, newCareer } from '../sim/career'
+import { benchWork, bladeCost, deliver, fundBlade, newCareer, nextRating, provingBar, provingDay, sitProving } from '../sim/career'
 import { heatWord } from '../sim/glow'
 import type { CrackCause } from '../sim/bar'
 import type { Fault } from '../sim/hammer'
@@ -257,12 +258,14 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   app.append(top, hint, controls, studio, build)
 
   // --- Wiring ---------------------------------------------------------------
+  /** The heat as a number: the assist, or in a career the pyrometer. */
+  const showsNumber = () => settings.heatNumber || (career?.tools.includes('pyrometer') ?? false)
   const applySettings = () => {
     view.setDim(settings.dimLights)
     view.setBrightnessOnly(settings.brightnessOnly)
     audio.setEnabled(settings.sound)
     // At the grinder the edge's heat is always given in words.
-    readout.hidden = !(bench.active || settings.heatWords || settings.heatNumber)
+    readout.hidden = !(bench.active || settings.heatWords || showsNumber())
   }
   const applySteel = () => {
     steelBtn.textContent = `${t('steel.label')}: ${STEELS[steelId].name}`
@@ -326,6 +329,24 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
       return d
     },
     barCost: () => (career ? bladeCost(target.id) : 0),
+    sees: () => ({
+      hardness: !career || career.tools.includes('hardnessTester'),
+      grain: !career || career.tools.includes('loupe'),
+      free: !career,
+    }),
+    proving: () => {
+      const next = career ? nextRating(career.rating) : null
+      if (!career || !next || provingBar(career)) return null
+      const day = provingDay(career.day)
+      // The commission in hand would fall due while the smith is at the Guild hall.
+      return { rating: next, fee: PROVINGS[next].fee, day, late: career.job !== null && career.job.due <= day }
+    },
+    sitProving: (report: TrialReport) => {
+      if (!career) return null
+      const r = sitProving(career, report)
+      if (r) careerChanged()
+      return r
+    },
     keep: (report: TrialReport, replace: string | null): Kept => {
       if (!replace && kept.length >= COLLECTION_MAX) return 'full'
       const next = keepBlade(kept, target.id, bar, report, Date.now(), replace)
@@ -475,6 +496,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
   }
   const careerChanged = () => {
     showCareer()
+    applySettings()
     saveCareer()
   }
   /** Spend a stage's bench hours, once for each bar. */
@@ -522,6 +544,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
     stages = []
     saveActive(0)
     showCareer()
+    applySettings()
     freshBar()
   }
   const careerSheet = createCareerSheet(app, {
@@ -811,11 +834,11 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView): void {
     if (hint.textContent === t('hint.strike') && (!onAnvil || hottest(bar) < BENCH.strikeMinTemp)) hint.classList.add('gone')
     if (placeText !== shownPlace) place.textContent = shownPlace = placeText
 
-    if (settings.heatWords || settings.heatNumber) {
+    if (settings.heatWords || showsNumber()) {
       const temp = hottest(bar)
       const parts: string[] = []
       if (settings.heatWords) parts.push(t(WORD_KEY[heatWord(temp)]))
-      if (settings.heatNumber) parts.push(t('fmt.temp', { n: Math.round(temp / 5) * 5 }))
+      if (showsNumber()) parts.push(t('fmt.temp', { n: Math.round(temp / 5) * 5 }))
       const text = `${t('heat.label')}: ${parts.join(' · ')}`
       if (text !== shownHeat) readout.textContent = shownHeat = text
     }
