@@ -1,56 +1,22 @@
 import { describe, expect, it } from 'vitest'
 import type { BriefKind } from '../src/data/career'
 import { BRIEFS, CUSTOMERS, EFFORT } from '../src/data/career'
-import type { BlowType } from '../src/data/hammer'
 import type { PatternId } from '../src/data/patterns'
 import { PATTERNS } from '../src/data/patterns'
 import { BOARD } from '../src/data/trials'
 import type { Bar } from '../src/sim/bar'
-import { barLength, cloneBar, createBar } from '../src/sim/bar'
 import { fillBoard, newCareer } from '../src/sim/career'
-import { strike } from '../src/sim/hammer'
 import { explain } from '../src/sim/report'
-import { patternLength, patternVolume, shapeScore, wantsLongFire } from '../src/sim/shape'
+import { patternLength, patternVolume, wantsLongFire } from '../src/sim/shape'
 import type { TrialReport } from '../src/sim/trials'
 import { massAndBalance, runTrials } from '../src/sim/trials'
-import { makeBlade } from './blades'
+import { forge, makeBlade } from './blades'
 
 const COOK = PATTERNS.cooksKnife
 const CLEAVER = PATTERNS.cleaver
 const told = (r: TrialReport): Record<string, string> => Object.fromEntries(r.results.map((x) => [x.id, x.outcome]))
 const why = (r: TrialReport, id: string): string | null => r.results.find((x) => x.id === id)?.cause ?? null
 const trial = (id: PatternId, bar: Bar): TrialReport => runTrials(bar, PATTERNS[id], PATTERNS[id].bladeShare)
-
-/** A smith with no plan: every blow is the one that helps the shape most right now. */
-function forge(id: PatternId, most: number): { score: number; blows: number } {
-  const p = PATTERNS[id]
-  const types: BlowType[] = ['flat', 'edge', 'peen', 'point']
-  let bar = createBar(p.steel, p.stock)
-  bar.segments.forEach((s) => (s.temp = 1050))
-  let score = shapeScore(bar, p).score
-  let blows = 0
-  while (blows < most) {
-    let best: Bar | null = null
-    const length = barLength(bar)
-    for (const type of types) {
-      for (let k = 0; k <= 24; k++) {
-        for (const force of [1, 0.5]) {
-          const next = cloneBar(bar)
-          strike(next, { type, at: (length * k) / 24, force })
-          const s = shapeScore(next, p).score
-          if (s > score + 1e-6) {
-            score = s
-            best = next
-          }
-        }
-      }
-    }
-    if (!best) break
-    bar = best
-    blows++
-  }
-  return { score, blows }
-}
 
 describe('the cook’s knife', () => {
   it('is a thin 210 mm blade that fits the short fire, forged from a thin bar', () => {
