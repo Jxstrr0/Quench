@@ -9,7 +9,7 @@
  */
 import type { Steel } from '../data/steels'
 import { steel } from '../data/steels'
-import { CRACK, GRAIN, PHASE, TEMPER, WARP } from '../data/treat'
+import { CLAY, CRACK, GRAIN, PHASE, TEMPER, WARP } from '../data/treat'
 import { SIM } from '../data/tuning'
 import type { Bar, CrackCause, Segment } from './bar'
 import { bevelLean, edgeThickness, isGround } from './bar'
@@ -51,6 +51,8 @@ function formAustenite(s: Segment, amount: number): void {
     s.martensite = 0
   }
   if (s.martensite <= 0) s.temper = 0
+  // The soft back that clay left is pearlite: it goes as the pearlite goes.
+  if (s.soft > s.pearlite) s.soft = s.pearlite
   // New austenite grows from many fresh grains: the grain shrinks.
   const finer = s.grain * (1 - GRAIN.refine * (take < 1 ? amount : other))
   s.grain = finer > GRAIN.finest ? finer : GRAIN.finest
@@ -84,6 +86,12 @@ export function quenchLuck(bar: Bar): { crackAt: number; side: 1 | -1 } {
   return { crackAt, side: rng.chance(0.5) ? 1 : -1 }
 }
 
+/** How much of the steel under clay stays soft, 0 to 1: all of it for a shallow-hardening steel, none for a deep one. */
+export function clayHold(st: Steel): number {
+  const k = (st.criticalCoolRate - CLAY.deepBelow) / (CLAY.shallowAbove - CLAY.deepBelow)
+  return k < 0 ? 0 : k > 1 ? 1 : k
+}
+
 /** The bar is going into the quench. If it is hot enough to harden, this is a new quench. */
 export function beginQuench(bar: Bar): void {
   let hot = -Infinity
@@ -92,6 +100,18 @@ export function beginQuench(bar: Bar): void {
     if (s.austenite < 0.5 || s.temp < PHASE.noseHigh) continue
     if (s.temp > hot) hot = s.temp
     if (s.temp < cool) cool = s.temp
+  }
+  const hold = clayHold(steel(bar.steel))
+  for (const s of bar.segments) {
+    if (hot !== -Infinity && s.clay > 0 && s.austenite > 0 && s.temp >= PHASE.noseHigh) {
+      // Under the clay the steel cools too slowly to harden: that share goes to pearlite.
+      const kept = s.austenite * s.clay * hold
+      s.austenite -= kept
+      s.pearlite += kept
+      s.soft = kept
+    }
+    // Wet or baked, the clay does not outlast the bath.
+    s.clay = 0
   }
   if (hot === -Infinity) return
   bar.quenches++

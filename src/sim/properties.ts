@@ -28,16 +28,35 @@ export function temperEffect(param: number): { drop: number; tough: number } {
   return { drop: last.drop, tough: last.tough }
 }
 
-function hardnessAt(s: Segment, st: Steel, temper: number): number {
+/** What a stretch of steel is made of, as shares that add up to 1. */
+interface Mix {
+  martensite: number
+  pearlite: number
+  bainite: number
+  austenite: number
+}
+
+/**
+ * What the edge side of a segment is made of. Where clay kept the back soft,
+ * that soft share is left out, so the edge reads as hard as it really is.
+ */
+function edgeMix(s: Segment): Mix {
+  const rest = 1 - s.soft
+  if (s.soft <= 0 || rest <= 0) return s
+  const pearlite = (s.pearlite - s.soft) / rest
+  return { martensite: s.martensite / rest, pearlite: pearlite > 0 ? pearlite : 0, bainite: s.bainite / rest, austenite: s.austenite / rest }
+}
+
+function hardnessAt(s: Segment, mix: Mix, st: Steel, temper: number): number {
   const lost = st.carbon - s.carbonSurface
   const martensite = st.hardMax - HARDNESS.perCarbon * (lost > 0 ? lost : 0) - temperEffect(temper).drop
   const hard = martensite > st.softHardness ? martensite : st.softHardness
-  return s.martensite * hard + s.pearlite * st.softHardness + s.bainite * HARDNESS.bainite + s.austenite * HARDNESS.retained
+  return mix.martensite * hard + mix.pearlite * st.softHardness + mix.bainite * HARDNESS.bainite + mix.austenite * HARDNESS.retained
 }
 
-/** Hardness in HRC. Only means much once the steel is cold. */
+/** Hardness in HRC, taken across the whole width. Only means much once the steel is cold. */
 export function hardness(s: Segment, st: Steel): number {
-  return hardnessAt(s, st, s.temper)
+  return hardnessAt(s, s, st, s.temper)
 }
 
 /** How far the edge has been tempered: as far as the rest, or further if the belt overheated it. */
@@ -47,25 +66,31 @@ export function edgeTemperOf(s: Segment): number {
 
 /** Hardness at the cutting edge, HRC. Lower than the blade behind it if the belt drew its temper. */
 export function edgeHardness(s: Segment, st: Steel): number {
-  return hardnessAt(s, st, edgeTemperOf(s))
+  return hardnessAt(s, edgeMix(s), st, edgeTemperOf(s))
+}
+
+/** How many HRC softer the cutting edge is than the steel just behind it, because the belt drew its temper. */
+export function edgeDrawn(s: Segment, st: Steel): number {
+  const mix = edgeMix(s)
+  return hardnessAt(s, mix, st, s.temper) - hardnessAt(s, mix, st, edgeTemperOf(s))
 }
 
 /** Toughness, 0 (glass) to 1. */
 export function toughness(s: Segment, st: Steel): number {
-  return toughnessAt(s, st, s.temper)
+  return toughnessAt(s, s, st, s.temper)
 }
 
 /** Toughness at the cutting edge. */
 export function edgeToughness(s: Segment, st: Steel): number {
-  return toughnessAt(s, st, edgeTemperOf(s))
+  return toughnessAt(s, edgeMix(s), st, edgeTemperOf(s))
 }
 
-function toughnessAt(s: Segment, st: Steel, temper: number): number {
+function toughnessAt(s: Segment, of: Mix, st: Steel, temper: number): number {
   const mix =
-    s.martensite * temperEffect(temper).tough +
-    s.pearlite * TOUGHNESS.pearlite +
-    s.bainite * TOUGHNESS.bainite +
-    s.austenite * TOUGHNESS.retained
+    of.martensite * temperEffect(temper).tough +
+    of.pearlite * TOUGHNESS.pearlite +
+    of.bainite * TOUGHNESS.bainite +
+    of.austenite * TOUGHNESS.retained
   const grain = 1 + TOUGHNESS.grainLoss * (s.grain - GRAIN.finest)
   const sound = 1 - TOUGHNESS.damageLoss * (s.damage < 1 ? s.damage : 1)
   const value = (mix * st.toughness * sound) / grain
@@ -91,6 +116,8 @@ export interface Summary {
   pearlite: number
   bainite: number
   retained: number
+  /** The share of the steel that clay kept soft along the back, averaged by length. */
+  soft: number
   /** Bow in mm, as a size (no side). */
   warp: number
   straight: boolean
@@ -109,7 +136,7 @@ export function summarize(bar: Bar, from = 0, to = 1): Summary {
     hardness: 0, hardnessMin: Infinity, hardnessMax: -Infinity,
     toughness: 0, toughnessMin: Infinity,
     grain: 0, grainMax: -Infinity,
-    martensite: 0, pearlite: 0, bainite: 0, retained: 0,
+    martensite: 0, pearlite: 0, bainite: 0, retained: 0, soft: 0,
     warp: bar.warp < 0 ? -bar.warp : bar.warp,
     straight: (bar.warp < 0 ? -bar.warp : bar.warp) < WARP.straight,
     crack: bar.crack,
@@ -130,6 +157,7 @@ export function summarize(bar: Bar, from = 0, to = 1): Summary {
     out.pearlite += s.pearlite * s.length
     out.bainite += s.bainite * s.length
     out.retained += s.austenite * s.length
+    out.soft += s.soft * s.length
     if (h < out.hardnessMin) out.hardnessMin = h
     if (h > out.hardnessMax) out.hardnessMax = h
     if (t < out.toughnessMin) out.toughnessMin = t
@@ -143,5 +171,6 @@ export function summarize(bar: Bar, from = 0, to = 1): Summary {
   out.pearlite /= weight
   out.bainite /= weight
   out.retained /= weight
+  out.soft /= weight
   return out
 }

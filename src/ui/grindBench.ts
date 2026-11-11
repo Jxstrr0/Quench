@@ -15,7 +15,8 @@ import type { EdgeWord, HandleId } from '../data/grind'
 import { GRIND, GRINDER, HANDLE_ORDER, PRESSURES, SHARPEN } from '../data/grind'
 import type { StringKey } from '../data/strings'
 import { t } from '../data/strings'
-import { INSPECT } from '../data/treat'
+import { STEELS } from '../data/steels'
+import { CLAY, INSPECT } from '../data/treat'
 import type { Settings } from '../persist/settings'
 import type { ForgeView } from '../render/forgeScene'
 import type { Pattern } from '../data/patterns'
@@ -23,7 +24,8 @@ import type { Bar } from '../sim/bar'
 import { barLength, hottest } from '../sim/bar'
 import type { Side } from '../sim/grind'
 import { canHold, dip, edgeAt, edgeWord, grindFor, hottestEdge } from '../sim/grind'
-import { etch, fitHandle, handleFit, sharpAt, strokeStone } from '../sim/finish'
+import { clayCoat, coatClay, etch, fitHandle, handleFit, sharpAt, strokeStone } from '../sim/finish'
+import { clayHold } from '../sim/phase'
 import { advance, coolToRoom } from '../sim/heat'
 import type { FitWord, KeenWord } from '../sim/inspect'
 import { fitWord, inspect, keenWord } from '../sim/inspect'
@@ -130,9 +132,14 @@ export function createGrindBench(host: BenchHost): GrindBench {
   const handleBtn = button('btn btn-blow')
   const handleWord = el('span', 'btn-sub')
   handleBtn.append(el('span', 'blow-name', t('btn.handle')), handleWord)
-  const back = button('btn', 'btn.toForge')
-  rowB.append(toolBtn, etchBtn, handleBtn, back)
-  const parts = [slot, rowA, rowB]
+  const clayBtn = button('btn btn-blow')
+  const clayWord = el('span', 'btn-sub')
+  clayBtn.append(el('span', 'blow-name', t('btn.clay')), clayWord)
+  const back = button('btn btn-wide', 'btn.toForge')
+  rowB.append(toolBtn, clayBtn, etchBtn, handleBtn)
+  const rowC = el('div', 'controls-row')
+  rowC.append(back)
+  const parts = [slot, rowA, rowB, rowC]
   for (const part of parts) part.hidden = true
 
   const sideName = () => (side === 'left' ? 'A' : 'B')
@@ -145,6 +152,7 @@ export function createGrindBench(host: BenchHost): GrindBench {
     toolWord.textContent = t(stone ? 'tool.stone' : 'tool.belt')
     const fitted = host.bar().handle
     handleWord.textContent = fitted ? t(HANDLE_KEY[fitted]) : t('handle.none')
+    clayWord.textContent = t(`clay.${clayCoat(host.bar())}` as StringKey)
     flipSide.textContent = t('bench.side', { side: sideName() })
     pressWord.textContent = t(PRESS_KEY[pressure] as StringKey)
   }
@@ -165,8 +173,20 @@ export function createGrindBench(host: BenchHost): GrindBench {
     // Acid and glue both want a cold blade: whatever heat is left goes first.
     coolToRoom(bar)
     if (!etch(bar)) return
-    host.say(t(inspect(bar, host.pattern().bladeShare).hardened ? 'note.etched' : 'note.etchedSoft'), 3000)
+    const look = inspect(bar, host.pattern().bladeShare)
+    host.say(t(look.line ? 'note.etchedLine' : look.hardened ? 'note.etched' : 'note.etchedSoft'), 3000)
     host.view.setBar(bar)
+  }
+  /** Step the clay on the back: thin, half, deep, then wiped off. */
+  const nextClay = () => {
+    const bar = host.bar()
+    coolToRoom(bar)
+    const coat = (clayCoat(bar) + 1) % CLAY.coats.length
+    if (!coatClay(bar, host.pattern().bladeShare, coat)) return
+    const st = STEELS[bar.steel]
+    host.say(coat === 0 ? t('note.clayOff') : clayHold(st) < CLAY.worksFrom ? t('note.clayDeep', { steel: st.name }) : t('note.clay'), 3500)
+    host.view.setBar(bar)
+    show()
   }
   const nextHandle = () => {
     const bar = host.bar()
@@ -202,6 +222,7 @@ export function createGrindBench(host: BenchHost): GrindBench {
   inspectBtn.addEventListener('click', host.openInspect)
   toolBtn.addEventListener('click', swapTool)
   etchBtn.addEventListener('click', doEtch)
+  clayBtn.addEventListener('click', nextClay)
   handleBtn.addEventListener('click', nextHandle)
   back.addEventListener('click', host.leave)
   show()

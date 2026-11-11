@@ -62,6 +62,14 @@ export interface Segment {
   edgeTemper: number
   /** How keen the edge is: 0 is blunt, 1 is as keen as it gets. */
   sharp: number
+  /** Clay on the back: the share of the width it covers, from the spine down. It comes off in the quench. */
+  clay: number
+  /**
+   * The share of this segment that clay kept soft in its last quench. That
+   * share is pearlite along the back; the rest, toward the edge, is whatever
+   * the quench made of it.
+   */
+  soft: number
 }
 
 /** Why a blade cracked in the quench. */
@@ -107,6 +115,8 @@ export interface QuenchEvent {
   /** How much of that stretch is martensite afterwards, 0 to 1. */
   hard: number
   crack: CrackCause | null
+  /** The share of that stretch clay kept soft, 0 to 1. Left out of blades saved before clay. */
+  clay?: number
 }
 
 /** A cycle in the tempering oven. */
@@ -203,6 +213,8 @@ export function createBar(steelId: SteelId, size: StockSize, count: number = SIM
       edgeHot: 0,
       edgeTemper: 0,
       sharp: 0,
+      clay: 0,
+      soft: 0,
     })
   }
   return {
@@ -224,6 +236,12 @@ export function createBar(steelId: SteelId, size: StockSize, count: number = SIM
     handle: null,
     history: [],
   }
+}
+
+/** The share of martensite in the part of a segment that clay did not keep soft: the edge side. */
+export function edgeMartensite(s: Segment): number {
+  const rest = 1 - s.soft
+  return s.soft > 0 && rest > 0 ? s.martensite / rest : s.martensite
 }
 
 export function cloneBar(bar: Bar): Bar {

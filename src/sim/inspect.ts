@@ -6,11 +6,11 @@
 import type { HandleId } from '../data/grind'
 import { steel } from '../data/steels'
 import { HANDLE } from '../data/grind'
-import { COOL, INSPECT } from '../data/treat'
+import { CLAY, COOL, INSPECT } from '../data/treat'
 import type { Bar, QuenchCrack } from './bar'
 import { bevelLean, edgeThickness, hottest, isGround } from './bar'
 import { handleFit } from './finish'
-import { edgeHardness, hardness, isMagnetic, summarize } from './properties'
+import { edgeDrawn, edgeHardness, isMagnetic, summarize } from './properties'
 
 export type MagnetWord = 'sticks' | 'letsGoPart' | 'letsGo'
 export type FileWord = 'skates' | 'bitesALittle' | 'bites'
@@ -90,6 +90,10 @@ export interface Inspection {
   sharp: number
   keen: KeenWord
   etched: boolean
+  /** Clay kept enough of the back soft to leave a hardening line. It only shows once the blade is etched. */
+  line: boolean
+  /** There is clay on the blade now. */
+  clayed: boolean
   handle: HandleId | null
   /** How a handle sits, or would sit, on this tang. */
   fit: FitWord
@@ -100,7 +104,8 @@ export interface Inspection {
 export function inspect(bar: Bar, bladeShare: number): Inspection {
   const sum = summarize(bar, 0, bladeShare)
   const temp = hottest(bar)
-  const hardened = sum.martensite >= INSPECT.hardenedFrom
+  // Where clay kept the back soft, it is the rest of the blade that has to have hardened.
+  const hardened = sum.martensite / (sum.soft < 1 ? 1 - sum.soft : 1) >= INSPECT.hardenedFrom
 
   // The edge, read along the blade.
   const st = steel(bar.steel)
@@ -128,7 +133,7 @@ export function inspect(bar: Bar, bladeShare: number): Inspection {
     if (e < edgeMin) edgeMin = e
     if (isGround(s) && e <= INSPECT.edgeWanted) edgeDone += s.length
     if (isGround(s)) ground = true
-    if (hardness(s, st) - hrc >= INSPECT.edgeSoftBy) edgeSoft = true
+    if (edgeDrawn(s, st) >= INSPECT.edgeSoftBy) edgeSoft = true
   }
   edge /= blade
   edgeDone /= blade
@@ -175,6 +180,8 @@ export function inspect(bar: Bar, bladeShare: number): Inspection {
     sharp,
     keen: keenWord(sharp),
     etched: bar.etched,
+    line: hardened && sum.soft >= CLAY.showFrom,
+    clayed: bar.segments.some((s) => s.clay > 0),
     handle: bar.handle,
     fit: fitWord(handleFit(bar, bladeShare)),
     next,

@@ -136,6 +136,7 @@ html, body {
   gap: 8px;
 }
 .controls-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.controls-row .btn-wide { grid-column: 1 / -1; min-height: 44px; }
 
 .btn {
   min-height: 48px;

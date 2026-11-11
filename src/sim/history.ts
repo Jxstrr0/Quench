@@ -7,8 +7,8 @@ import type { MediumId } from '../data/media'
 import { HISTORY } from '../data/history'
 import { INSPECT, PHASE } from '../data/treat'
 import { SIM } from '../data/tuning'
-import type { Bar, HeatEvent, HistoryEvent, Segment } from './bar'
-import { hottest } from './bar'
+import type { Bar, HeatEvent, HistoryEvent, QuenchEvent, Segment } from './bar'
+import { edgeMartensite, hottest } from './bar'
 
 function last(bar: Bar): HistoryEvent | undefined {
   return bar.history[bar.history.length - 1]
@@ -67,7 +67,8 @@ export function recordOut(bar: Bar, quenching: boolean): void {
     for (let i = e.first; i <= e.last; i++) {
       const s = bar.segments[i] as Segment
       martensite += s.martensite * s.length
-      length += s.length
+      // The share clay kept soft was never meant to harden.
+      length += s.length * (1 - s.soft)
     }
     if (length > 0) e.hard = martensite / length
     if (bar.crack && !e.crack) e.crack = bar.crack.cause
@@ -79,6 +80,7 @@ export function recordQuench(bar: Bar, medium: MediumId): void {
   const prev = last(bar)
   if (prev && prev.kind === 'heat' && prev.left === null) prev.left = bar.clock
   let austenite = 0
+  let soft = 0
   let length = 0
   let first = -1
   let end = -1
@@ -87,10 +89,14 @@ export function recordQuench(bar: Bar, medium: MediumId): void {
     if (s.temp < PHASE.noseHigh) continue
     if (first < 0) first = i
     end = i
-    austenite += s.austenite * s.length
+    // Clay has just turned its share of the austenite soft (`beginQuench`): it was up to heat all the same.
+    austenite += (s.austenite + s.soft) * s.length
+    soft += s.soft * s.length
     length += s.length
   }
-  add(bar, { kind: 'quench', clock: bar.clock, medium, from: hottest(bar), soak: length > 0 ? austenite / length : 0, first: first < 0 ? 0 : first, last: end, hard: 0, crack: null })
+  const event: QuenchEvent = { kind: 'quench', clock: bar.clock, medium, from: hottest(bar), soak: length > 0 ? austenite / length : 0, first: first < 0 ? 0 : first, last: end, hard: 0, crack: null }
+  if (soft > 0) event.clay = soft / length
+  add(bar, event)
 }
 
 /** A hammer blow has landed. */
@@ -108,7 +114,7 @@ export function recordTemper(bar: Bar, temp: number, minutes: number): void {
 /** One step at the belt, on the segments in `ground`. `edgeTemp` is the hottest the edge is. */
 export function recordGrind(bar: Bar, ground: readonly Segment[], edgeTemp: number): void {
   let hard = false
-  for (const s of ground) if (s.martensite >= INSPECT.hardenedFrom) hard = true
+  for (const s of ground) if (edgeMartensite(s) >= INSPECT.hardenedFrom) hard = true
   const prev = last(bar)
   if (prev && prev.kind === 'grind') {
     if (hard) prev.hard = true

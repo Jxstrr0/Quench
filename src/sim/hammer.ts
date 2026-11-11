@@ -114,6 +114,8 @@ export function strike(bar: Bar, blow: Blow): BlowResult {
     if ((d < 0 ? -d : d) < (best < 0 ? -best : best)) nearest = i
   }
   const under = segs[nearest] as Segment
+  // Dry clay does not survive the hammer.
+  for (const s of segs) s.clay = 0
   const result: BlowResult = { segment: nearest, temp: under.temp, thickness: under.thickness, moved: 0, cold: false, burning: false }
 
   for (let i = 0; i < segs.length; i++) {

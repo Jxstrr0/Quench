@@ -156,7 +156,10 @@ export function stepGrind(bar: Bar, g: Grind): GrindResult {
     if (s.temp + s.edgeHot > GRIND.edgeMax) s.edgeHot = GRIND.edgeMax > s.temp ? GRIND.edgeMax - s.temp : 0
     if (s.temp + s.edgeHot > result.edgeTemp) result.edgeTemp = s.temp + s.edgeHot
   }
-  if (result.removed > 0) bar.etched = false
+  if (result.removed > 0) {
+    bar.etched = false
+    for (const s of bar.segments) s.clay = 0
+  }
   if (ground.length > 0) recordGrind(bar, ground, result.edgeTemp)
   stepHeat(bar, { where: 'air' })
   return result
