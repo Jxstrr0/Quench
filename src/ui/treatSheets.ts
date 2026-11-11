@@ -5,6 +5,7 @@
 import type { StringKey } from '../data/strings'
 import { t } from '../data/strings'
 import { CRACK, INSPECT, OVEN } from '../data/treat'
+import { BENCH } from '../data/tuning'
 import type { Pattern } from '../data/patterns'
 import type { Bar } from '../sim/bar'
 import { coolToRoom } from '../sim/heat'
@@ -172,12 +173,19 @@ export function createInspectSheet(host: HTMLElement, forge: TreatHost): Sheet {
     if (look.edgeSoft) body.append(glossed('p', 'sheet-note', t('inspect.edgeSoft')))
     if (look.ground) row('inspect.sharp', capital(t(KEEN_KEY[look.keen])))
     if (look.handle) row('inspect.handle', capital(t('inspect.handle.value', { name: t(HANDLE_KEY[look.handle]), fit: t(FIT_KEY[look.fit]) })))
+    if (look.billet !== 'plain') {
+      row('inspect.billet', t(`inspect.billet.${look.billet}`, { n: look.layers }))
+      const where = t(look.weldAt < BENCH.tipShare ? 'where.tip' : look.weldAt < forge.pattern().bladeShare ? 'where.blade' : 'where.tang')
+      row('inspect.welds', look.weld === 'sound' ? t('welds.sound') : capital(t(`welds.${look.weld}`, { where })))
+    }
+    if (look.coreMissed) body.append(glossed('p', 'sheet-note', t('inspect.coreMissed')))
     if (look.clayed) row('inspect.clay', t('inspect.clay.on'))
     if (look.etched) row('inspect.etch', t(look.line ? 'etch.line' : look.hardened ? 'etch.dark' : 'etch.pale'))
     row('inspect.tempers', look.tempers === 0 ? t('tempers.none') : look.tempers === 1 ? t('tempers.once') : t('tempers.n', { n: look.tempers }))
     row('inspect.shape', t('inspect.shape.value', { n: forge.shapePercent() }))
     if (sees.free) body.append(glossed('p', 'sheet-note sheet-small', t('inspect.grain.note')))
     else if (!sees.grain) body.append(glossed('p', 'sheet-note sheet-small', t('inspect.grain.career')))
+    if (look.weld === 'loose') body.append(glossed('p', 'sheet-note sheet-next', t('next.weld')))
     if (sees.grain && look.next === 'harden' && look.grain !== 'fine') body.append(glossed('p', 'sheet-note sheet-next', t('next.normalize')))
     if (look.next === 'harden' && !look.ground) body.append(glossed('p', 'sheet-note sheet-next', t('next.rough')))
     if (look.next === 'harden' && look.ground && look.edgeMin < CRACK.edgeSafe) {

@@ -9,7 +9,7 @@ import { barFault, strike } from '../src/sim/hammer'
 import { advance } from '../src/sim/heat'
 import { explain, fractureReport } from '../src/sim/report'
 import { runTrials } from '../src/sim/trials'
-import { fold, isLoose, seam, weldHeat, whyNoFold, worstSeam } from '../src/sim/weld'
+import { fold, isLoose, seam, sweating, weldHeat, whyNoFold, worstSeam } from '../src/sim/weld'
 import { soundBar } from '../src/persist/sound'
 import { makeBlade } from './blades'
 
@@ -121,6 +121,37 @@ describe('welding under the hammer', () => {
     for (const s of bar.segments) s.temp = 950
     for (const type of ['flat', 'edge', 'peen', 'point'] as const) expect(strike(bar, { type, at: 60, force: 1 }).weld).toBe('none')
     expect(worstSeam(bar)).toBeNull()
+  })
+
+  it('a flaw can be welded out with good blows at welding heat, but not at a forging heat', () => {
+    const bar = billet('layered', 950)
+    strike(bar, { type: 'flat', at: 60, force: 1 })
+    strike(bar, { type: 'flat', at: 60, force: 1 })
+    const i = bar.segments.findIndex((s) => s.flaw >= WELD.opens)
+    const before = seg(bar, i).flaw
+    // At welding heat the first good blow welds the layers; the flaw is still inside.
+    for (const s of bar.segments) s.temp = HOT + 30
+    const centre = segmentCentres(bar)[i] as number
+    expect(strike(bar, { type: 'flat', at: centre, force: 1 }).weld).toBe('took')
+    expect(seg(bar, i).weld).toBe(1)
+    expect(seg(bar, i).flaw).toBeLessThan(before)
+    expect(seg(bar, i).flaw).toBeGreaterThan(WELD.shows)
+    // More good blows on it weld the flaw out.
+    let blows = 1
+    while (seg(bar, i).flaw >= WELD.shows && blows < 30) {
+      for (const s of bar.segments) s.temp = HOT + 30
+      strike(bar, { type: 'flat', at: centre, force: 1 })
+      blows++
+    }
+    expect(blows).toBeGreaterThanOrEqual(4)
+    expect(blows).toBeLessThanOrEqual(10)
+    // At an ordinary forging heat nothing mends.
+    const cold = billet('layered', 950)
+    strike(cold, { type: 'flat', at: 60, force: 1 })
+    for (const s of cold.segments) s.weld = 1
+    const flaw = Math.max(...cold.segments.map((s) => s.flaw))
+    expect(strike(cold, { type: 'flat', at: 60, force: 1 }).weld).toBe('none')
+    expect(Math.max(...cold.segments.map((s) => s.flaw))).toBe(flaw)
   })
 
   it('a careful smith welds a camp knife billet at the real fire in a few heats, with no flaw and nothing burnt', () => {
@@ -361,5 +392,23 @@ describe('saved bars', () => {
     expect((back as Bar).billet).toBe('layered')
     expect((back as Bar).layers).toBe(64)
     expect((back as Bar).segments.map((s) => s.weld)).toEqual(bar.segments.map((s) => s.weld))
+  })
+
+  it('says how much of the loose stretch is at welding heat', () => {
+    const bar = createBar('1084', PATTERNS.campKnife.stock, undefined, 1, 'layered')
+    const from = weldHeat(steel('1084'))
+    expect(sweating(bar)).toBe(0)
+    const loose = bar.segments.filter((s) => s.weld < 1)
+    for (const s of loose.slice(0, loose.length / 2)) s.temp = from + 5
+    expect(sweating(bar)).toBeCloseTo(0.5, 1)
+    for (const s of bar.segments) s.temp = from + 5
+    expect(sweating(bar)).toBe(1)
+    // Hot enough to weld here, but not yet hot enough to carry to the anvil.
+    expect(sweating(bar, WELD.carry)).toBe(0)
+    // A welded bar has nothing left to sweat, unless a flaw in it still shows.
+    for (const s of bar.segments) s.weld = 1
+    expect(sweating(bar)).toBe(0)
+    ;(bar.segments[5] as Segment).flaw = WELD.shows
+    expect(sweating(bar)).toBe(1)
   })
 })

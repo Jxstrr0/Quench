@@ -5,16 +5,60 @@
  * layered billet can be folded to double its layers, and then the fold has
  * to be welded in turn.
  */
-import { BILLETS, WELD } from '../data/billets'
+import type { BilletId } from '../data/billets'
+import { BILLETS, LAYER_PARTNER, WELD } from '../data/billets'
 import type { BlowSpec } from '../data/hammer'
-import type { Steel } from '../data/steels'
+import type { Steel, SteelId } from '../data/steels'
 import { steel } from '../data/steels'
-import type { Bar, Segment } from './bar'
+import type { Bar, Segment, StockSize } from './bar'
 import { barLength, freshWeld, isGround, segmentCentres } from './bar'
 
 /** The heat at which this steel welds under the hammer. Hotter than its best forging heat; cooler than burning. */
 export function weldHeat(st: Steel): number {
   return st.burn - WELD.belowBurn
+}
+
+/** The stock a billet starts as: a pattern's plain stock, with a little more thickness to lose to scale. */
+export function billetStock(size: StockSize, billet: BilletId): StockSize {
+  return { ...size, thickness: size.thickness * (1 + BILLETS[billet].extra) }
+}
+
+/** The steel layered with this one in a layered billet. */
+export function partnerSteel(id: SteelId): SteelId {
+  return id === LAYER_PARTNER.steel ? LAYER_PARTNER.or : LAYER_PARTNER.steel
+}
+
+/** How much of the bar's length is welded, 0 to 1. */
+export function weldedShare(bar: Bar): number {
+  let welded = 0
+  let total = 0
+  for (const s of bar.segments) {
+    welded += s.weld * s.length
+    total += s.length
+  }
+  return total > 0 ? welded / total : 1
+}
+
+/**
+ * Of the bar's length that still wants welding (loose layers, or a flaw that
+ * shows), how much is at welding heat right now, or `over` degrees past it:
+ * 0 to 1. 0 if every weld is sound.
+ */
+export function sweating(bar: Bar, over = 0): number {
+  const from = weldHeat(steel(bar.steel)) + over
+  let hot = 0
+  let wants = 0
+  for (const s of bar.segments) {
+    if (s.weld >= 1 && s.flaw < WELD.shows) continue
+    wants += s.length
+    if (s.temp >= from) hot += s.length
+  }
+  return wants > 0 ? hot / wants : 0
+}
+
+/** Is any stretch of the bar that still wants welding at welding heat right now? */
+export function atWeldingHeat(bar: Bar): boolean {
+  return sweating(bar) > 0
 }
 
 /** How bad the weld is here, 0 (sound) to 1: whichever is worse of a flaw and layers still loose. */
@@ -51,20 +95,31 @@ export function isLoose(bar: Bar): boolean {
 }
 
 /**
- * What one blow does to the loose layers in a segment. `part` is how much of
- * the blow the segment takes. Returns how much flaw it left (0 if none).
+ * What one blow does to the welds in a segment. `part` is how much of the
+ * blow the segment takes. 'took' means it welded loose layers or welded some
+ * of a flaw out; 'shut' means it closed loose layers without welding them
+ * and left a flaw; 'none' means there was nothing there for it to do.
  */
-export function weldBlow(s: Segment, spec: BlowSpec, part: number, st: Steel): number {
-  if (s.weld >= 1 || part <= 0) return 0
+export function weldBlow(s: Segment, spec: BlowSpec, part: number, st: Steel): 'none' | 'took' | 'shut' {
+  if (part <= 0 || (s.weld >= 1 && s.flaw <= 0)) return 'none'
   const from = weldHeat(st)
   // Only a blow on the flat presses the layers together. On edge, they slide.
   const k = spec.squeezes !== 'thickness' ? 0 : s.temp >= from ? 1 : s.temp <= from - WELD.fade ? 0 : (s.temp - (from - WELD.fade)) / WELD.fade
-  const flaw = part * (1 - s.weld) * WELD.flawPerBlow * (1 - k) * (1 - k)
+  const loose = s.weld < 1
+  // A good blow welds out some of any flaw already shut inside.
+  const mended = s.flaw > 0 && k > 0
+  if (mended) {
+    s.flaw *= 1 - (part < 1 ? part : 1) * WELD.mend * k
+    if (s.flaw < WELD.gone) s.flaw = 0
+  }
+  // A blow hot enough to weld what it closes leaves nothing behind. A colder one shuts some of it unwelded.
+  const short = k >= WELD.sound ? 0 : 1 - k / WELD.sound
+  const flaw = part * (1 - s.weld) * WELD.flawPerBlow * short * short
   s.flaw += flaw
   if (s.flaw > 1) s.flaw = 1
   s.weld += part * WELD.perBlow * k
   if (s.weld > 1) s.weld = 1
-  return flaw
+  return flaw >= WELD.flawSeen ? 'shut' : (loose && k > 0) || mended ? 'took' : 'none'
 }
 
 /** Why a bar cannot be folded now. */

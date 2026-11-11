@@ -4,7 +4,6 @@
  * so every segment keeps its volume exactly. Hot steel moves easily; cold
  * steel barely moves and cracks; burning steel crumbles.
  */
-import { WELD } from '../data/billets'
 import type { BlowType } from '../data/hammer'
 import { BLOWS, HAMMER, RHYTHM } from '../data/hammer'
 import type { Steel } from '../data/steels'
@@ -35,9 +34,9 @@ export interface BlowResult {
   cold: boolean
   burning: boolean
   /**
-   * What the blow did to a billet's loose layers: 'took' if it welded them,
-   * 'shut' if it closed them without welding and left a flaw, 'none' if it
-   * met no loose layers.
+   * What the blow did to a billet's welds: 'took' if it welded loose layers
+   * or welded some of a flaw out, 'shut' if it closed loose layers without
+   * welding them and left a flaw, 'none' if it met nothing to weld.
    */
   weld: 'none' | 'took' | 'shut'
 }
@@ -140,11 +139,8 @@ export function strike(bar: Bar, blow: Blow): BlowResult {
       result.burning = true
       s.burnt += part * HAMMER.burnBlow
     }
-    if (s.weld < 1) {
-      const flaw = weldBlow(s, spec, part, st)
-      if (flaw >= WELD.flawSeen) result.weld = 'shut'
-      else if (result.weld === 'none') result.weld = 'took'
-    }
+    const weld = weldBlow(s, spec, part, st)
+    if (weld === 'shut' || (weld === 'took' && result.weld === 'none')) result.weld = weld
 
     let strain = part * spec.strain * softness(s.temp, st)
     const size = spec.squeezes === 'thickness' ? s.thickness : s.width

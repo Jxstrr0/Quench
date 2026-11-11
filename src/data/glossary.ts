@@ -22,6 +22,9 @@ export type GlossId =
   | 'line'
   | 'stone'
   | 'peen'
+  | 'billet'
+  | 'weldingHeat'
+  | 'sanMai'
   | 'proving'
   | 'benchHours'
 
@@ -44,6 +47,9 @@ export const GLOSSARY: Record<GlossId, readonly string[]> = {
   line: ['hardening line'],
   stone: ['stone'],
   peen: ['peen'],
+  billet: ['billets', 'billet'],
+  weldingHeat: ['welding heat'],
+  sanMai: ['san-mai'],
   proving: ['Proving'],
   benchHours: ['bench hours'],
 }

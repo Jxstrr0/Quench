@@ -7,6 +7,8 @@
  * Units: degrees Celsius; shares are 0 to 1.
  */
 
+import type { SteelId } from './steels'
+
 export type BilletId = 'plain' | 'sanMai' | 'layered'
 
 export interface Billet {
@@ -17,13 +19,21 @@ export interface Billet {
   folds: boolean
   /** The share of its thickness that is soft sides, welded onto a hard core. 0 is steel all through. */
   jacket: number
+  /**
+   * How much thicker than a plain bar it comes, as a share: steel to spare
+   * for the scale that welding heats burn away.
+   */
+  extra: number
 }
 
 export const BILLETS: Record<BilletId, Billet> = {
-  plain: { id: 'plain', layers: 1, folds: false, jacket: 0 },
-  sanMai: { id: 'sanMai', layers: 3, folds: false, jacket: 0.6 },
-  layered: { id: 'layered', layers: 8, folds: true, jacket: 0 },
+  plain: { id: 'plain', layers: 1, folds: false, jacket: 0, extra: 0 },
+  sanMai: { id: 'sanMai', layers: 3, folds: false, jacket: 0.6, extra: 0.03 },
+  layered: { id: 'layered', layers: 8, folds: true, jacket: 0, extra: 0.1 },
 }
+
+/** The second steel in a layered billet: the bright one in the etch. A billet of that steel itself takes the other. */
+export const LAYER_PARTNER: { steel: SteelId; or: SteelId } = { steel: '15N20', or: '1084' }
 
 export const BILLET_ORDER: readonly BilletId[] = ['plain', 'sanMai', 'layered']
 
@@ -42,10 +52,12 @@ export const WELD = {
   belowBurn: 140,
   /**
    * A blow this far below welding heat welds nothing and leaves a full flaw.
-   * In between, the weld it makes falls away evenly and the flaw grows with
-   * the square of the shortfall, so a near miss costs little.
+   * In between, the weld it makes falls away evenly. A blow at least `sound`
+   * of the way up from there to welding heat still leaves no flaw; under
+   * that, the flaw grows with the square of the shortfall.
    */
-  fade: 80,
+  fade: 100,
+  sound: 0.4,
   /**
    * A billet comes tacked together at the tongs end, where the fire cannot
    * reach. At least this share of its length, from that end, is welded
@@ -53,10 +65,23 @@ export const WELD = {
    */
   tacked: 0.3,
   looseMax: 150,
+  /**
+   * A bar cools on its way from the fire to the anvil. The billet is ready
+   * to carry there when this share of its loose length is `carry` degrees
+   * past welding heat. Less, and the layers are only starting to sweat.
+   */
+  ready: 0.7,
+  carry: 60,
   /** How much of the weld one full blow on the flat makes, right under the hammer (1 is welded). */
   perBlow: 2.5,
   /** How big a flaw one full blow leaves on loose layers that are too cold to weld (1 is the worst). */
   flawPerBlow: 0.5,
+  /**
+   * A flaw can be welded out: each full blow on the flat at welding heat
+   * takes this share of it away. Below `gone` it is welded out for good.
+   */
+  mend: 0.25,
+  gone: 0.01,
   /** A blow that leaves a flaw at least this big is counted as a bad one in the bar's history. */
   flawSeen: 0.05,
   /** A seam at least this bad can be seen in the finished blade. */
