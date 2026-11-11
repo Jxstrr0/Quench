@@ -49,3 +49,18 @@ The same script packs the two file-based sound sets to
 `LOOPS` in the script say which source makes which file. Which set the game
 plays is the "Sound set" choice in the Assists card
 (`SOUND_SETS` in `src/data/audio.ts`).
+
+## The cover (`art/cover/`)
+
+The studio site's picture and card clip for Quench, recorded from the game
+itself by `npm run cover` (after `npm run build`; it needs Playwright with
+Chromium, and ffmpeg). It follows the studio site's notes: the game's own
+screen with the UI hidden, the clock stepped a thirtieth of a second a
+frame, cut with ffmpeg.
+
+- `quench.jpg` (640 by 480) and `quench@2x.jpg` (1280 by 960): the cover.
+- `quench-card.mp4`: seven seconds, silent, under 400 KB. Its first frame is
+  the cover, and its last half second fades into its lead-in, so it loops.
+
+Record them again together whenever the forge's look changes. They go to the
+studio site with the listing, and only when Kelbo says so.
