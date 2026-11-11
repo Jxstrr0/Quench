@@ -8,7 +8,7 @@
  */
 import { BoxGeometry, CylinderGeometry, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, PointLight, Vector3 } from 'three'
 import type { TrialId } from '../data/trials'
-import { SWORD_PROPS, TRIAL_WALL, VICE } from '../data/tuning'
+import { SWORD_PROPS, TRIAL_TABLE, TRIAL_WALL, VICE } from '../data/tuning'
 import type { Outcome } from '../sim/trials'
 import { loadModel, swapIn } from './models'
 
@@ -141,9 +141,12 @@ export function createTrialStage(): TrialStage {
   const lamp = new PointLight(0xfff1dc, 1.1, 3, 1.2)
   lamp.position.set(0.25, 0.7, 0.7)
   group.add(lamp)
-  const table = prop(new BoxGeometry(1.4, 0.04, 0.4), 0x4a3a2a, 0.95)
-  table.position.y = -0.02
+  const tableThick = TRIAL_TABLE.thick * MM
+  const table = prop(new BoxGeometry(TRIAL_TABLE.length * MM, tableThick, TRIAL_TABLE.depth * MM), 0x4a3a2a, 0.95)
+  table.position.y = -tableThick / 2
   group.add(wall, table)
+  // The modelled table's origin is the middle of its top.
+  swapIn('table', table, () => {})
 
   // Where the hand rests, and the spot under the working part of the edge.
   const hand = new Vector3(0.13, 0.13, 0)
@@ -158,6 +161,13 @@ export function createTrialStage(): TrialStage {
   const rope = new Group()
   rope.position.set(spotX, ropeTop, 0)
   rope.add(upper, lower)
+  // The bracket the rope hangs from comes out of the wall. It stays still while the rope swings, and there is nothing to show without the model.
+  const hook = new Group()
+  hook.position.copy(rope.position)
+  group.add(hook)
+  loadModel('bracket')
+    .then((iron) => hook.add(iron))
+    .catch(() => {})
 
   // The timber, end on, in two halves that fall apart.
   const timberSize = 0.085
@@ -169,8 +179,11 @@ export function createTrialStage(): TrialStage {
   // The brass rod, end on, on a block.
   const rodTop = 0.05
   const brass = new Group()
-  const block = prop(new BoxGeometry(0.07, rodTop - 0.012, 0.08), 0x4a515a, 0.7, 0.4)
-  block.position.set(spotX, (rodTop - 0.012) / 2, 0)
+  const blockTop = TRIAL_TABLE.rodBlockTop * MM
+  const block = prop(new BoxGeometry(0.07, blockTop, 0.08), 0x4a515a, 0.7, 0.4)
+  block.position.set(spotX, blockTop / 2, 0)
+  // The modelled block's origin is on the table top under the rod.
+  swapIn('rodblock', block, (model) => model.position.set(spotX, 0, 0))
   const rod = prop(new CylinderGeometry(0.006, 0.006, 0.09, 16), 0xc9a24a, 0.35, 0.9)
   rod.rotation.x = Math.PI / 2
   rod.position.set(spotX, rodTop - 0.006, 0)
@@ -259,6 +272,7 @@ export function createTrialStage(): TrialStage {
     pose(show, blade) {
       const { t, outcome } = show
       rope.visible = show.id === 'rope'
+      hook.visible = rope.visible
       timber.visible = show.id === 'chop'
       brass.visible = show.id === 'brass'
       vice.visible = show.id === 'bend'

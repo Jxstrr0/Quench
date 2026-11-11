@@ -34,5 +34,9 @@
   "windowFrom": 140,
   "windowTo": 440,
   "windowSill": 420,
-  "windowHead": 740
+  "windowHead": 740,
+  "tableLength": 1400,
+  "tableDepth": 400,
+  "tableThick": 40,
+  "rodBlockTop": 38
 }

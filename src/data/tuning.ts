@@ -176,3 +176,6 @@ export const SWORD_PROPS = { pegTop: 60, matFoot: 120, matStandWidth: 160 } as c
 
 /** The wall behind the trial stand, in mm from the stand's own origin: how far back it is, and the window's opening (along the table, and up from the table top). The wall model is built to the same sizes. */
 export const TRIAL_WALL = { back: 350, windowFrom: 140, windowTo: 440, sill: 420, head: 740 } as const
+
+/** The trial table, in mm: its top's length, depth and thickness, and how high the brass rod's block stands on it. The models are built to the same sizes. */
+export const TRIAL_TABLE = { length: 1400, depth: 400, thick: 40, rodBlockTop: 38 } as const
