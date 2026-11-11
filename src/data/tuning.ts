@@ -160,10 +160,12 @@ export const TANK = { from: -10, to: 470, wide: 100, rim: 30 } as const
 
 /**
  * The grinding bench, in mm: how long and wide its top is, and where the top
- * lies against the anvil's face (negative is below). The bench model is built
- * to the same sizes.
+ * lies against the anvil's face (negative is below), how far its middle is
+ * past the blade's tip along the rail (`lead`), and how far the bench stands
+ * from the rail (`across`). The bench model and the floor's baked shadows are
+ * built to the same sizes.
  */
-export const WORKBENCH = { length: 1100, wide: 340, top: -21 } as const
+export const WORKBENCH = { length: 1100, wide: 340, top: -21, lead: 220, across: 620 } as const
 
 /** The tongs, in mm: how long they are from the bite to the end of the reins. The tongs model is built to the same length. */
 export const TONGS = { length: 360 } as const

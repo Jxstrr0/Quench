@@ -38,7 +38,7 @@
   },
   "floor": {
     "triangles": 300,
-    "bytes": 20000
+    "bytes": 60000
   },
   "wall": {
     "triangles": 500,
