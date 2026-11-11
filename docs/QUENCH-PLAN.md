@@ -73,7 +73,8 @@ shared habits. Quench breaks all three:
 - **Money:** the Skerrow crown, written `kr 1,250`.
 - **Tone:** quiet, practical, a little salty. Fishers, cooks and farmers are
   the customers. No fantasy, no combat, no gore. Blades are tools and sport
-  cutting pieces. Swords appear late as show and collector pieces.
+  cutting pieces. Swords are a core thread of the Career: collectors and
+  sport cutting clubs commission them from Journeyman on.
 - **Institutions:** the Skerrow Cutlers' Guild (ratings: Apprentice,
   Journeyman, Master). Its test day is called **the Proving**.
 - **Names:** check section 8 of the catalogue before adding any name. Do not
@@ -210,7 +211,9 @@ Scrapline's post-mortem.
   made too cold or dirty leaves a flaw that can open at the trial.
 - **San-mai:** a hard core between soft sides.
 - **More patterns:** cleaver, seax, hatchet, sport cutting knife, and
-  finally swords, where length makes every warp and uneven heat worse.
+  swords, where length makes every warp and uneven heat worse. Two sizes:
+  a short sword of about 450 mm and a full sword of about 750 mm. Sword
+  tests: flex and spring back, cut a rolled mat, fit and finish.
 
 ---
 
@@ -230,6 +233,10 @@ Scrapline's post-mortem.
   - Tools change the same room: coal forge to gas forge to a heat-treat kiln;
     hand hammer to power hammer; a better grinder; a hardness tester; a
     pyrometer. Tools give control and information. They never do the work for you.
+  - Swords (Kelbo, 11 November 2026): the first sword commission, a short
+    sword of about 450 mm, arrives at Journeyman. A full sword of about
+    750 mm is the set piece for Master. Sword customers are collectors and
+    sport cutting clubs. No combat.
   - No staff, no rival shops, no bankruptcy spiral. Going broke means taking
     plain sharpening and repair jobs until you can buy steel again.
 - **Daily commission** (PR 12): one shared brief, steel and seed per day, with
@@ -469,6 +476,8 @@ and a phone test note for Kelbo. Minor number goes up per PR until 1.0.
 - Commission board, money, costs, three reputations, bench hours and the calendar.
 - Guild ratings and the Proving. Tool purchases.
 - Save slots, the `QNC1:` save code, backup file, `persist()`, 14-day reminder, with tests.
+- The short sword pattern and the sword tests (flex and spring back, rolled
+  mat, fit and finish), so the first sword commission can arrive at Journeyman.
 - **Done when:** a new career can reach Journeyman, and a save code restores it on another device.
 
 ### PR 8: Teaching
@@ -490,7 +499,7 @@ and a phone test note for Kelbo. Minor number goes up per PR until 1.0.
 ### PR 11: Depth
 - More steels (1095, W2, 52100, 15N20, 80CrV2). Clay and hamon.
 - Pattern welding and san-mai. New blade patterns up to swords.
-- Master-rating Proving that needs these skills.
+- Master-rating Proving that needs these skills: its set piece is the full sword (about 750 mm).
 - Split into two or three PRs if it gets large.
 
 ### PR 12: Daily commission, balance, offline
@@ -560,7 +569,7 @@ Kelbo has asked for Quench to be added to the studio site, so this plan allows
 | Q1 | Is the title **Quench**? | Yes. |
 | Q2 | Setting: the Skerrow Isles and Aldersay, present day? | Yes, as written in section 4. |
 | Q3 | Real steel grade numbers, or invented ones? | Real grades (1084, W2 and so on). Suppliers and tool makers stay fictional. |
-| Q4 | Are swords in? | **Yes, and earlier than first planned: swords are a core thread of the Career**, with their own commissions and a place in the Guild ratings, not only late show pieces. This changes sections 4, 6.6, 7 and PR 7 / PR 11: pitch the detail to Kelbo before PR 7. |
+| Q4 | Are swords in? | **Yes, and earlier than first planned: swords are a core thread of the Career**, with their own commissions and a place in the Guild ratings, not only late show pieces. This changes sections 4, 6.6, 7 and PR 7 / PR 11: pitch the detail to Kelbo before PR 7. **Answered 11 November 2026:** first sword commission at Journeyman; two sizes (short, about 450 mm, and full, about 750 mm, the Master set piece); tests are flex and spring back, a rolled mat cut, and fit and finish; customers are collectors and sport cutting clubs. |
 | Q5 | Should the heat number be hidden by default? | Hidden in Career (a pyrometer is a tool you buy). Always available in Free forge and as an accessibility assist. |
 | Q6 | Can a commission blade be redone? | Redo allowed; steel, fuel and hours are spent and the due date stands. **But hours and cost must stay a light touch.** Kelbo: they are the base for a career, but if they bite hard they kill the skill ceiling. Tune so a skilled player is never held back by money or the clock. |
 | Q7 | When is Quench listed on the studio site? | **Hidden until Kelbo says so.** Do not make the listing public at PR 6 without asking. |
