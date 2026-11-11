@@ -1,0 +1,81 @@
+name: models
+
+# Builds the room and tool models from art/models/build.py with headless
+# Blender (the `bpy` Python package) and commits the .glb files back to the
+# branch it ran on. Nobody opens the Blender app.
+#
+# From the GitHub app: Actions → models → Run workflow → pick a branch → Run.
+# It refuses to run on main: nothing is pushed to main directly. Run it on a
+# work branch, then open a pull request as usual.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: models-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  # Pinned on purpose: the same Blender that built the committed models.
+  BPY_VERSION: '5.3.0'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Not on main
+        if: github.ref == 'refs/heads/main'
+        run: |
+          echo "::error::Run this on a work branch, not main. Nothing is pushed to main directly."
+          exit 1
+
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Blender system libraries
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends libxi6 libxxf86vm1 libxfixes3 libxrender1 libxkbcommon0 libsm6 libice6 libgl1 libegl1 libx11-6
+
+      - name: Install Blender as a Python package
+        run: pip install "bpy==${BPY_VERSION}"
+
+      - name: Build the models
+        run: python art/models/build.py
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Check the budgets
+        run: node scripts/models-check.mjs
+
+      - name: Commit the models
+        id: commit
+        run: |
+          git add public/assets/models
+          if git diff --cached --quiet; then
+            echo "The committed models already match the scripts."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Rebuild models from art/models/build.py"
+          git push
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      # A push made with the workflow token does not start other workflows,
+      # so ask for the checks on this branch by hand.
+      - name: Run the checks on the new commit
+        if: steps.commit.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run deploy.yml --ref "${GITHUB_REF_NAME}"

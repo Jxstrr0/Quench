@@ -118,6 +118,8 @@ pieces: the loading splash, the credit line, the studio link.
 - `npm run lint`: ESLint and typecheck
 - `npm run test`: Vitest
 - `npm run build`: production build to `dist/`, then the first-load budget check (6 MB)
+- `npm run models:check`: holds every model in `public/assets/models/` to its budget
+- `python art/models/build.py`: rebuild the models (needs `pip install bpy==5.3.0`; or run the `models` workflow on a work branch). See `art/README.md`
 
 The PR check is the `deploy` workflow: lint, test, build. Merging to `main` publishes to Pages.
 

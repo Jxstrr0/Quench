@@ -4,6 +4,7 @@ The plan is `docs/QUENCH-PLAN.md`. Newest line first.
 
 | Version | PR | What changed |
 | --- | --- | --- |
+| 0.9.0.0 | PR 9a: Model pipeline and the anvil | The start of the art pass. Models are now **written as Python and built by headless Blender** (`art/models/build.py`), either on a work branch from the GitHub app (Actions, **models**, Run workflow) or by Claude in a session. The first model is the **anvil**: a squat London-pattern anvil with a worn face, a horn and its two holes (516 triangles, 31 KiB). The game loads it over the grey box and keeps the box if the file is missing. Each model has a triangle and size budget that the tests enforce. 3 new tests (322 in total). |
 | 0.8.3.0 | PR 8d: Fix-it links | When a blade fails a test and is still in one piece, the report's lesson now has a **Fix it now** button that takes the blade straight to the stage that puts it right: the Grinder, the stone, the handle, the Temper card, or back to the fire. Lessons that cannot be undone on this blade (burnt, over-tempered, cold-worked) stay as advice for the next bar. Also a test that no screen code writes its own words: all text comes from the string table. 6 new tests (319 in total). **This finishes PR 8 (Teaching) as planned.** |
 | 0.8.2.0 | PR 8c: The glossary | **Tap-to-explain words.** Smithing words in the blade card, the trial report and the temper card are underlined with dots; tapping one opens a short plain explanation over the card. A **?** button at the top lists all 18 words (harden, quench, temper, normalize, grain, magnet, brittle, hardness, warp, burnt, bevel, tang, etch, stone, peen, forging heat, the Proving, bench hours). 7 new tests (313 in total). |
 | 0.8.1.0 | PR 8b: The coach | While the neighbour's knife is the job in hand, **Maren talks you through it**: one instruction at a time under the shape readout ("step 3 of 9"), from the first heat to handing the knife over. She reads the blade itself, so the next step shows when the last is really done, and you stay free to do anything. A spoiled bar or a failed rope cut gets its own advice. Giving the commission back turns her off. 8 new tests (306 in total). |
@@ -39,7 +40,7 @@ The plan is `docs/QUENCH-PLAN.md`. Newest line first.
 
 Pages is on and the custom domain is set: https://quench.longlight.games/. Each merge to `main` publishes there.
 
-## Questions for Kelbo after playing 0.8.3.0
+## Questions for Kelbo after playing 0.9.0.0
 
 Kelbo said to keep rolling and tune later, so these are saved up, not blocking.
 
@@ -63,6 +64,7 @@ Kelbo said to keep rolling and tune later, so these are saved up, not blocking.
 - **Trench forge.** It costs kr 2,400, a bit less than one sword pays. Too cheap, too dear? In Free forge the sword always gets the long fire: would you rather Free forge kept the short fire so you can practise sliding?
 - **The coach.** Maren says the forging will do at 60% to shape. Too soon, too late? Are her lines short enough to read on your phone while working, and is any step unclear?
 - **The glossary.** Are the 18 words the right ones? Any word in the game you had to guess at that is not underlined?
+- **The look of the models.** The anvil is the first: plain dark steel, sharp-edged, low on detail, lit by the scene. Is that the right direction for the forge, tank, grinder and tools, or do you want them rounder, more worn, more colourful?
 - **The sword in the fire.** About a minute and a half of sliding with some bellows brings the middle of the blade to hardening heat, and unevenly (the hottest part runs 200° over). Too slow, too fiddly, or the right step up? Is the scene too small on your phone when the sword is pushed right through?
 - **The save code.** Does Copy work on your phone, and does the code survive being pasted into Notes or a message and back? Does the backup file land somewhere you can find?
 - **The Proving.** A blade that passes is kept by the Guild, so it cannot also go to a customer; one that fails comes back to you and the fee is spent. Right?
