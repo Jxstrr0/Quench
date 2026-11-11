@@ -48,8 +48,9 @@ describe('the collection', () => {
   })
 
   it('will not keep more than it holds, and says so', () => {
-    const full = Array.from({ length: COLLECTION_MAX }, (_, i) => kept(String(i)))
+    // One forged blade fills the rack: forging a new one for every place is slow, and proves nothing more.
     const blade = kept('x')
+    const full = Array.from({ length: COLLECTION_MAX }, (_, i) => ({ ...blade, id: String(i) }))
     expect(keepBlade(full, 'campKnife', blade.bar, blade.trials, 1)).toBeNull()
   })
 
