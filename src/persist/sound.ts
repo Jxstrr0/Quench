@@ -23,6 +23,7 @@ export function soundBar(x: unknown): x is Bar {
     // Nor do bars saved before billets: they are one piece of steel.
     if (!isNumber(s.weld)) s.weld = 1
     if (!isNumber(s.flaw)) s.flaw = 0
+    if (!isNumber(s.jacket)) s.jacket = 0
   }
   if (typeof x.billet !== 'string' || !(x.billet in BILLETS)) x.billet = 'plain'
   if (!isNumber(x.layers) || x.layers < 1) x.layers = BILLETS[x.billet as BilletId].layers

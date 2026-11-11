@@ -76,6 +76,8 @@ export interface Segment {
   weld: number
   /** A flaw in the weld, from a blow that landed on loose layers too cold to stick: 0 is none, 1 is the worst. */
   flaw: number
+  /** The share of the thickness that is soft sides on a hard core (san-mai). 0 is steel all through. */
+  jacket: number
 }
 
 /** Why a blade cracked in the quench. */
@@ -239,6 +241,7 @@ export function createBar(steelId: SteelId, size: StockSize, count: number = SIM
       soft: 0,
       weld: billet === 'plain' ? 1 : freshWeld(((i + 0.5) * size.length) / count, size.length),
       flaw: 0,
+      jacket: BILLETS[billet].jacket,
     })
   }
   return {
@@ -264,8 +267,19 @@ export function createBar(steelId: SteelId, size: StockSize, count: number = SIM
   }
 }
 
+/**
+ * True where the bevels are so lopsided that the edge of a san-mai blade has
+ * come out in a soft side, not in the hard core between them.
+ */
+export function coreMissed(s: Segment): boolean {
+  if (s.jacket <= 0 || !isGround(s)) return false
+  const off = s.cutLeft - s.cutRight
+  return (off < 0 ? -off : off) > s.thickness * (1 - s.jacket)
+}
+
 /** The share of martensite in the part of a segment that clay did not keep soft: the edge side. */
 export function edgeMartensite(s: Segment): number {
+  if (coreMissed(s)) return 0
   const rest = 1 - s.soft
   return s.soft > 0 && rest > 0 ? s.martensite / rest : s.martensite
 }

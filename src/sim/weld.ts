@@ -182,6 +182,7 @@ export function fold(bar: Bar): void {
       soft: 0,
       weld: freshWeld(near + length / 2, half),
       flaw,
+      jacket: 0,
     })
   }
   bar.segments = next

@@ -7,6 +7,7 @@
  *
  * Runs once per heat step, after the temperatures have moved.
  */
+import { JACKET } from '../data/billets'
 import type { Steel } from '../data/steels'
 import { steel } from '../data/steels'
 import { CLAY, CRACK, GRAIN, PHASE, TEMPER, WARP } from '../data/treat'
@@ -201,7 +202,8 @@ export function stepPhase(bar: Bar, before: readonly number[], warpFreedom: numb
         const edge = edgeThickness(s)
         const lack = isGround(s) && edge < CRACK.edgeSafe ? 1 - edge / CRACK.edgeSafe : 0
         const thin = CRACK.edgeGain * lack * lack
-        s.stress += formed * speed * (1 + grain) * (1 + damage) * (1 + corner) * (1 + thin) * st.crackSensitivity
+        // Soft sides give as the core hardens, and take some of the strain off it.
+        s.stress += formed * speed * (1 + grain) * (1 + damage) * (1 + corner) * (1 + thin) * st.crackSensitivity * (1 - s.jacket * JACKET.stressRelief)
         pull += formed * (WARP.floor + speed) * s.length
 
         if (!bar.crack) {
