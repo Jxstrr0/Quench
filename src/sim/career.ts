@@ -7,7 +7,7 @@
  * place. Every draw comes from the seeded generator held in the state.
  */
 import type { BriefKind, Group, Rating, StageId, ToolId } from '../data/career'
-import { BOARD, BRIEFS, CUSTOMERS, DAY, GROUPS, HOURS, MONEY, PROVING, PROVINGS, RATINGS, REP, SUPPLIES, TOOLS } from '../data/career'
+import { BOARD, BRIEFS, CUSTOMERS, DAY, EFFORT, GROUPS, HOURS, MONEY, PROVING, PROVINGS, RATINGS, REP, SUPPLIES, TOOLS } from '../data/career'
 import type { PatternId } from '../data/patterns'
 import { pattern } from '../data/patterns'
 import type { TrialId } from '../data/trials'
@@ -125,9 +125,14 @@ export function spendHours(state: CareerState, hours: number): void {
   if (state.hoursLeft <= 0) nextDay(state)
 }
 
-/** The bench time a stage of a blade takes. */
-export function benchWork(state: CareerState, stage: StageId): void {
-  spendHours(state, HOURS[stage])
+/** The bench time a stage of a blade of this pattern takes. */
+export function benchWork(state: CareerState, stage: StageId, id: PatternId): void {
+  spendHours(state, HOURS[stage] * EFFORT[id])
+}
+
+/** The pattern the smith's next bar should be for: what the commission in hand asks, or a camp knife. */
+export function wantedPattern(state: CareerState): PatternId {
+  return state.job ? BRIEFS[state.job.kind].pattern : 'campKnife'
 }
 
 /** What it costs to start a blade of this pattern: the bar, fuel, belts and oil. */
@@ -157,6 +162,17 @@ export function fundBlade(state: CareerState, id: PatternId): number {
     days++
   }
   return days
+}
+
+/**
+ * Hand an unworked bar back and take the stock for another pattern instead.
+ * The first bar's price comes back; the new one is bought as any bar is.
+ * Returns the days of odd jobs it took.
+ */
+export function swapBlade(state: CareerState, from: PatternId, to: PatternId): number {
+  state.money += bladeCost(from)
+  state.bars--
+  return fundBlade(state, to)
 }
 
 /** A day of sharpening and repairs for the harbour: the rest of today goes, and a little money comes in. */
@@ -190,18 +206,21 @@ export function drop(state: CareerState): boolean {
   return true
 }
 
-/** What a brief still wants that the report does not show: a test not passed, or a finish that is not fine. */
+/** What a brief still wants that the blade does not show: the right pattern, a test not passed, or a finish that is not fine. */
 export interface Unmet {
+  /** True when the blade is not the pattern that was asked for. */
+  pattern: boolean
   trials: TrialId[]
   /** True when the brief wants a fine finish and did not get one. */
   finish: boolean
 }
 
-export function unmet(kind: BriefKind, report: TrialReport): Unmet {
+/** `made` is the pattern the blade was made to. */
+export function unmet(kind: BriefKind, report: TrialReport, made: PatternId): Unmet {
   const b = BRIEFS[kind]
   const trials = b.needs.filter((id) => !report.results.some((r) => r.id === id && r.passed))
   const fit = report.results.find((r) => r.id === 'fit')
-  return { trials, finish: b.fine && fit?.outcome !== 'fine' }
+  return { pattern: made !== b.pattern, trials, finish: b.fine && fit?.outcome !== 'fine' }
 }
 
 export interface Delivery {
@@ -216,16 +235,16 @@ export interface Delivery {
 }
 
 /**
- * Hand over a blade for the commission in hand, with the report its trials
- * gave. A blade that misses a must-have is not taken, and the commission
+ * Hand over a blade for the commission in hand, with the pattern it was made
+ * to and the report its trials gave. A blade that misses a must-have is not taken, and the commission
  * stays open: the smith can fix it or make another, but the due day stands.
  */
-export function deliver(state: CareerState, report: TrialReport): Delivery | null {
+export function deliver(state: CareerState, report: TrialReport, made: PatternId): Delivery | null {
   const job = state.job
   if (!job) return null
-  const miss = unmet(job.kind, report)
+  const miss = unmet(job.kind, report, made)
   const late = Math.max(0, state.day - job.due)
-  if (report.broke || miss.trials.length > 0 || miss.finish) return { taken: false, unmet: miss, late, pay: 0, tip: 0, rep: 0 }
+  if (report.broke || miss.pattern || miss.trials.length > 0 || miss.finish) return { taken: false, unmet: miss, late, pay: 0, tip: 0, rep: 0 }
   const fine = report.results.some((r) => r.id === 'fit' && r.outcome === 'fine')
   const pay = Math.round(job.pay * Math.max(MONEY.lateFloor, 1 - late * MONEY.latePerDay))
   const tip = fine ? Math.round(job.pay * MONEY.tip) : 0
@@ -282,12 +301,14 @@ export interface ProvingResult {
 /**
  * Enter a blade at the next Proving. The calendar moves on to the day, so
  * there is no waiting about; the fee is paid; the blade must pass every set
- * test. Null when the smith may not enter (see `provingBar`).
+ * test. Null when the smith may not enter (see `provingBar`), or the blade is
+ * not the set piece.
  */
-export function sitProving(state: CareerState, report: TrialReport): ProvingResult | null {
+export function sitProving(state: CareerState, report: TrialReport, made: PatternId): ProvingResult | null {
   const next = nextRating(state.rating)
   if (!next || provingBar(state)) return null
   const rule = PROVINGS[next]
+  if (made !== rule.pattern) return null
   const day = provingDay(state.day)
   while (state.day < day) nextDay(state)
   state.money -= rule.fee

@@ -39,7 +39,7 @@ function midCareer(): CareerSave {
   const career = newCareer(77)
   accept(career, (career.board[0] as { id: number }).id)
   startBlade(career, 'campKnife')
-  benchWork(career, 'forge')
+  benchWork(career, 'forge', 'campKnife')
   return { v: 1, career, bar: finished(), stages: ['forge'], saved: NOW }
 }
 
@@ -96,9 +96,9 @@ describe('career slots', () => {
     const a = midCareer().career
     const b = (parseSave(packSave({ v: 1, career: a, bar: null, stages: [], saved: NOW })) as CareerSave).career
     for (const c of [a, b]) {
-      for (let n = 0; n < 12; n++) benchWork(c, 'forge')
+      for (let n = 0; n < 12; n++) benchWork(c, 'forge', 'campKnife')
       c.board.length = 0
-      benchWork(c, 'grind')
+      benchWork(c, 'grind', 'campKnife')
     }
     expect(b).toEqual(a)
   })
@@ -183,12 +183,12 @@ describe('moving to another device', () => {
     const pass = { ...sound, results: sound.results.map((r) => ({ ...r, passed: true })) }
     const career: CareerState = newCareer(2026)
     for (let n = 0; n < 40 && career.rating !== 'journeyman'; n++) {
-      const sat = sitProving(career, pass)
+      const sat = sitProving(career, pass, 'campKnife')
       if (sat) continue
       accept(career, (career.board[0] as { id: number }).id)
       startBlade(career, 'campKnife')
-      for (const s of ['forge', 'treat', 'grind', 'finish'] as const) benchWork(career, s)
-      deliver(career, { ...pass, results: pass.results.map((r) => (r.id === 'fit' ? { ...r, outcome: 'fine' as const } : r)) })
+      for (const s of ['forge', 'treat', 'grind', 'finish'] as const) benchWork(career, s, 'campKnife')
+      deliver(career, { ...pass, results: pass.results.map((r) => (r.id === 'fit' ? { ...r, outcome: 'fine' as const } : r)) }, 'campKnife')
     }
     expect(career.rating).toBe('journeyman')
     saveSlot(1, { v: 1, career, bar, stages: ['forge', 'treat'], saved: NOW }, phone)
@@ -272,5 +272,20 @@ describe('the backup file and its reminder', () => {
     markBackup(NOW + 500 * DAY_MS, d)
     expect(backupDue(NOW, d)).toBe(false)
     expect(backupDue(NOW + REMIND_DAYS * DAY_MS, d)).toBe(true)
+  })
+})
+
+describe('the pattern of the bar on the bench', () => {
+  it('is kept with the save, and a save from before the sword still loads', () => {
+    const old = midCareer()
+    expect(old.pattern).toBeUndefined()
+    expect(parseSave(packSave(old))).not.toBeNull()
+    const sword: CareerSave = { ...old, pattern: 'shortSword' }
+    expect((parseSave(packSave(sword)) as CareerSave).pattern).toBe('shortSword')
+  })
+  it('refuses a pattern the game does not have', () => {
+    const raw = JSON.parse(packSave(midCareer())) as Record<string, unknown>
+    raw.pattern = 'spoon'
+    expect(parseSave(JSON.stringify(raw))).toBeNull()
   })
 })

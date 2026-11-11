@@ -5,6 +5,8 @@
  */
 import type { Group, Rating, StageId, ToolId } from '../data/career'
 import { BRIEFS, DAY, GROUPS, HOURS, RATINGS, REP, TOOLS } from '../data/career'
+import type { PatternId } from '../data/patterns'
+import { PATTERNS } from '../data/patterns'
 import type { Bar } from '../sim/bar'
 import type { Brief, CareerState } from '../sim/career'
 import type { Store } from './sound'
@@ -18,6 +20,8 @@ export interface CareerSave {
   career: CareerState
   /** The bar on the bench, or null. */
   bar: Bar | null
+  /** The pattern that bar is being made to. Saves from before the sword have none: a camp knife. */
+  pattern?: PatternId
   /** The stages of that bar whose bench hours have been spent. */
   stages: StageId[]
   /** When it was saved, in milliseconds since 1970. */
@@ -49,6 +53,7 @@ export function soundCareer(x: unknown): x is CareerState {
 /** True when `x` is a slot's save. */
 export function soundSave(x: unknown): x is CareerSave {
   if (!isObject(x) || x.v !== 1 || !soundCareer(x.career) || !(x.bar === null || soundBar(x.bar)) || !isNumber(x.saved)) return false
+  if (x.pattern !== undefined && !(typeof x.pattern === 'string' && x.pattern in PATTERNS)) return false
   return Array.isArray(x.stages) && x.stages.every((s) => typeof s === 'string' && s in HOURS)
 }
 
