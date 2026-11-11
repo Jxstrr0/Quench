@@ -22,6 +22,8 @@ export interface TreatHost {
   shapePercent(): number
   /** The sheets changed the bar (cooled it, tempered it): redraw it and put it back on the anvil. */
   changed(): void
+  /** Open the trial card. */
+  openTrials(): void
 }
 
 export const MAGNET_KEY: Record<MagnetWord, StringKey> = {
@@ -162,6 +164,13 @@ export function createInspectSheet(host: HTMLElement, forge: TreatHost): Sheet {
       body.append(el('p', 'sheet-note sheet-next', t('next.thinEdge', { n: CRACK.edgeSafe })))
     }
     body.append(el('p', 'sheet-note sheet-next', t(NEXT_KEY[look.next], { n: INSPECT.edgeWanted })))
+    // A blade can go to its trial at any time: that is how you find out what it still needs.
+    const trial = button('btn btn-wide', 'trial.open')
+    trial.addEventListener('click', () => {
+      sheet.close()
+      forge.openTrials()
+    })
+    body.append(trial)
   }
   const sheet = createSheet(host, 'inspect.title', fill)
   sheet.card.append(body)

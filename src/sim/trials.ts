@@ -386,7 +386,7 @@ function fitAndFinish(r: Rig, p: Pattern): TrialResult {
     length += b.length
   }
   const items: [score: number, cause: TrialCause][] = [
-    [shapeScore(r.bar, p).score, 'offShape'],
+    [clamp01((shapeScore(r.bar, p).score - FIT.shapeFloor) / (1 - FIT.shapeFloor)), 'offShape'],
     [clamp01(1 - warp / FIT.warpWorst), 'warped'],
     [1 - bevelLean(r.bar), 'lopsided'],
     [clamp01(1 - (length > 0 ? lumps / length : 0) / FIT.lumpRef), 'forgeMarks'],
@@ -401,8 +401,9 @@ function fitAndFinish(r: Rig, p: Pattern): TrialResult {
     if ((items[k] as [number, TrialCause])[0] < (items[worst] as [number, TrialCause])[0]) worst = k
   }
   const low = items[worst] as [number, TrialCause]
-  const outcome: Outcome = score >= FIT.fine ? 'fine' : score >= FIT.pass ? 'fair' : 'rough'
-  return { id: 'fit', passed: score >= FIT.pass, score, outcome, cause: low[0] < FIT.itemPass ? low[1] : null, value: null, at: null }
+  // One bad part spoils the whole: a fine blade with no handle is not finished work.
+  const outcome: Outcome = score < FIT.pass || low[0] < FIT.itemFail ? 'rough' : score < FIT.fine || low[0] < FIT.itemPass ? 'fair' : 'fine'
+  return { id: 'fit', passed: outcome !== 'rough', score, outcome, cause: low[0] < FIT.itemPass ? low[1] : null, value: null, at: null }
 }
 
 function bendInVice(r: Rig): TrialResult {

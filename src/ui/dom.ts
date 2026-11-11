@@ -24,7 +24,12 @@ export interface Sheet {
 }
 
 /** A paper card over the scene, closed by its Done button or a tap outside it. */
-export function createSheet(host: HTMLElement, title: StringKey, onOpen: () => void = () => {}): Sheet & { finish(): void } {
+export function createSheet(
+  host: HTMLElement,
+  title: StringKey,
+  onOpen: () => void = () => {},
+  onClose: () => void = () => {},
+): Sheet & { finish(): void } {
   const sheet = el('div', 'sheet')
   sheet.hidden = true
   const card = el('div', 'sheet-card')
@@ -38,7 +43,9 @@ export function createSheet(host: HTMLElement, title: StringKey, onOpen: () => v
       sheet.hidden = false
     },
     close() {
+      if (sheet.hidden) return
       sheet.hidden = true
+      onClose()
     },
     get isOpen() {
       return !sheet.hidden
