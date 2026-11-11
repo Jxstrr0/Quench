@@ -10,6 +10,7 @@ import type { Bar } from '../sim/bar'
 import { cloneBar } from '../sim/bar'
 import type { TrialReport } from '../sim/trials'
 import { isNumber, isObject, rounded, soundBar, soundTrials } from './sound'
+import { browserStore } from './store'
 
 export interface KeptBlade {
   id: string
@@ -51,7 +52,7 @@ export function packCollection(blades: readonly KeptBlade[]): string {
 
 export function loadCollection(): KeptBlade[] {
   try {
-    return parseCollection(localStorage.getItem(KEY))
+    return parseCollection(browserStore()?.getItem(KEY) ?? null)
   } catch {
     return []
   }
@@ -59,7 +60,9 @@ export function loadCollection(): KeptBlade[] {
 
 function save(blades: readonly KeptBlade[]): boolean {
   try {
-    localStorage.setItem(KEY, packCollection(blades))
+    const store = browserStore()
+    if (!store) return false
+    store.setItem(KEY, packCollection(blades))
     return true
   } catch {
     return false

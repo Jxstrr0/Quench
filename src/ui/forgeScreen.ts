@@ -19,6 +19,7 @@ import { BILLETS, BILLET_ORDER, WELD } from '../data/billets'
 import type { StageId } from '../data/career'
 import { BILLET_WORK, BRIEFS, EFFORT, FIRST_JOB, PROVINGS } from '../data/career'
 import { COACH } from '../data/coach'
+import { STUDIO_URL } from '../data/credits'
 import type { BlowType } from '../data/hammer'
 import { BLOWS, RHYTHM } from '../data/hammer'
 import type { HeatWord } from '../data/heatRamp'
@@ -62,6 +63,8 @@ import { atWeldingHeat, billetStock, builtOf, fold, isLoose, partnerSteel, sweat
 import type { FixStage } from '../sim/report'
 import type { TrialReport, TrialResult } from '../sim/trials'
 import { createBackupSheet } from './backupSheet'
+import { onCrash } from './crash'
+import { createCreditsSheet } from './creditsSheet'
 import { createCareerSheet } from './careerSheet'
 import { money, testList } from './careerWords'
 import { createCollectionSheet } from './collectionSheet'
@@ -121,6 +124,8 @@ function placementFor(tipDepth: number, blast: number, lane: number, medium: Med
 export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Graphics): void {
   const settings: Settings = loadSettings()
   const audio = createAudioEngine()
+  // If the game breaks, the fire and the grinder must not roar on under the crash card.
+  onCrash(() => audio.setEnabled(false))
   let target = pattern('campKnife')
   let steelId: SteelId = target.steel
   /** What a new bar is built from, in Free forge. A career's bars are plain. */
@@ -353,12 +358,16 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
     graphics.choose(CHOICES[(CHOICES.indexOf(graphics.choice()) + 1) % CHOICES.length] as (typeof CHOICES)[number])
     showGraphics()
   })
-  sheet.card.append(gfx, gfxNote, ...offlineParts())
+  const creditsBtn = button('btn btn-wide btn-quiet', 'credits.title')
+  sheet.card.append(gfx, gfxNote, ...offlineParts(), creditsBtn)
   sheet.finish()
+  // Made after the settings card, so it opens over it.
+  const creditsSheet = createCreditsSheet(app)
+  creditsBtn.addEventListener('click', () => creditsSheet.open())
 
   const studio = el('p', 'studio', t('credit'))
   const link = el('a', '', t('credit.studio'))
-  link.href = 'https://longlight.games/'
+  link.href = STUDIO_URL
   studio.append(link)
   const build = el('p', 'build', `v${__GAME_VERSION__} · ${__BUILD_SHA__} · ${__BUILD_DATE__}`)
 
@@ -1176,6 +1185,7 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
       }
     } else if (e.key === 'm' || e.key === 'M') useMagnet()
     else if (e.key === 'Escape') {
+      creditsSheet.close()
       sheet.close()
       temperSheet.close()
       inspectSheet.close()

@@ -1,14 +1,18 @@
 import '@fontsource/space-grotesk/latin-500.css'
+import '@fontsource/space-grotesk/latin-700.css'
 import '@fontsource/zilla-slab/latin-600.css'
 import '@fontsource/atkinson-hyperlegible/latin-400.css'
 import '@fontsource/atkinson-hyperlegible/latin-700.css'
 import './style.css'
 import { t } from './data/strings'
+import { installCrashGuard, showCrash } from './ui/crash'
 import { bindLoadingScreen } from './ui/loading'
 import { startOffline } from './ui/offline'
 import { TIER_SETTINGS, createGraphics } from './render/perf'
 
 const loading = bindLoadingScreen()
+// From here on, anything the game does not catch brings up the crash card.
+installCrashGuard()
 
 async function boot(): Promise<void> {
   const app = document.getElementById('app')
@@ -31,6 +35,7 @@ async function boot(): Promise<void> {
 }
 
 boot().catch((err: unknown) => {
-  console.error(err)
+  // The loading screen says so too, in case the card itself cannot be shown.
   loading.fail(t('boot.fail'))
+  showCrash(err, true)
 })

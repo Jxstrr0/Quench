@@ -12,6 +12,8 @@
  *
  * This file has no three.js and no DOM in its logic, so it can be tested.
  */
+import { browserStore } from '../persist/store'
+
 export type Tier = 'lite' | 'full' | 'ultra'
 export type GraphicsChoice = 'auto' | Tier
 
@@ -53,7 +55,7 @@ export function isChoice(v: unknown): v is GraphicsChoice {
 
 function read(key: string): string | null {
   try {
-    return localStorage.getItem(key)
+    return browserStore()?.getItem(key) ?? null
   } catch {
     return null
   }
@@ -61,7 +63,7 @@ function read(key: string): string | null {
 
 function write(key: string, value: string): void {
   try {
-    localStorage.setItem(key, value)
+    browserStore()?.setItem(key, value)
   } catch {
     // Storage blocked: the choice lasts for this visit only.
   }

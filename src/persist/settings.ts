@@ -4,6 +4,7 @@
  */
 import type { SoundSet } from '../data/audio'
 import { SOUND_SETS } from '../data/audio'
+import { browserStore } from './store'
 
 export interface Settings {
   heatWords: boolean
@@ -58,7 +59,7 @@ export function parseSettings(raw: string | null): Settings {
 
 export function loadSettings(): Settings {
   try {
-    return parseSettings(localStorage.getItem(KEY))
+    return parseSettings(browserStore()?.getItem(KEY) ?? null)
   } catch {
     return { ...DEFAULT_SETTINGS }
   }
@@ -66,7 +67,7 @@ export function loadSettings(): Settings {
 
 export function saveSettings(settings: Settings): void {
   try {
-    localStorage.setItem(KEY, JSON.stringify(settings))
+    browserStore()?.setItem(KEY, JSON.stringify(settings))
   } catch {
     // Nothing to do: the setting still holds until the page closes.
   }

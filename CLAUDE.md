@@ -82,6 +82,7 @@ docs/         the plan, NAMES.md, STATUS.md
 
 - localStorage keys start `quench.`; cache names start `quench-`; save code `QNC1:`.
 - Never clear or delete anything outside those prefixes. No `localStorage.clear()`.
+- Every read and write of storage goes through `browserStore()` in `src/persist/store.ts`. The crash card (`src/ui/crash.ts`) freezes it, so a broken game never saves over the last good save.
 - Offline play: `vite.config.ts` writes `sw.js` from `src/persist/offline.ts`. It stores the whole build in a cache named `quench-<build>` and clears only older `quench-` caches.
 
 ## Branding
