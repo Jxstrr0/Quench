@@ -141,9 +141,17 @@ export function benchWork(state: CareerState, stage: StageId, id: PatternId): vo
   spendHours(state, HOURS[stage] * EFFORT[id])
 }
 
-/** The pattern the smith's next bar should be for: what the commission in hand asks, or a camp knife. */
+/**
+ * The pattern the smith's next bar should be for: what the commission in hand
+ * asks; with none in hand, the next Proving's set piece once the Guild would
+ * let the smith in; otherwise a camp knife.
+ */
 export function wantedPattern(state: CareerState): PatternId {
-  return state.job ? BRIEFS[state.job.kind].pattern : 'campKnife'
+  if (state.job) return BRIEFS[state.job.kind].pattern
+  // With no commission in hand, a smith the Guild would let in makes the set piece of the next Proving.
+  const next = nextRating(state.rating)
+  if (next && state.delivered >= PROVINGS[next].delivered) return PROVINGS[next].pattern
+  return 'campKnife'
 }
 
 /** What it costs to start a blade of this pattern: the bar, fuel, belts and oil. */

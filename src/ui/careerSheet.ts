@@ -129,6 +129,13 @@ export function createCareerSheet(host: HTMLElement, forge: CareerHost): Sheet {
           ? t('career.proving.fee')
           : t('career.proving.ready')
     card.append(el('p', 'brief-terms', where))
+    // Where the stock for the set piece comes from, when it is not the plain knife bar.
+    if (bar !== 'delivered' && rule.pattern !== 'campKnife') {
+      const piece = t(`pattern.${rule.pattern}`).toLowerCase()
+      if (state.job) card.append(note(t('career.proving.stockBusy', { pattern: piece }), 'sheet-note sheet-small'))
+      else if (forge.barPattern() === rule.pattern) card.append(note(t('career.proving.stockHere', { pattern: piece }), 'sheet-note sheet-small'))
+      else card.append(note(t('career.job.wrongBar', { have: t(`pattern.${forge.barPattern()}`).toLowerCase(), want: piece }), 'sheet-note'))
+    }
     return card
   }
 

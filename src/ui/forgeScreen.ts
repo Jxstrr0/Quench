@@ -670,7 +670,10 @@ export function startForgeScreen(app: HTMLElement, view: ForgeView, graphics: Gr
     stages = []
     freshBar()
     careerChanged()
-    say(days === 0 ? t('note.newBar', { money: money(bladeCost(target.id)) }) : t(days === 1 ? 'note.oddJobOne' : 'note.oddJobs', { n: days }), 4000)
+    // With no commission in hand, stock that is not the plain knife bar is for the Proving: say so.
+    const setPiece = !career.job && target.id !== 'campKnife'
+    if (setPiece) say(t('note.setPieceBar', { pattern: t(`pattern.${target.id}`).toLowerCase(), money: money(bladeCost(target.id)) }), 6000)
+    else say(days === 0 ? t('note.newBar', { money: money(bladeCost(target.id)) }) : t(days === 1 ? 'note.oddJobOne' : 'note.oddJobs', { n: days }), 4000)
     if (thanks) say(t('coach.done'), 9000)
     thanks = false
   }
