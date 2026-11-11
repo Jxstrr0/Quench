@@ -1,22 +1,23 @@
 /**
  * The trial card: put the blade to its tests, read what happened to it and
- * why, and see its heats laid out with the bad moment marked.
+ * why, and see its heats laid out with the bad moment marked. A tested blade
+ * can be kept in the collection.
  */
 import type { Pattern } from '../data/patterns'
 import { t } from '../data/strings'
 import type { TrialId } from '../data/trials'
-import { WHY } from '../data/trials'
 import { BENCH } from '../data/tuning'
+import { COLLECTION_MAX } from '../persist/collection'
 import type { Bar } from '../sim/bar'
-import { heatWord } from '../sim/glow'
 import { coolToRoom } from '../sim/heat'
-import type { Explanation, Moment } from '../sim/report'
-import { explain, fractureReport } from '../sim/report'
-import type { Break, TrialReport, TrialResult } from '../sim/trials'
+import type { TrialReport, TrialResult } from '../sim/trials'
 import { runTrials } from '../sim/trials'
 import type { Sheet } from './dom'
 import { button, createSheet, el } from './dom'
-import { TRIAL_NAME, outcomeText } from './trialPlayback'
+import { TRIAL_NAME, note, reportParts } from './trialParts'
+
+/** What came of asking to keep a blade: its place in the collection, or why not. */
+export type Kept = { id: string } | 'full' | 'failed'
 
 export interface TrialHost {
   bar(): Bar
@@ -27,40 +28,8 @@ export interface TrialHost {
   newBar(): void
   /** Show these results at the trial stand, one by one, then call `done`. */
   play(results: readonly TrialResult[], done: () => void): void
-}
-
-/** One line of the timeline. */
-function momentText(m: Moment): string {
-  const many = m.count > 1
-  const a = m.first ?? 0
-  const b = a + m.count - 1
-  let text: string
-  switch (m.kind) {
-    case 'missing':
-      text = t(`missing.${m.missing ?? 'temper'}`)
-      break
-    case 'forge':
-      text = t(many ? 'moment.forge.n' : 'moment.forge', { a, b })
-      break
-    case 'normalize':
-      text = t(many ? 'moment.normalize.n' : 'moment.normalize', { a, b })
-      break
-    case 'harden':
-      text = t('moment.harden', { word: t(`heat.${heatWord(m.temp ?? 0)}`) })
-      break
-    case 'warm':
-      text = t(many ? 'moment.warm.n' : 'moment.warm', { n: m.count })
-      break
-    case 'quench':
-      text = t('moment.quench', { medium: t(`medium.${m.medium ?? 'fastOil'}`).toLowerCase() })
-      break
-    case 'temper':
-      text = t(many ? 'moment.temper.n' : 'moment.temper', { n: m.count, temp: m.temp ?? 0, minutes: m.minutes ?? 0 })
-      break
-    default:
-      text = t('moment.grind')
-  }
-  return m.note ? `${text}: ${t(`remark.${m.note}`)}` : text
+  /** Keep the blade as it is now, with this report. With `replace`, it takes the place of the blade kept under that id. */
+  keep(report: TrialReport, replace: string | null): Kept
 }
 
 export function createTrialSheet(host: HTMLElement, forge: TrialHost): Sheet {
@@ -69,47 +38,9 @@ export function createTrialSheet(host: HTMLElement, forge: TrialHost): Sheet {
   let ended = false
   /** The card is put away while the tests play. */
   let playing = false
-
-  const note = (text: string, cls = 'sheet-note') => body.append(el('p', cls, text))
-
-  const showResult = (r: TrialResult) => {
-    const box = el('div', 'trial')
-    const head = el('p', 'trial-head')
-    head.append(el('span', 'trial-name', t(TRIAL_NAME[r.id])))
-    head.append(el('span', r.passed ? 'trial-mark' : 'trial-mark trial-fail', `${r.passed ? '✓' : '✗'} ${t(r.passed ? 'trial.passed' : 'trial.failed')}`))
-    box.append(head)
-    box.append(el('p', 'trial-what', r.cause ? `${outcomeText(r)} ${t(`why.${r.cause}`)}` : outcomeText(r)))
-    body.append(box)
-  }
-
-  /** The blade's heats, oldest first, with the bad one marked. */
-  const showTimeline = (e: Explanation) => {
-    if (e.moments.length === 0) {
-      note(t('report.empty'), 'sheet-note sheet-small')
-      return
-    }
-    const list = el('ol', 'moments')
-    for (const m of e.moments) {
-      const line = el('li', m.bad ? 'moment moment-bad' : 'moment', momentText(m))
-      // The mark is a word as well as a colour.
-      if (m.bad) line.append(el('span', 'moment-tag', `✗ ${t('report.here')}`))
-      list.append(line)
-    }
-    body.append(list)
-  }
-
-  const showLesson = (e: Explanation) => {
-    note(t(`lesson.${e.lesson}`, { from: WHY.brittleFrom, to: WHY.brittleTo }), 'sheet-note sheet-next')
-  }
-
-  const showBreak = (bar: Bar, broke: Break) => {
-    const report = fractureReport(bar, broke)
-    body.append(el('h3', 'sheet-sub', t('report.title')))
-    if (broke.how === 'quench') note(t('report.quench'))
-    note(`${t('report.at', { n: Math.round(report.at) })} ${t(`grainSeen.${report.grainWord}`)}`)
-    showTimeline(report)
-    showLesson(report)
-  }
+  /** Everything this blade has been through since it was last worked on, and where it is kept, if it is. */
+  let total: TrialReport | null = null
+  let keptId: string | null = null
 
   const run = (ids?: readonly TrialId[]) => {
     const bar = forge.bar()
@@ -129,28 +60,20 @@ export function createTrialSheet(host: HTMLElement, forge: TrialHost): Sheet {
   }
 
   const tell = (bar: Bar, report: TrialReport, bendOnly: boolean) => {
-    body.replaceChildren()
-    for (const r of report.results) showResult(r)
-    if (!bendOnly && !bar.crack) {
-      note(report.passed === report.results.length ? t('trial.allPassed') : t('trial.score', { n: report.passed, of: report.results.length }), 'sheet-note sheet-result')
-    }
-
-    if (report.broke) {
-      showBreak(bar, report.broke)
+    body.replaceChildren(...reportParts(bar, report, !bendOnly && !bar.crack))
+    if (bendOnly && total) {
+      // The bend goes on the end of what the blade has already faced.
+      total = { results: [...total.results, ...report.results], passed: total.passed + report.passed, broke: report.broke ?? total.broke }
     } else {
-      // The first failure that the blade's heats can explain; failing that, the first failure.
-      const failed = report.results.filter((r) => !r.passed && r.cause && r.cause !== 'rolledInChop' && r.cause !== 'chippedInChop')
-      const told = failed.map((r) => explain(bar, r.cause ?? 'hardThroughout'))
-      const main = told.find((e) => e.bad >= 0) ?? told[0]
-      body.append(el('h3', 'sheet-sub', t(main ? 'report.title' : 'report.heats')))
-      showTimeline(main ?? explain(bar, 'hardThroughout'))
-      if (main) showLesson(main)
+      total = report
+      keptId = null
     }
 
     // A bend ends the blade whether it snaps or not; so does a snap in the chop.
     if (bendOnly || (report.broke && report.broke.how !== 'quench')) ended = true
+    addKeep(total)
     if (ended) {
-      note(t('trial.ended'), 'sheet-note sheet-small')
+      body.append(note(t('trial.ended'), 'sheet-note sheet-small'))
     } else if (!bar.crack) {
       const again = button('btn btn-wide', 'trial.again')
       again.addEventListener('click', () => run())
@@ -160,8 +83,30 @@ export function createTrialSheet(host: HTMLElement, forge: TrialHost): Sheet {
     sheet.card.scrollTop = 0
   }
 
+  const keptNote = (kept: Kept): HTMLElement => {
+    if (kept === 'full') return note(t('collection.full', { max: COLLECTION_MAX }), 'sheet-note sheet-small')
+    if (kept === 'failed') return note(t('collection.failed'), 'sheet-note sheet-small')
+    return note(t('collection.kept'), 'sheet-note sheet-small')
+  }
+
+  const addKeep = (report: TrialReport) => {
+    if (keptId) {
+      // Already kept: its card gains the test it has just had.
+      const kept = forge.keep(report, keptId)
+      body.append(typeof kept === 'string' ? keptNote(kept) : note(t('collection.updated'), 'sheet-note sheet-small'))
+      return
+    }
+    const keep = button('btn btn-wide', 'collection.keep')
+    keep.addEventListener('click', () => {
+      const kept = forge.keep(report, null)
+      if (typeof kept !== 'string') keptId = kept.id
+      keep.replaceWith(keptNote(kept))
+    })
+    body.append(keep)
+  }
+
   const addBend = () => {
-    note(t('trial.bend.note'), 'sheet-note sheet-small trial-extra')
+    body.append(note(t('trial.bend.note'), 'sheet-note sheet-small trial-extra'))
     const bend = button('btn btn-wide', 'trial.bend')
     bend.addEventListener('click', () => run(['bend']))
     body.append(bend)
@@ -169,15 +114,14 @@ export function createTrialSheet(host: HTMLElement, forge: TrialHost): Sheet {
 
   const intro = () => {
     ended = false
-    body.replaceChildren()
+    total = null
+    keptId = null
     const p = forge.pattern()
-    note(t('trial.intro', { pattern: t(`pattern.${p.id}`).toLowerCase(), n: p.trials.length }))
     const list = el('ol', 'moments')
     for (const id of p.trials) list.append(el('li', 'moment', t(TRIAL_NAME[id])))
-    body.append(list)
     const go = button('btn btn-wide', 'trial.run')
     go.addEventListener('click', () => run())
-    body.append(go)
+    body.replaceChildren(note(t('trial.intro', { pattern: t(`pattern.${p.id}`).toLowerCase(), n: p.trials.length })), list, go)
   }
 
   const sheet = createSheet(host, 'trial.title', undefined, () => {
