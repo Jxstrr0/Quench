@@ -3,3 +3,8 @@ dist/
 shots/
 *.log
 .DS_Store
+
+# Key files never go in the repo
+.env
+.env.*
+!.env.example
