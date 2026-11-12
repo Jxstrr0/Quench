@@ -29,7 +29,7 @@ the plan and over `.github/LONGLIGHT-STUDIO.md` where they disagree.
 - Hosting: GitHub Pages from Actions. Live at `https://quench.longlight.games/`
   once Kelbo sets the domain; until then `https://jxstrr0.github.io/Quench/`.
   Vite `base: './'` so the build works at both.
-- No backend, accounts, analytics, ads or API keys.
+- No backend, accounts, ads or API keys. No analytics except the cookieless Cloudflare Web Analytics beacon at the end of `index.html`, which counts visits and load speed (Kelbo, 2026-11-12).
 
 ## Folders
 
